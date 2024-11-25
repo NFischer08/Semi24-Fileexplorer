@@ -1,0 +1,6 @@
+[package]
+name = "Semi24-Fileexplorer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
