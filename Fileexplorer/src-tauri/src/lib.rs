@@ -42,7 +42,7 @@ fn list_files_and_folders(path: String) -> Result<Vec<FileEntry>, String> {
                                 None => "Unknown".to_string(),
                             }
                         };
-                        let size: u64 = metadata.len() / 1000;
+                        let size: u64 = metadata.len() / 1000; // size of the file in KB, if folder: 0
 
                         // Convert the last modified time to a readable format
                         let last_modified = format_time(modified_time);
