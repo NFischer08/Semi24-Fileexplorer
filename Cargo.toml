@@ -1,2 +1,13 @@
-[workspace]
-members = ["Fileexplorer/src-tauri"]
+[package]
+name = "Search_Algorithm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+walkdir = "2.5.0"
+strsim = "0.10.0"
+rayon = "1.10.0"  # Add this line
+
+[[bin]]
+name = "file_search"
+path = "src/file_search.rs"
