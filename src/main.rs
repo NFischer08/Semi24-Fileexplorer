@@ -4,7 +4,7 @@ use std::time::Instant;
 /// Entry point of the program
 fn main() {
     let path = "/home/magnus/"; // Replace with your target directory's path
-    let search_term = "";
+    let search_term = "Test";
 
     // Start measuring time
     let start_time = Instant::now();
