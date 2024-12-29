@@ -18,7 +18,7 @@
 }
 
 .container {
-  margin: 0;
+  margin: 1%;
   padding-top: 10vh;
   display: flex;
   flex-direction: column;
@@ -92,6 +92,55 @@ button {
   margin-right: 5px;
 }
 
+#fileTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  margin-top: 20px;
+}
+
+#fileTable th,
+#fileTable td {
+  border-right: 1px solid #ccc;
+  padding: 8px 12px;/
+}
+
+#fileTable th:last-child,
+#fileTable td:last-child {
+  border-right: none;
+}
+
+#fileTable td:last-child {
+  text-align: right;
+}
+
+#fileTable thead {
+  background-color: #0f0f0f;
+}
+
+#fileTable thead th {
+  border-bottom: 2px solid #ffffff;
+  padding-bottom: 10px;
+}
+
+#fileTable tbody tr:nth-child(even) {
+  background-color: #1f1f1f;
+}
+
+#fileTable td:nth-child(2),
+#fileTable td:nth-child(3),
+#fileTable td:nth-child(4) {
+  color: #bbbdbf;
+}
+
+td.error {
+  text-align: center; /* Horizontal zentrieren */
+  vertical-align: middle; /* Vertikal zentrieren */
+  color: red; /* Optional: rote Schriftfarbe */
+  font-weight: bold; /* Optional: kräftige Schrift */
+  height: 50%; /* Mindesthöhe der Zelle für optische Anpassung */
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f6f6f6;
@@ -111,3 +160,81 @@ button {
     background-color: #0f0f0f69;
   }
 }
+
+/*Eingabefelder -----------------------------------------------*/
+
+.inputs-container {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  /* padding-top: 10vh; /* Abstand nach oben */
+  gap: 20px
+}
+
+.search-container,
+.file-path-container {
+  position: relative;
+  display: flex; /* inline-block*/
+  align-items: center;
+  width: 100%; /* Optional: Breite des Suchbereichs */
+  max-width: 400px; /* Optional: maximale Breite der Suchbox */
+}
+
+.search-input,
+.file-path-input {
+  width: 100%;
+  padding: 10px 40px 10px 12px; /* Abstand für das Lupensymbol berücksichtigen */
+  border: 1px solid #ccc; /* Leichter Rand */
+  border-radius: 20px; /* Runde Ecken */
+  font-size: 16px;
+  box-sizing: border-box; /* Verhindert Layout-Verschiebungen */
+  outline: none;
+}
+
+.search-button,
+.file-path-button {
+  position: absolute;
+  right: 10px; /* Abstand vom rechten Rand */
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: transparent; /* Transparenter Hintergrund */
+  border: none; /* Keine Randlinien */
+  cursor: pointer;
+  font-size: 18px; /* Größe des Icons */
+  padding: 5px; /* Leichter Innenabstand */
+  color: #555; /* Farbe des Icons */
+}
+
+.search-button:hover
+.file-path-button:hover {
+  color: #ffffff;
+}
+
+.file-path-container,
+.search-container {
+  flex: 1; /* Beide Elemente nehmen denselben Platz ein */
+  max-width: 45%;
+  margin-right: 2%;
+}
+
+.search-container {
+  margin-right: 0;
+  margin-left: auto
+}
+
+@media (max-width: 700px) {
+  .container {
+    flex-direction: column; /* Items untereinander anordnen */
+    align-items: stretch; /* Items füllen die volle Breite */
+  }
+
+  .file-path-container,
+  .search-container {
+    max-width: 100%; /* Volle Breite für Mobile */
+    margin-right: 0; /* Kein Seitenabstand */
+    margin-bottom: 10px; /* Abstand zwischen den Containern für Mobile */
+  }
+}
+

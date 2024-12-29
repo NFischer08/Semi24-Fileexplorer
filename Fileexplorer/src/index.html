@@ -9,52 +9,37 @@
 </head>
 
 <body>
-<!--
 <main class="container">
-  <h1>Welcome to Tauri</h1>
 
-  <div class="row">
-    <a href="https://tauri.app" target="_blank">
-      <img src="assets/tauri.svg" class="logo tauri" alt="Tauri logo" />
-    </a>
-    <a
-      href="https://developer.mozilla.org/en-US/docs/Web/JavaScript"
-      target="_blank"
-    >
-      <img
-        src="assets/javascript.svg"
-        class="logo vanilla"
-        alt="JavaScript logo"
-      />
-    </a>
+  <div class="file-path-container">
+    <input type="text" id="file-path" class="file-path-input" value="C:\" placeholder="Enter a file path...">
+    <button type="button" id="file-path-selector" class="file-path-button">Go To</button>
   </div>
-  <p>Click on the Tauri logo to learn more about the framework</p>
 
-  <form class="row" id="greet-form">
-    <input id="greet-input" placeholder="Enter a name..." />
-    <button type="submit">Greet</button>
-  </form>
-  <p id="greet-msg"></p>
-</main> -->
+  <div class="search-container">
+    <input type="text" id="file-name" class="search-input" placeholder="Search...">
+    <button type="button" id="search-button" class="search-button">🔍</button>
+  </div>
 
-<main class="container">
-  <form class="row" id="file-form">
+  <!--<form class="row" id="file-form">
     <input type="text" id="file-path" placeholder="Enter a file path..." value="C:\" />
     <input type="text" id="file-name" placeholder="Search ..." />
     <button type="submit" id="search-button">Search</button>
     <button type="submit" id="file-path-selector">Show Files</button>
-  </form>
+  </form>-->
+
   <table id="fileTable">
     <thead>
     <tr>
       <th>Filename</th>
       <th>Last Modified</th>
       <th>File Type</th>
-      <th>Size</th>
+      <th>Size in KB</th>
     </tr>
     </thead>
     <tbody id="fileList"></tbody>
   </table>
+
 </main>
 </body>
 </html>
