@@ -1,63 +1,120 @@
-use walkdir::WalkDir;
+use rayon::prelude::*;
+use std::{
+    sync::mpsc::{channel},
+    thread,
+    time::Instant,
+};
 use strsim::normalized_levenshtein;
-use std::time::Instant;
+use walkdir::WalkDir;
 
 /// Entry point of the program
 fn main() {
-    let path = "/home/magnus/"; // Replace with your target directory's path
-    let search_term = "Test";   // Term to compare file names against
+    let similarity_threshold = 0.8;
+    let path = "/"; // Replace with your target directory's path
+    let search_term = "Test"; // The term to compare file names against
 
-    // Measure execution time
+    // Start measuring execution time
     let start_time = Instant::now();
 
-    // Call the walk function to find matches based on similarity
-    let (matches, total_entries) = walk(path, search_term);
+    // Exact matches search
+    println!("Starting search for exact matches...");
+    let exact_start_time = Instant::now();
+    let (total_entries_exact, entries) = find_exact_matches_parallel_and_collect(path, search_term);
+    let elapsed_time_after_exact = exact_start_time.elapsed();
 
-    let elapsed_time = start_time.elapsed();
+    println!(
+        "Time taken to find all exact matches: {:.2?}",
+        elapsed_time_after_exact
+    );
 
-    // Display results
-    if matches.is_empty() {
-        println!("No match found for '{}'", search_term);
-    } else {
-        println!("Found the following matches:");
-        for m in matches {
-            println!("{}", m);
-        }
-    }
+    // Similar matches search (if exact matches were found or regardless of matches)
+    println!("\nStarting search for similar matches...");
+    let total_entries_similar = find_similar_matches_parallel_from_vec(
+        entries,
+        search_term,
+        similarity_threshold,
+    );
 
-    // Print statistics
-    println!("Total files and directories searched: {}", total_entries);
-    println!("Time taken: {:.2?}", elapsed_time);
+    // Final statistics
+    let total_elapsed_time = start_time.elapsed();
+
+    println!(
+        "\nTotal files and directories searched: {}",
+        total_entries_exact + total_entries_similar
+    );
+    println!("Total time taken: {:.2?}", total_elapsed_time);
 }
 
-/// Walks through all the files and directories in a given path,
-/// comparing file names based on the Levenshtein distance threshold.
+/// Finds exact matches for the search term while building a Vec of entries for further processing.
 ///
-/// Returns a tuple of matching file paths and the total number of entries visited.
-fn walk(path: &str, search_term: &str) -> (Vec<String>, u32) {
-    let mut matches = Vec::new();
-    let mut count = 0; // Total entries processed
-    let similarity_threshold = 0.8; // Define similarity threshold (0.0 to 1.0)
+/// Returns a tuple containing the total entries checked during the exact search and the Vec of entries.
+fn find_exact_matches_parallel_and_collect(
+    path: &str,
+    search_term: &str,
+) -> (u32, Vec<walkdir::DirEntry>) {
+    let start_time = Instant::now(); // Start measuring time
+    let mut count = 0; // Counter for the total entries checked
+    let mut collected_entries = Vec::new(); // Vector to hold all entries for later use
 
-    for entry in WalkDir::new(path) {
-        match entry {
-            Ok(entry) => {
-                count += 1; // Increment the total number of visited entries
+    // Walk through the filesystem using WalkDir
+    for entry in WalkDir::new(path).into_iter().filter_map(|entry| entry.ok()) {
+        count += 1; // Increment the counter for every entry processed
 
-                // Only process file names
-                let file_name = entry.file_name().to_string_lossy();
+        // Save the entry into the vector for later use
+        collected_entries.push(entry.clone());
 
-                // Compute Levenshtein similarity between file name and search term
-                let similarity = normalized_levenshtein(&file_name, search_term);
+        let file_name = entry.file_name().to_string_lossy();
 
-                // If similarity is above the threshold, add the path to results
-                if similarity >= similarity_threshold {
-                    matches.push(entry.path().to_string_lossy().into_owned());
-                }
-            }
-            Err(e) => println!("Error traversing directory: {}", e),
+        // Check for exact match
+        if file_name == search_term {
+            let full_path = entry.path().to_string_lossy().into_owned();
+            println!("Found exact match: {}", full_path);
+
+            // Print the elapsed time since the start of the function
+            let elapsed_time = start_time.elapsed();
+            println!("Time elapsed: {:.2?}", elapsed_time);
         }
     }
 
-    (matches, count) // Return matching paths and total count
+    (count, collected_entries) // Return the total count and the collected entries
+}
+
+/// Finds similar matches for the search term based on Levenshtein distance (using the prebuilt Vec).
+///
+/// Returns the number of files processed for similarity.
+fn find_similar_matches_parallel_from_vec(
+    entries: Vec<walkdir::DirEntry>,
+    search_term: &str,
+    similarity_threshold: f64,
+) -> u32 {
+    let (tx, rx) = channel();
+
+    // Spawn a thread to receive and print results as they are found
+    let printer = thread::spawn(move || {
+        for message in rx {
+            println!("Found similar match: {}", message);
+        }
+    });
+
+    let count = entries.len() as u32; // Total number of entries processed
+
+    // Clone `tx` so it can be moved into the Rayon closure while keeping the original
+    let tx_clone = tx.clone();
+    entries.into_par_iter().for_each_with(tx_clone, |tx, entry| {
+        let file_name = entry.file_name().to_string_lossy();
+
+        // Check for similarity
+        let similarity = normalized_levenshtein(&file_name, search_term);
+        if similarity >= similarity_threshold {
+            let full_path = entry.path().to_string_lossy().into_owned();
+            tx.send(full_path).unwrap(); // Send the result to the printer thread
+        }
+    });
+
+    // Drop the sender here to signal the printer thread that no more data is coming
+    drop(tx);
+
+    printer.join().unwrap(); // Wait for the printer thread to finish
+
+    count
 }
