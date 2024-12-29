@@ -6,6 +6,7 @@ version = 4
 name = "Search_Algorithm"
 version = "0.1.0"
 dependencies = [
+ "strsim",
  "walkdir",
 ]
 
@@ -17,6 +18,12 @@ checksum = "93fc1dc3aaa9bfed95e02e6eadabb4baf7e3078b0bd1b4d7b6b0b68378900502"
 dependencies = [
  "winapi-util",
 ]
+
+[[package]]
+name = "strsim"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "walkdir"
