@@ -9,7 +9,7 @@ let resultText;
   fileListElement.innerHTML = ''; // Clear previous results
 
   try {
-    const entries = await invoke('list_files_and_folders', { path: filepath });
+    const entries = await invoke('format_file_data', { path: filepath });
     entries.forEach(entry => {
       const row = document.createElement('tr');
       const filenameCell = document.createElement('td');
@@ -21,12 +21,6 @@ let resultText;
       lastModifiedCell.textContent = entry.last_modified; // Display last modified date
       fileTypeCell.textContent = entry.file_type; // Display file type
       fileSizeCell.textContent = entry.size
-      //following checks if directory, if yes then no size is displayed
-      //if (entry.file_type === 'Directory') {
-        //fileSizeCell.textContent = ''; // Set as empty for directories
-      //} else {
-        //fileSizeCell.textContent = entry.size + " kb"; // Set size for files
-      //}
 
       row.appendChild(filenameCell);
       row.appendChild(lastModifiedCell);
