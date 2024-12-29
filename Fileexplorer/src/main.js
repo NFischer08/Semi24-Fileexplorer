@@ -20,7 +20,7 @@ document.getElementById('file-path-selector').addEventListener('click', async ()
       filenameCell.textContent = entry.name; // Display the filename
       lastModifiedCell.textContent = entry.last_modified; // Display last modified date
       fileTypeCell.textContent = entry.file_type; // Display file type
-      fileSizeCell.textContent = entry.size + "kb"
+      fileSizeCell.textContent = entry.size + " kb"
 
       row.appendChild(filenameCell);
       row.appendChild(lastModifiedCell);
