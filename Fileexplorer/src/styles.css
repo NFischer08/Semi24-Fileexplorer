@@ -139,6 +139,22 @@ td.error {
   color: red; /* Optional: rote Schriftfarbe */
   font-weight: bold; /* Optional: kräftige Schrift */
   height: 50%; /* Mindesthöhe der Zelle für optische Anpassung */
+} /* Alte Fehlermeldung */
+
+.hidden {
+  display: none; /* Fehlerzone ist nicht sichtbar */
+}
+
+/* Fehlermeldung anzeigen */
+#error-message {
+  margin-top: 10px; /* Abstand zur Tabelle */
+  padding: 10px; /* Innenabstand für besseren Look */
+  background-color: #f8d7da; /* Hellroter Hintergrund für Fehlermeldungen */
+  color: #721c24; /* Dunkelrote Schriftfarbe */
+  border: 1px solid #ff001b; /* Passende Rahmenfarbe */
+  border-radius: 5px; /* Runde Ecken */
+  font-size: 16px; /* Lesbare Schriftgröße */
+  text-align: left; /* Text zentrieren */
 }
 
 @media (prefers-color-scheme: dark) {

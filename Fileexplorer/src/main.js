@@ -42,7 +42,9 @@ let resultText;
 async function loadFilesAndFolders() {
   const filepath = document.getElementById('file-path').value; // Aktuellen Pfad auslesen
   const fileListElement = document.getElementById('fileList');
+  const errorMessageElement = document.getElementById('error-message');
   fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
+  errorMessageElement.classList.add('hidden');
 
   try {
     // Dateien und Ordner abrufen
@@ -56,10 +58,10 @@ async function loadFilesAndFolders() {
       const fileTypeCell = document.createElement('td');
       const fileSizeCell = document.createElement('td');
 
-      filenameCell.textContent = entry.name; // Dateiname anzeigen
-      lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung anzeigen
-      fileTypeCell.textContent = entry.file_type; // Dateityp anzeigen
-      fileSizeCell.textContent = entry.size;
+      filenameCell.textContent = entry.name; // Dateiname
+      lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
+      fileTypeCell.textContent = entry.file_type; // Dateityp
+      fileSizeCell.textContent = entry.size; //Größe
 
       row.appendChild(filenameCell);
       row.appendChild(lastModifiedCell);
@@ -67,7 +69,15 @@ async function loadFilesAndFolders() {
       row.appendChild(fileSizeCell);
       fileListElement.appendChild(row);
     });
+
   } catch (error) {
+    console.error('Error:', error);
+
+    // Fehlermeldung unter der Tabelle anzeigen
+    errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
+    errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
+  }
+  /*} catch (error) {
     console.error('Error:', error);
     const row = document.createElement('tr');
     const errorCell = document.createElement('td');
@@ -76,7 +86,7 @@ async function loadFilesAndFolders() {
     errorCell.classList.add('error'); // Fehlerklasse hinzufügen
     row.appendChild(errorCell);
     fileListElement.appendChild(row);
-  }
+  } */
 }
 
 

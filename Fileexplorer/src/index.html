@@ -21,24 +21,19 @@
     <button type="button" id="search-button" class="search-button">🔍</button>
   </div>
 
-  <!--<form class="row" id="file-form">
-    <input type="text" id="file-path" placeholder="Enter a file path..." value="C:\" />
-    <input type="text" id="file-name" placeholder="Search ..." />
-    <button type="submit" id="search-button">Search</button>
-    <button type="submit" id="file-path-selector">Show Files</button>
-  </form>-->
-
   <table id="fileTable">
     <thead>
     <tr>
       <th>Filename</th>
       <th>Last Modified</th>
       <th>File Type</th>
-      <th>Size in KB</th>
+      <th>Size</th>
     </tr>
     </thead>
     <tbody id="fileList"></tbody>
   </table>
+
+  <div id="error-message" class="hidden"></div>
 
 </main>
 </body>
