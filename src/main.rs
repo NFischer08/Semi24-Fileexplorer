@@ -7,57 +7,99 @@ fn main() {
     let path = "/home/magnus/"; // Replace with your target directory's path
     let search_term = "Test";   // Term to compare file names against
 
-    // Measure execution time
+    // Start measuring execution time
     let start_time = Instant::now();
 
-    // Call the walk function to find matches based on similarity
-    let (matches, total_entries) = walk(path, search_term);
+    // First, check for exact matches
+    let (exact_matches, total_entries_exact, elapsed_time_after_exact) =
+        find_exact_matches(path, search_term);
 
-    let elapsed_time = start_time.elapsed();
+    // Then, check for similar matches
+    let (similar_matches, total_entries_similar) =
+        find_similar_matches(path, search_term, 0.8);
 
-    // Display results
-    if matches.is_empty() {
-        println!("No match found for '{}'", search_term);
+    let total_elapsed_time = start_time.elapsed();
+
+    // Display exact matches
+    if exact_matches.is_empty() {
+        println!("No exact match found for '{}'", search_term);
     } else {
-        println!("Found the following matches:");
-        for m in matches {
+        println!("Found exact matches:");
+        for m in exact_matches {
+            println!("{}", m);
+        }
+        // Print the time after finding all exact matches
+        println!(
+            "Time taken to find all exact matches: {:.2?}",
+            elapsed_time_after_exact
+        );
+    }
+
+    // Display similar matches
+    if !similar_matches.is_empty() {
+        println!("\nFound similar matches (based on Levenshtein distance):");
+        for m in similar_matches {
             println!("{}", m);
         }
     }
 
     // Print statistics
-    println!("Total files and directories searched: {}", total_entries);
-    println!("Time taken: {:.2?}", elapsed_time);
+    println!("\nTotal files and directories searched: {}", total_entries_exact + total_entries_similar);
+    println!("Total time taken: {:.2?}", total_elapsed_time);
 }
 
-/// Walks through all the files and directories in a given path,
-/// comparing file names based on the Levenshtein distance threshold.
+/// Finds exact matches for the search term in the given directory.
 ///
-/// Returns a tuple of matching file paths and the total number of entries visited.
-fn walk(path: &str, search_term: &str) -> (Vec<String>, u32) {
-    let mut matches = Vec::new();
+/// Returns a tuple of the exact matching file paths,
+/// the total entries checked, and the elapsed time.
+fn find_exact_matches(path: &str, search_term: &str) -> (Vec<String>, u32, std::time::Duration) {
+    let mut exact_matches = Vec::new();
     let mut count = 0; // Total entries processed
-    let similarity_threshold = 0.8; // Define similarity threshold (0.0 to 1.0)
+    let start_time = Instant::now();
 
     for entry in WalkDir::new(path) {
         match entry {
             Ok(entry) => {
                 count += 1; // Increment the total number of visited entries
-
-                // Only process file names
                 let file_name = entry.file_name().to_string_lossy();
 
-                // Compute Levenshtein similarity between file name and search term
-                let similarity = normalized_levenshtein(&file_name, search_term);
-
-                // If similarity is above the threshold, add the path to results
-                if similarity >= similarity_threshold {
-                    matches.push(entry.path().to_string_lossy().into_owned());
+                // Check for exact match
+                if file_name == search_term {
+                    exact_matches.push(entry.path().to_string_lossy().into_owned());
                 }
             }
             Err(e) => println!("Error traversing directory: {}", e),
         }
     }
 
-    (matches, count) // Return matching paths and total count
+    // Get elapsed time for finding all exact matches
+    let elapsed_time = start_time.elapsed();
+
+    (exact_matches, count, elapsed_time)
+}
+
+/// Finds similar matches for the search term based on Levenshtein distance.
+///
+/// Returns a tuple of the similar matching file paths and the total entries checked.
+fn find_similar_matches(path: &str, search_term: &str, similarity_threshold: f64) -> (Vec<String>, u32) {
+    let mut similar_matches = Vec::new();
+    let mut count = 0; // Total entries processed
+
+    for entry in WalkDir::new(path) {
+        match entry {
+            Ok(entry) => {
+                count += 1; // Increment the total number of visited entries
+                let file_name = entry.file_name().to_string_lossy();
+
+                // Check for similarity
+                let similarity = normalized_levenshtein(&file_name, search_term);
+                if similarity >= similarity_threshold {
+                    similar_matches.push(entry.path().to_string_lossy().into_owned());
+                }
+            }
+            Err(e) => println!("Error traversing directory: {}", e),
+        }
+    }
+
+    (similar_matches, count)
 }
