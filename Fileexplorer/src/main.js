@@ -9,7 +9,7 @@ document.getElementById('file-path-selector').addEventListener('click', async ()
   fileListElement.innerHTML = ''; // Clear previous results
 
   try {
-    const entries = await invoke('list_files_and_folders', { path: filepath });
+    const entries = await invoke('format_file_data', { path: filepath });
     entries.forEach(entry => {
       const row = document.createElement('tr');
       const filenameCell = document.createElement('td');
@@ -20,7 +20,7 @@ document.getElementById('file-path-selector').addEventListener('click', async ()
       filenameCell.textContent = entry.name; // Display the filename
       lastModifiedCell.textContent = entry.last_modified; // Display last modified date
       fileTypeCell.textContent = entry.file_type; // Display file type
-      fileSizeCell.textContent = entry.size + "kb"
+      fileSizeCell.textContent = entry.size
 
       row.appendChild(filenameCell);
       row.appendChild(lastModifiedCell);
