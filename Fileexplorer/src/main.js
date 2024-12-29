@@ -46,7 +46,7 @@ async function loadFilesAndFolders() {
 
   try {
     // Dateien und Ordner abrufen
-    const entries = await invoke('list_files_and_folders', { path: filepath });
+    const entries = await invoke('format_file_data', { path: filepath });
 
     // Ergebnisse durchlaufen und in die Tabelle einfügen
     entries.forEach(entry => {
@@ -81,11 +81,11 @@ async function loadFilesAndFolders() {
 
 
 document.getElementById('file-path-selector').addEventListener('click', async () => {
-  await loadFilesAndFolders(); // Logik aufrufen
+  await loadFilesAndFolders();
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-  await loadFilesAndFolders(); // Aufruf der Logik
+  await loadFilesAndFolders();
 });
 
 
