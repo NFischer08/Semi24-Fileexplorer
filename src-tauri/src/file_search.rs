@@ -1,9 +1,4 @@
-use std::{
-    sync::mpsc::{channel},
-    sync::{Arc, Mutex},
-    thread,
-    time::Instant,
-};
+use std::{fs::File, io::Write, sync::mpsc::channel, sync::{Arc, Mutex}, thread, time::Instant};
 use strsim::normalized_levenshtein;
 use walkdir::WalkDir;
 
@@ -113,6 +108,14 @@ fn main() {
         total_entries_exact + total_entries_similar
     );
     println!("Total time taken: {:.2?}", total_elapsed_time);
+
+    // Write the total time and file count to "time.txt"
+    let mut file = File::create("time.txt").expect("Unable to create time.txt");
+    writeln!(file, "Total files and directories searched: {}", total_entries_exact + total_entries_similar)
+        .expect("Failed to write to time.txt");
+    writeln!(file, "Total time taken: {:.2?}", total_elapsed_time)
+        .expect("Failed to write to time.txt");
+
     println!("Finished!");
 }
 
