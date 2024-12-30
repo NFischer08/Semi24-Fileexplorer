@@ -11,22 +11,32 @@
 <body>
 <main class="container">
 
-  <div class="file-path-container">
-    <input type="text" id="file-path" class="file-path-input" value="C:\" placeholder="Enter a file path...">
-    <button type="button" id="file-path-selector" class="file-path-button">Go To</button>
-  </div>
+  <div class="row">
+    <div class="file-path-container">
+      <label for="file-path"></label><input type="text" id="file-path" class="file-path-input" value="C:\" placeholder="Enter a file path...">
+      <button type="button" id="file-path-selector" class="file-path-button">Go To</button>
+    </div>
 
-  <div class="search-container">
-    <input type="text" id="file-name" class="search-input" placeholder="Search...">
-    <button type="button" id="search-button" class="search-button">🔍</button>
-  </div>
+    <div class="search-container">
+      <label for="file-name"></label><input type="text" id="file-name" class="search-input" placeholder="Search...">
+      <button type="button" id="search-button" class="search-button">🔍</button>
+      <button type="button" id="settings-button" class="settings-button">⚙️</button>
+    </div>
 
-  <!--<form class="row" id="file-form">
-    <input type="text" id="file-path" placeholder="Enter a file path..." value="C:\" />
-    <input type="text" id="file-name" placeholder="Search ..." />
-    <button type="submit" id="search-button">Search</button>
-    <button type="submit" id="file-path-selector">Show Files</button>
-  </form>-->
+    <!-- Dialog/MODAL-Fenster -->
+    <div id="settings-modal" class="modal hidden">
+      <div class="modal-content">
+        <span id="close-modal" class="close-button">&times;</span>
+        <h3>Stettings</h3>
+        <form id="settings-form">
+          <label><input type="checkbox" id="setting1"> Setting 1</label><br>
+          <label><input type="checkbox" id="setting2"> Setting 2</label><br>
+          <label><input type="checkbox" id="setting3"> Setting 3</label><br>
+        </form>
+      </div>
+    </div>
+
+  </div>
 
   <table id="fileTable">
     <thead>
@@ -34,11 +44,13 @@
       <th>Filename</th>
       <th>Last Modified</th>
       <th>File Type</th>
-      <th>Size in KB</th>
+      <th>Size</th>
     </tr>
     </thead>
     <tbody id="fileList"></tbody>
   </table>
+
+  <div id="error-message" class="hidden"></div>
 
 </main>
 </body>

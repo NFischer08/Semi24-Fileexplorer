@@ -87,10 +87,11 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
 fn format_time(time: SystemTime) -> DateTime<Local> { // String
     // Convert SystemTime to DateTime<Local>
     time.duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| Local.timestamp(d.as_secs() as i64, d.subsec_nanos()))
-        .unwrap_or_else(|_| Local::now()) // Fallback to current time if there's an error
-
-    //datetime.format("%d.%m.%Y %H:%M Uhr").to_string()
+        .map(|d| Local.timestamp_opt(d.as_secs() as i64, d.subsec_nanos())
+            .single()
+            .unwrap_or_else(Local::now)
+            )        // Fallback to current time if there's an error
+        .unwrap()
 }
 
 #[command]
@@ -102,12 +103,14 @@ fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
             let mut formatted_files: Vec<FileDataFormatted> = Vec::new();
 
             for file in files {
-                let file_type: String = match file.file_type {
-                    FileType::Directory => "Directory".to_string(),
-                    FileType::File(extension) => extension,
-                    FileType::None => "File".to_string()
+                let (file_type, is_dir) = match file.file_type {
+                    FileType::Directory => {
+                        ("Directory".to_string(), true)
+                    },
+                    FileType::File(extension) => (extension, false),
+                    FileType::None => ("File".to_string(), false)
                 };
-                let size: String = if file_type == "Directory" {
+                let size: String = if is_dir {
                     "".to_string()
                 }
                 else {
