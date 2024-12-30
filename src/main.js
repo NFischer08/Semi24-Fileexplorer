@@ -119,3 +119,60 @@ window.addEventListener("DOMContentLoaded", () => {
     list_files_in_directory();
   });
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+  loadPinnedDirectories();
+
+  document.getElementById('add-pinned').addEventListener('click', () => {
+    const dir = prompt('Enter directory path to pin:');
+    if (dir) {
+      addPinnedDirectory(dir);
+    }
+  });
+});
+
+function loadPinnedDirectories() {
+  const pinnedList = document.getElementById('pinned-list');
+  const directories = JSON.parse(localStorage.getItem('pinnedDirectories')) || [];
+
+  pinnedList.innerHTML = ''; // Leere Listeneinträge löschen
+  directories.forEach((dir, index) => {
+    const li = document.createElement('li');
+    li.textContent = dir;
+
+    const removeButton = document.createElement('button');
+    removeButton.textContent = '✖';
+    removeButton.style.marginLeft = '10px';
+    removeButton.style.background = 'none';
+    removeButton.style.color = '#fff';
+    removeButton.style.border = 'none';
+    removeButton.style.cursor = 'pointer';
+
+    removeButton.addEventListener('click', () => {
+      removePinnedDirectory(index);
+    });
+
+    li.appendChild(removeButton);
+    pinnedList.appendChild(li);
+
+    // Direkter Jump bei Klick
+    li.addEventListener('click', () => {
+      document.getElementById('file-path').value = dir;
+      loadFilesAndFolders();
+    });
+  });
+}
+
+function addPinnedDirectory(dir) {
+  const directories = JSON.parse(localStorage.getItem('pinnedDirectories')) || [];
+  directories.push(dir);
+  localStorage.setItem('pinnedDirectories', JSON.stringify(directories));
+  loadPinnedDirectories();
+}
+
+function removePinnedDirectory(index) {
+  const directories = JSON.parse(localStorage.getItem('pinnedDirectories')) || [];
+  directories.splice(index, 1);
+  localStorage.setItem('pinnedDirectories', JSON.stringify(directories));
+  loadPinnedDirectories();
+}

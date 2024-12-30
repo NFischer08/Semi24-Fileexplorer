@@ -2,3 +2,4 @@
 members = [
     "src-tauri"
 ]
+resolver = "2"

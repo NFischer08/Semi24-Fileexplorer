@@ -147,7 +147,7 @@ fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
     }
 }
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
+#[cfg_attr(feature = "mobile", tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())

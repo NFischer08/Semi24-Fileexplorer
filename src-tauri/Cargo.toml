@@ -1,7 +1,7 @@
 [package]
 name = "file_explorer"
 version = "0.1.0"
-description = "A Tauri App"
+description = "File Explorer with a fast searching algorithm"
 authors = ["you"]
 edition = "2021"
 build = "src/build.rs"
@@ -30,7 +30,5 @@ rayon = "1.10.0"  # Add this line
 tauri-build = { version = "2", features = [] }
 embed-manifest = "1"
 
-
-
-
-
+[features]
+mobile = []
