@@ -147,6 +147,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![format_file_data])
-        .run(tauri::generate_context!("/home/magnus/RustroverProjects/Semi24-Fileexplorer/Fileexplorer/src-tauri/tauri.conf.json"))
+        .run(tauri::generate_context!("tauri.conf.json"))
         .expect("error while running tauri application");
 }
