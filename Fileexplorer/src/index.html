@@ -13,14 +13,29 @@
 
   <div class="row">
     <div class="file-path-container">
-      <input type="text" id="file-path" class="file-path-input" value="C:\" placeholder="Enter a file path...">
+      <label for="file-path"></label><input type="text" id="file-path" class="file-path-input" value="C:\" placeholder="Enter a file path...">
       <button type="button" id="file-path-selector" class="file-path-button">Go To</button>
     </div>
 
     <div class="search-container">
-      <input type="text" id="file-name" class="search-input" placeholder="Search...">
+      <label for="file-name"></label><input type="text" id="file-name" class="search-input" placeholder="Search...">
       <button type="button" id="search-button" class="search-button">🔍</button>
+      <button type="button" id="settings-button" class="settings-button">⚙️</button>
     </div>
+
+    <!-- Dialog/MODAL-Fenster -->
+    <div id="settings-modal" class="modal hidden">
+      <div class="modal-content">
+        <span id="close-modal" class="close-button">&times;</span>
+        <h3>Stettings</h3>
+        <form id="settings-form">
+          <label><input type="checkbox" id="setting1"> Setting 1</label><br>
+          <label><input type="checkbox" id="setting2"> Setting 2</label><br>
+          <label><input type="checkbox" id="setting3"> Setting 3</label><br>
+        </form>
+      </div>
+    </div>
+
   </div>
 
   <table id="fileTable">

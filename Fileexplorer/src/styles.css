@@ -220,5 +220,73 @@ td.error {
     margin-right: 0; /* Kein Seitenabstand */
     margin-bottom: 10px; /* Abstand zwischen den Containern für Mobile */
   }
+
+  .row {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1px; /* Abstand zwischen den Spalten */
+  }
 }
 
+/*Einstellungen ---------------------------------*/
+.settings-button {
+  position: absolute;
+  right: 45px; /* Abstand vom rechten Rand */
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  padding: 5px;
+  color: #555;
+}
+
+.settings-button:hover {
+  color: #ffffff;
+}
+.search-container {
+  position: relative;
+  display: flex; /* Flexbox zur Ausrichtung von Suchfeld und Buttons */
+  align-items: center; /* Vertikale Zentrierung der Inhalte */
+}
+/* Modal-Stil */
+.modal {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5); /* Transparenter schwarzer Hintergrund */
+  z-index: 9999;
+}
+
+.modal.hidden {
+  display: none; /* Verstecke das Modal */
+}
+
+.modal-content {
+  background-color: #1f1f1f;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: left;
+  max-width: 300px;
+  width: 80%;
+}
+
+.close-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.close-button:hover {
+  color: red;
+}
