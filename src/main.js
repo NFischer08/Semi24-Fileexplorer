@@ -111,6 +111,54 @@ window.addEventListener('click', (event) => {
     settingsModal.classList.add('hidden');
   }
 });
+/*
+const contextMenu = document.getElementById('context-menu');
+let selectedFile = null;
+
+document.getElementById('fileTable').addEventListener('contextmenu', (event) => {
+  event.preventDefault();
+  const target = event.target.closest('tr');
+  if (target) {
+    selectedFile = target.dataset.file; // Assuming you set data-file attribute on each row
+    contextMenu.style.display = 'block';
+    contextMenu.style.left = `${event.pageX}px`;
+    contextMenu.style.top = `${event.pageY}px`;
+  }
+});
+
+document.addEventListener('click', () => {
+  contextMenu.style.display = 'none';
+});
+
+document.getElementById('context-delete').addEventListener('click', () => {
+  if (selectedFile) {
+    // Call Rust function to delete the file
+    //window.__TAURI__.invoke('delete_file', { filePath: selectedFile });
+    document.getElementById('file-path').value = "DELETE";
+  }
+  contextMenu.style.display = 'none';
+});
+
+document.getElementById('context-copy').addEventListener('click', () => {
+    if (selectedFile) {
+      // Call Rust function to copy the file
+      //window.__TAURI__.invoke('copy_file', { filePath: selectedFile });
+      document.getElementById('file-path').value = "Nice";
+    }
+    contextMenu.style.display = 'none';
+  });
+
+  document.getElementById('context-rename').addEventListener('click', () => {
+    if (selectedFile) {
+      const newName = prompt("Enter new name for the file:", selectedFile);
+      if (newName) {
+        // Call Rust function to rename the file
+        //window.__TAURI__.invoke('rename_file', { oldFilePath: selectedFile, newFileName: newName });
+        document.getElementById('file-path').value = newName;
+      }
+    }
+    contextMenu.style.display = 'none';
+  }); */
 
 window.addEventListener("DOMContentLoaded", () => {
   filePathInputEl = document.querySelector("#file-path");

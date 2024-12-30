@@ -1,2 +1,4 @@
 [workspace]
-members = ["Fileexplorer/src-tauri"]
+members = [
+    "src-tauri"
+]

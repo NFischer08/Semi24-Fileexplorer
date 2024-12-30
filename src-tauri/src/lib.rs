@@ -103,12 +103,14 @@ fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
             let mut formatted_files: Vec<FileDataFormatted> = Vec::new();
 
             for file in files {
-                let file_type: String = match file.file_type {
-                    FileType::Directory => "Directory".to_string(),
-                    FileType::File(extension) => extension,
-                    FileType::None => "File".to_string()
+                let (file_type, is_dir) = match file.file_type {
+                    FileType::Directory => {
+                        ("Directory".to_string(), true)
+                    },
+                    FileType::File(extension) => (extension, false),
+                    FileType::None => ("File".to_string(), false)
                 };
-                let size: String = if file_type == "Directory" {
+                let size: String = if is_dir {
                     "".to_string()
                 }
                 else {
@@ -148,6 +150,6 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .invoke_handler(tauri::generate_handler![format_file_data])
-        .run(tauri::generate_context!())
+        .run(tauri::generate_context!("tauri.conf.json"))
         .expect("error while running tauri application");
 }
