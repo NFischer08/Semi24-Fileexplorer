@@ -4,7 +4,7 @@ mod show_files;
 mod context_actions;
 
 use show_files::format_file_data;
-use chrono::{DateTime, Local, TimeZone};
+use chrono::{DateTime, Local};
 
 #[derive(Debug, serde::Serialize)]
 enum FileType {

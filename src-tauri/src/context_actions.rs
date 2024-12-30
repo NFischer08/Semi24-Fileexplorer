@@ -3,34 +3,37 @@ use clipboard::{ClipboardContext, ClipboardProvider};
 
 fn copy(filepath: String) -> Result<String, String> {
     let path: String = clean_path(filepath);
-    Ok("Copied successfully!".to_string())
+    Ok("Copied file successfully!".to_string())
 }
 
 fn cut(filepath: String) -> Result<String, String> {
     let path: String = clean_path(filepath);
-    delete(path)
+    match delete(path) {
+        Ok(_) => Ok("Cut successfully!".to_string()),
+        Err(error) => Err(error)
+    }
 }
 
 fn rename(filepath: String) -> Result<String, String> {
     let path: String = clean_path(filepath);
-    Ok("Copied successfully!".to_string())
+    Ok("Renamed successfully!".to_string())
 }
 
 fn delete(filepath: String) -> Result<String, String> {
     let path: String = clean_path(filepath);
-    Ok("Copied successfully!".to_string())
+    Ok("Deleted successfully!".to_string())
 }
 
 fn open_with(filepath: String) -> Result<String, String> {
     let path: String = clean_path(filepath);
-    Ok("Copied successfully!".to_string())
+    Ok("Opened successfully!".to_string())
 }
 
 fn copy_path(filepath: String) -> Result<String, String> {
     let path: String = clean_path(filepath);
     let mut clipboard: ClipboardContext = ClipboardProvider::new().map_err(|e| e.to_string())?;
     clipboard.set_contents(path.to_string()).map_err(|e| e.to_string())?;
-    Ok("Copied successfully!".to_string())
+    Ok("Copied path successfully!".to_string())
 }
 
 fn clean_path(filepath: String) -> String {
