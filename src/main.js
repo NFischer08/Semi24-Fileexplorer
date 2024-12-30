@@ -87,6 +87,7 @@ async function loadSearchResults() {
   }
 }
 
+
 document.getElementById('file-path-selector').addEventListener('click', async () => {
   await loadFilesAndFolders();
 });
@@ -159,6 +160,23 @@ document.getElementById('context-rename').addEventListener('click', () => {
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
+
+document.getElementById('context-cut').addEventListener('click', () => {
+  if (selectedFile) {
+    console.log(`Cutting file: ${selectedFile}`);
+    // Add your cut logic here
+    contextMenu.style.display = 'none'; // Hide the menu after action
+  }
+});
+
+document.getElementById('context-open_with').addEventListener('click', () => {
+  if (selectedFile) {
+    console.log(`Opening file: ${selectedFile} with`);
+    // Add your open_with logic here
+    contextMenu.style.display = 'none'; // Hide the menu after action
+  }
+});
+
 window.addEventListener("DOMContentLoaded", () => {
   filePathInputEl = document.querySelector("#file-path");
   resultText = document.querySelector("#result-files");

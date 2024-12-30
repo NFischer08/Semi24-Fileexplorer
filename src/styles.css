@@ -291,7 +291,7 @@ td.error {
   color: red;
 }
 
-/* Context menu styles */
+/* Context menu styles -------------------------------------------------------------------*/
 #context-menu {
   display: none;
   position: absolute;
@@ -299,6 +299,9 @@ td.error {
   border: 1px solid #ccc;
   z-index: 1000; /* Ensure it appears above other elements */
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  border-radius: 7px;
+  width: 150px;
+  font-family: Arial, sans-serif
 }
 
 #context-menu ul {
@@ -307,9 +310,33 @@ td.error {
   margin: 0;
 }
 #context-menu li {
-  padding: 8px 12px;
+  padding: 3px 8px;
+  display: flex;
+  align-items: center;
   cursor: pointer;
+  /*border-radius: 7px;*/
 }
+
+#context-menu li .icon {
+  display: inline-block; /* Sorgen dafür, dass Emojis konsistente Breite haben */
+  width: 1.4em; /* Einheitliche Breite für die Icon-Box */
+  text-align: center; /* Zentriert das Icon innerhalb der Box */
+  margin-right: 8px; /* Abstand zwischen Icon und Text */
+}
+
 #context-menu li:hover {
   background: #2f2f2f;
+}
+
+#context-menu li:not(:last-child) {
+  border-bottom: 1px solid #3f3f3f; /* Trennlinie zwischen Listenelementen */
+}
+
+#context-menu ul li:first-child {
+  border-top-left-radius: 7px; /* Abrundung der oberen Ecken */
+  border-top-right-radius: 7px;
+}
+#context-menu ul li:last-child {
+  border-bottom-left-radius: 7px; /* Abrundung der unteren Ecken */
+  border-bottom-right-radius: 7px;
 }
