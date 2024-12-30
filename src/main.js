@@ -110,7 +110,7 @@ window.addEventListener('click', (event) => {
     settingsModal.classList.add('hidden');
   }
 });
-/*
+
 const contextMenu = document.getElementById('context-menu');
 let selectedFile = null;
 
@@ -135,6 +135,8 @@ document.getElementById('context-delete').addEventListener('click', () => {
     //window.__TAURI__.invoke('delete_file', { filePath: selectedFile });
     document.getElementById('file-path').value = "DELETE";
   }
+  console.log("DELETE");
+  console.log(selectedFile);
   contextMenu.style.display = 'none';
 });
 
@@ -144,6 +146,8 @@ document.getElementById('context-copy').addEventListener('click', () => {
       //window.__TAURI__.invoke('copy_file', { filePath: selectedFile });
       document.getElementById('file-path').value = "Nice";
     }
+    console.log("COPYING");
+  console.log(selectedFile);
     contextMenu.style.display = 'none';
   });
 
@@ -156,8 +160,10 @@ document.getElementById('context-copy').addEventListener('click', () => {
         document.getElementById('file-path').value = newName;
       }
     }
+    console.log("RENAME");
+    console.log(selectedFile);
     contextMenu.style.display = 'none';
-  }); */
+  });
 
 window.addEventListener("DOMContentLoaded", () => {
   filePathInputEl = document.querySelector("#file-path");
