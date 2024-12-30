@@ -150,3 +150,5 @@ fn find_similar_matches_parallel_from_vec(
     printer.join().unwrap();
     count
 }
+
+/// This is useless but it need it to commit xD
