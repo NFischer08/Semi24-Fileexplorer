@@ -1,6 +1,7 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 mod show_files;
+mod context_actions;
 
 use show_files::format_file_data;
 use chrono::{DateTime, Local, TimeZone};
