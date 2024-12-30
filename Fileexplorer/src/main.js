@@ -83,6 +83,7 @@ async function loadSearchResults() {
   }
 }
 
+
 document.getElementById('file-path-selector').addEventListener('click', async () => {
   await loadFilesAndFolders();
 });
