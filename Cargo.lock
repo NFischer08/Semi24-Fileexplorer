@@ -779,10 +779,8 @@ dependencies = [
  "embed-manifest",
  "rayon",
  "serde",
- "serde_json",
  "strsim 0.10.0",
  "tauri",
- "tauri-build",
  "tauri-plugin-shell",
  "walkdir",
 ]
