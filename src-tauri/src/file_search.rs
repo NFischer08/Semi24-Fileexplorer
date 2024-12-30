@@ -1,11 +1,12 @@
-use rayon::prelude::*;
 use std::{
     sync::mpsc::{channel},
+    sync::{Arc, Mutex},
     thread,
     time::Instant,
 };
 use strsim::normalized_levenshtein;
 use walkdir::WalkDir;
+use rayon::prelude::*;
 
 /// Entry point of the program
 fn main() {
@@ -53,32 +54,65 @@ fn find_exact_matches_parallel_and_collect(
     search_term: &str,
 ) -> (u32, Vec<walkdir::DirEntry>) {
     let start_time = Instant::now(); // Start measuring time
-    let mut count = 0; // Counter for the total entries checked
-    let mut collected_entries = Vec::new(); // Vector to hold all entries for later use
+    let count = Arc::new(Mutex::new(0)); // Shared counter for all entries
+    let collected_entries = Arc::new(Mutex::new(Vec::new())); // Shared collection for entries
 
-    // Walk through the filesystem using WalkDir
-    for entry in WalkDir::new(path).into_iter().filter_map(|entry| entry.ok()) {
-        count += 1; // Increment the counter for every entry processed
+    let (tx, rx) = channel(); // Channel for communication between threads
+    let mut threads = Vec::new();
 
-        // Save the entry into the vector for later use
-        collected_entries.push(entry.clone());
+    // Collect all top-level directories in the path
+    for entry in WalkDir::new(path).max_depth(1).into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_dir() {
+            let dir_path = entry.path().to_path_buf();
+            let tx_clone = tx.clone();
+            let count_clone = Arc::clone(&count);
+            let collected_entries_clone = Arc::clone(&collected_entries);
+            let search_term = search_term.to_owned();
 
-        let file_name = entry.file_name().to_string_lossy();
+            // Spawn a thread for each directory
+            let handle = thread::spawn(move || {
+                for sub_entry in WalkDir::new(dir_path).into_iter().filter_map(|e| e.ok()) {
+                    let file_name = sub_entry.file_name().to_string_lossy();
 
-        // Check for exact match
-        if file_name == search_term {
-            let full_path = entry.path().to_string_lossy().into_owned();
-            println!("Found exact match: {}", full_path);
+                    // Increment the counter
+                    *count_clone.lock().unwrap() += 1;
 
-            // Print the elapsed time since the start of the function
-            let elapsed_time = start_time.elapsed();
-            println!("Time elapsed: {:.2?}", elapsed_time);
+                    // Save the entry for later similarity search
+                    collected_entries_clone.lock().unwrap().push(sub_entry.clone());
+
+                    // Check for exact match
+                    if file_name == search_term {
+                        let full_path = sub_entry.path().to_string_lossy().into_owned();
+                        tx_clone.send(full_path).unwrap(); // Send the result to the main thread
+                    }
+                }
+            });
+
+            threads.push(handle);
         }
     }
 
-    (count, collected_entries) // Return the total count and the collected entries
-}
+    // Start a thread to print results received via the channel
+    let printer = thread::spawn(move || {
+        for message in rx {
+            let elapsed_time = start_time.elapsed();
+            println!("Found exact match: {}", message);
+            println!("Time elapsed: {:.2?}", elapsed_time);
+        }
+    });
 
+    // Wait for all threads to finish
+    for handle in threads {
+        handle.join().unwrap();
+    }
+
+    drop(tx); // Drop the sender to signal the printer thread to finish
+    printer.join().unwrap(); // Wait for the printer thread to finish
+
+    let collected_entries = Arc::try_unwrap(collected_entries).unwrap().into_inner().unwrap();
+    let total_count = Arc::try_unwrap(count).unwrap().into_inner().unwrap();
+    (total_count, collected_entries)
+}
 /// Finds similar matches for the search term based on Levenshtein distance (using the prebuilt Vec).
 ///
 /// Returns the number of files processed for similarity.
@@ -118,6 +152,3 @@ fn find_similar_matches_parallel_from_vec(
 
     count
 }
-
-
-///
