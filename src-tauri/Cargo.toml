@@ -11,9 +11,6 @@ path = "src/main.rs"
 name = "Semi24-Fileexplorer"
 
 [lib]
-# The `_lib` suffix may seem redundant, but it is necessary
-# to make the lib name unique and wouldn't conflict with the bin name.
-# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
 name = "file_explorer_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 path = "src/lib.rs"
@@ -30,6 +27,7 @@ rayon = "1.10.0"  # Add this line
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
+embed-manifest = "1"
 
 
 
