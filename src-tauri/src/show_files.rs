@@ -40,7 +40,7 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
                         let size: u64 = metadata.len() / 1024; // size of the file in KB, if folder: 0
 
                         // Convert the last modified time to a readable format
-                        let last_modified = format_time(modified_time);
+                        let last_modified = get_last_modified_time(modified_time);
 
                         entries.push(FileEntry {
                             name: file_name,
@@ -60,7 +60,7 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
 }
 
 // Function to format the last modified time
-fn format_time(time: SystemTime) -> DateTime<Local> { // String
+fn get_last_modified_time(time: SystemTime) -> DateTime<Local> { // String
     // Convert SystemTime to DateTime<Local>
     time.duration_since(SystemTime::UNIX_EPOCH)
         .map(|d| Local.timestamp_opt(d.as_secs() as i64, d.subsec_nanos())
@@ -87,7 +87,7 @@ pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
                     FileType::None => ("File".to_string(), false)
                 };
                 let size: String = if is_dir {
-                    "".to_string()
+                    "Unknown".to_string()
                 }
                 else {
                     let size_kb_f: f64 = file.size_in_kb as f64;

@@ -15,6 +15,8 @@ async function loadFilesAndFolders() {
 
     entries.forEach(entry => {
       const row = document.createElement('tr');
+      row.dataset.filepath = filepath + "/" + entry.name;
+
       const filenameCell = document.createElement('td');
       const lastModifiedCell = document.createElement('td');
       const fileTypeCell = document.createElement('td');
@@ -54,6 +56,8 @@ async function loadSearchResults() {
 
     entries.forEach(entry => {
       const row = document.createElement('tr');
+      row.dataset.filepath = filepath + "/" + entry.name;
+
       const filenameCell = document.createElement('td');
       const lastModifiedCell = document.createElement('td');
       const fileTypeCell = document.createElement('td');
@@ -119,7 +123,7 @@ document.getElementById('fileTable').addEventListener('contextmenu', (event) => 
   event.preventDefault();
   const target = event.target.closest('tr');
   if (target) {
-    selectedFile = target.dataset.file; // Correctly access the data-file attribute
+    selectedFile = target.dataset.filepath; // Correctly access the data-file attribute
     console.log(selectedFile);
     contextMenu.style.display = 'block';
     contextMenu.style.left = `${event.pageX}px`;
