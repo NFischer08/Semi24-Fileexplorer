@@ -116,6 +116,7 @@ window.addEventListener('click', (event) => {
   }
 });
 
+
 // context Menu
 const contextMenu = document.getElementById('context-menu');
 let selectedFile = null;
@@ -125,7 +126,6 @@ document.getElementById('fileTable').addEventListener('contextmenu', (event) => 
   const target = event.target.closest('tr');
   if (target) {
     selectedFile = target.dataset.filepath; // Correctly access the data-file attribute
-    console.log(selectedFile);
     contextMenu.style.display = 'block';
     contextMenu.style.left = `${event.pageX}px`;
     contextMenu.style.top = `${event.pageY}px`;
@@ -140,7 +140,8 @@ document.addEventListener('click', () => {
 document.getElementById('context-delete').addEventListener('click', () => {
   if (selectedFile) {
     console.log(`Deleting file: ${selectedFile}`);
-    // Add your delete logic here
+    const result = invoke('delete_file', { filepath: selectedFile});
+    console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
@@ -148,7 +149,8 @@ document.getElementById('context-delete').addEventListener('click', () => {
 document.getElementById('context-copy').addEventListener('click', () => {
   if (selectedFile) {
     console.log(`Copying file: ${selectedFile}`);
-    // Add your copy logic here
+    const result = invoke('copy_file', { filepath: selectedFile});
+    console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
@@ -156,7 +158,8 @@ document.getElementById('context-copy').addEventListener('click', () => {
 document.getElementById('context-rename').addEventListener('click', () => {
   if (selectedFile) {
     console.log(`Renaming file: ${selectedFile}`);
-    // Add your rename logic here
+    const result = invoke('rename_file', { filepath: selectedFile, newFilename: "TEstoto"});
+    console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
@@ -164,7 +167,8 @@ document.getElementById('context-rename').addEventListener('click', () => {
 document.getElementById('context-cut').addEventListener('click', () => {
   if (selectedFile) {
     console.log(`Cutting file: ${selectedFile}`);
-    // Add your cut logic here
+    const result = invoke('cut_file', { filepath: selectedFile});
+    console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
@@ -172,7 +176,8 @@ document.getElementById('context-cut').addEventListener('click', () => {
 document.getElementById('context-open_with').addEventListener('click', () => {
   if (selectedFile) {
     console.log(`Opening file: ${selectedFile} with`);
-    // Add your open_with logic here
+    const result = invoke('open_file_with', { filepath: selectedFile});
+    console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
