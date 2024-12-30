@@ -8,7 +8,7 @@ build = "src/build.rs"
 
 [[bin]]
 path = "src/file_search.rs"
-name = "Semi24-Fileexplorer"
+name = "file_search"
 
 [dependencies]
 tauri = { version = "2", features = [] }

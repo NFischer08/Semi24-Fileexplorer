@@ -1,2 +1,2 @@
-Total files and directories searched: 5062800
-Total time taken: 38.65s
+Total files and directories searched: 8042102
+Total time taken: 138.80s
