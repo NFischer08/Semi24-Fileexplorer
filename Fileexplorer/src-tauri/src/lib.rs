@@ -87,10 +87,11 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
 fn format_time(time: SystemTime) -> DateTime<Local> { // String
     // Convert SystemTime to DateTime<Local>
     time.duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| Local.timestamp(d.as_secs() as i64, d.subsec_nanos()))
-        .unwrap_or_else(|_| Local::now()) // Fallback to current time if there's an error
-
-    //datetime.format("%d.%m.%Y %H:%M Uhr").to_string()
+        .map(|d| Local.timestamp_opt(d.as_secs() as i64, d.subsec_nanos())
+            .single()
+            .unwrap_or_else(Local::now)
+            )        // Fallback to current time if there's an error
+        .unwrap()
 }
 
 #[command]
