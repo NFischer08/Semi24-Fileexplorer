@@ -25,6 +25,7 @@ walkdir = "2.5.0"
 strsim = "0.10.0"
 rayon = "1.10.0"  # Add this line
 
+
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
 embed-manifest = "1"

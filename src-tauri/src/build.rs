@@ -13,7 +13,9 @@ fn main() {
             println!("cargo:warning=No TAURI_CONF environment variable set, using default location.");
         }
     }
-    embed_manifest_file("build.exe.manifest")
-        .expect("unable to embed manifest file");
-    println!("cargo:rerun-if-changed=sample.exe.manifest");
+    if cfg!(windows) {
+        embed_manifest_file("build.exe.manifest")
+            .expect("unable to embed manifest file");
+        println!("cargo:rerun-if-changed=sample.exe.manifest");
+    }
 }
