@@ -28,12 +28,12 @@ fn open_with(filepath: String) -> Result<String, String> {
     Ok("Copied successfully!".to_string())
 }
 
-fn copy_path(filepath: String) -> Result<String, String> {
+/*n copy_path(filepath: String) -> Result<String, String> {
     let path: PathBuf = clean_path(filepath);
     let mut clipboard: ClipboardContext = ClipboardProvider::new().map_err(|e| e.to_string())?;
     clipboard.set_contents(path.to_string()).map_err(|e| e.to_string())?;
     Ok("Copied successfully!".to_string())
-}
+}*/
 
 /// Bereinigt einen eingegebenen Dateipfad (String) für konsistentes und fehlerfreies Arbeiten.
 ///
