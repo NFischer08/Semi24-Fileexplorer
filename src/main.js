@@ -43,49 +43,6 @@ async function loadFilesAndFolders() {
   }
 }
 
-async function loadSearchResults() {
-  //Initialisierung
-  const filepath = document.getElementById('file-path').value; // Aktuellen Pfad auslesen
-  const fileListElement = document.getElementById('fileList');
-  const errorMessageElement = document.getElementById('error-message');
-  fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
-  errorMessageElement.classList.add('hidden');
-
-  try {
-    const entries = await invoke('search_results', { path: filepath });
-
-    entries.forEach(entry => {
-      const row = document.createElement('tr');
-      row.dataset.filepath = filepath + "/" + entry.name;
-
-      const filenameCell = document.createElement('td');
-      const lastModifiedCell = document.createElement('td');
-      const fileTypeCell = document.createElement('td');
-      const fileSizeCell = document.createElement('td');
-      const pathCell = document.createElement('tr');
-
-      filenameCell.textContent = entry.name; // Dateiname
-      lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
-      fileTypeCell.textContent = entry.file_type; // Dateityp
-      fileSizeCell.textContent = entry.size; //Größe
-      pathCell.textContent = entry.path; // Path
-
-      row.appendChild(filenameCell);
-      row.appendChild(lastModifiedCell);
-      row.appendChild(fileTypeCell);
-      row.appendChild(fileSizeCell);
-      fileListElement.appendChild(row);
-      fileListElement.appendChild(pathCell);
-    });
-
-  } catch (error) {
-    console.error('Error:', error);
-
-    // Fehlermeldung unter der Tabelle anzeigen
-    errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
-    errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
-  }
-}
 
 
 document.getElementById('file-path-selector').addEventListener('click', async () => {
@@ -149,20 +106,13 @@ document.getElementById('context-delete').addEventListener('click', () => {
 document.getElementById('context-copy').addEventListener('click', () => {
   if (selectedFile) {
     console.log(`Copying file: ${selectedFile}`);
-    const result = invoke('copy_file', { filepath: selectedFile});
+    const result = invoke('copy_to_clipboard', { filepath: selectedFile});
     console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
 
-document.getElementById('context-rename').addEventListener('click', () => {
-  if (selectedFile) {
-    console.log(`Renaming file: ${selectedFile}`);
-    const result = invoke('rename_file', { filepath: selectedFile, newFilename: "TEstoto"});
-    console.log(result);
-    contextMenu.style.display = 'none'; // Hide the menu after action
-  }
-});
+
 
 document.getElementById('context-cut').addEventListener('click', () => {
   if (selectedFile) {
@@ -190,6 +140,104 @@ window.addEventListener("DOMContentLoaded", () => {
     list_files_in_directory();
   });
 });
+
+document.getElementById('context-rename').addEventListener('click', () => {
+  if (selectedFile) {
+    console.log(`Renaming file: ${selectedFile}`);
+    //const result = invoke('rename_file', { filepath: selectedFile, newFilename: "TEstoto"});
+    //console.log(result);
+    contextMenu.style.display = 'none'; // Hide the menu after action
+  }
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+  const renameTrigger = document.getElementById("context-rename");
+  const renameModal = document.getElementById("rename-modal");
+  const closeRenameModal = document.getElementById("close-rename-modal");
+  const renameForm = document.getElementById("rename-form");
+  const newFilenameInput = document.getElementById("new-filename");
+
+  // Öffne das Modal bei Klick auf "Rename"
+  renameTrigger.addEventListener("click", () => {
+    renameModal.classList.remove("hidden");
+    newFilenameInput.value = ""; // Texteingabe zurücksetzen
+    newFilenameInput.focus(); // Fokussiert die Eingabe
+  });
+
+  // Schließen des Modals
+  closeRenameModal.addEventListener("click", () => {
+    renameModal.classList.add("hidden");
+  });
+
+  // Umbenennen bei Abschicken des Formulars
+  renameForm.addEventListener("submit",async (e) => {
+    e.preventDefault();
+    const newFilename = newFilenameInput.value.trim();
+    if (newFilename) {
+      try {
+        const result = invoke('rename_file', {filepath: selectedFile, newFilename: newFilename});
+        console.log(`Renaming to: ${newFilename}`); // Hier erfolgt der Umbenennungsprozess
+        console.log(result);
+        renameModal.classList.add("hidden");
+        await loadFilesAndFolders();
+      } catch (error) {
+        console.error('Error during renaming:', error); // Fehlerprotokollierung
+        alert("An error occurred while renaming the file.");
+      }
+    } else {
+      alert("Please enter a valid filename.");
+    }
+  });
+})
+
+
+
+/*
+
+async function loadSearchResults() {
+  //Initialisierung
+  const filepath = document.getElementById('file-path').value; // Aktuellen Pfad auslesen
+  const fileListElement = document.getElementById('fileList');
+  const errorMessageElement = document.getElementById('error-message');
+  fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
+  errorMessageElement.classList.add('hidden');
+
+  try {
+    const entries = await invoke('search_results', { path: filepath });
+
+    entries.forEach(entry => {
+      const row = document.createElement('tr');
+      row.dataset.filepath = filepath + "/" + entry.name;
+
+      const filenameCell = document.createElement('td');
+      const lastModifiedCell = document.createElement('td');
+      const fileTypeCell = document.createElement('td');
+      const fileSizeCell = document.createElement('td');
+      const pathCell = document.createElement('tr');
+
+      filenameCell.textContent = entry.name; // Dateiname
+      lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
+      fileTypeCell.textContent = entry.file_type; // Dateityp
+      fileSizeCell.textContent = entry.size; //Größe
+      pathCell.textContent = entry.path; // Path
+
+      row.appendChild(filenameCell);
+      row.appendChild(lastModifiedCell);
+      row.appendChild(fileTypeCell);
+      row.appendChild(fileSizeCell);
+      fileListElement.appendChild(row);
+      fileListElement.appendChild(pathCell);
+    });
+
+  } catch (error) {
+    console.error('Error:', error);
+
+    // Fehlermeldung unter der Tabelle anzeigen
+    errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
+    errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
+  }
+}
+
 
 document.addEventListener('DOMContentLoaded', () => {
   loadPinnedDirectories();
@@ -246,4 +294,4 @@ function removePinnedDirectory(index) {
   directories.splice(index, 1);
   localStorage.setItem('pinnedDirectories', JSON.stringify(directories));
   loadPinnedDirectories();
-}
+} */

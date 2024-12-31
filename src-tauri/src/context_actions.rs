@@ -1,7 +1,8 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
 use std::path::{Path, PathBuf};
-use std::fs::{rename, remove_file};
+use std::fs::{self, File, rename, remove_file};
 use tauri::command;
+use std::io::Write;
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
@@ -11,12 +12,67 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
 }
 
 #[command]
+pub fn copy_to_clipboard(filepath: String) -> Result<String, String> {
+    let path: PathBuf = clean_path(filepath); // Pfad bereinigen
+
+    if !path.exists() {
+        return Err("Source file does not exist.".to_string());
+    }
+
+    let mut clipboard: ClipboardContext = ClipboardProvider::new()
+        .map_err(|e| format!("Failed to access clipboard: {}", e))?;
+
+    clipboard
+        .set_contents(path.to_string_lossy().into_owned())
+        .map_err(|e| format!("Failed to copy to clipboard: {}", e))?;
+
+    Ok("File path copied to clipboard.".to_string())
+}
+
+#[command]
+pub fn paste_from_clipboard(destination: String) -> Result<String, String> {
+    let mut clipboard: ClipboardContext = ClipboardProvider::new()
+        .map_err(|e| format!("Failed to access clipboard: {}", e))?;
+
+    // Dateipfad aus der Zwischenablage lesen
+    let source_path_str = clipboard
+        .get_contents()
+        .map_err(|e| format!("Failed to read from clipboard: {}", e))?;
+
+    let source_path = Path::new(&source_path_str);
+    let dest_path: PathBuf = clean_path(destination);
+
+    // Überprüfen, ob die Quelldatei existiert
+    if !source_path.exists() {
+        return Err("Source file does not exist.".to_string());
+    }
+
+    // Sicherstellen, dass das Zielverzeichnis existiert
+    if let Some(parent) = dest_path.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent).map_err(|e| {
+                format!("Failed to create destination directory: {}", e)
+            })?;
+        }
+    }
+
+    // Datei kopieren
+    fs::copy(&source_path, &dest_path)
+        .map_err(|e| format!("Failed to paste file: {}", e))?;
+
+    Ok(format!(
+        "File pasted successfully to {}.",
+        dest_path.display()
+    ))
+}
+
+#[command]
 pub fn cut_file(filepath: String) -> Result<String, String> {
     let _: Result<String, String> = match copy_file(filepath.to_owned()) {
         Ok(message) => Ok(message),
         Err(error) => return Err(error.to_string())
     };
-    match delete_file(filepath) {
+    match delete_file(filepath) { //nicht lieber erstmal überprüfen, ob die auch wieder gespeichert wurde?
         Ok(_) => Ok("Cut successfully!".to_string()),
         Err(error) => Err(error)
     }
