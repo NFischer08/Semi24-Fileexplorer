@@ -13,7 +13,7 @@ Die Hauptfunktionen umfassen:
 - Fehlerbehandlung und visuelle Rückmeldung bei fehlerhaften Aktionen.
 
 ## To-Do Liste
-Search Algorithm:
+- Search Algorithm:
     - **Threadpool**
     - **Datenbank**
     - **Vectorspaces**
