@@ -87,7 +87,7 @@ pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
                     FileType::None => ("File".to_string(), false)
                 };
                 let size: String = if is_dir {
-                    "Unknown".to_string()
+                    "--".to_string()
                 }
                 else {
                     let size_kb_f: f64 = file.size_in_kb as f64;
