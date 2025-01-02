@@ -19,6 +19,7 @@
     <h3>Directories</h3>
     <ul id="folderSystem-list"></ul>
   </div>
+
   <div class="content">
     <div class="row">
       <div class="file-path-container">
@@ -83,6 +84,18 @@
         <span class="label">Open with ...</span>
       </li>
     </ul>
+    </div>
+
+    <div id="rename-modal" class="modal hidden">
+      <div class="modal-content">
+        <span id="close-rename-modal" class="close-button">&times;</span>
+        <h3>Rename File</h3>
+        <form id="rename-form">
+          <!--<label for="new-filename">New Filename:</label>-->
+          <input type="text" id="new-filename" name="new-filename" required>
+          <button type="submit" id="rename-submit-button">Rename</button>
+        </form>
+      </div>
     </div>
   </div>
 </main>
