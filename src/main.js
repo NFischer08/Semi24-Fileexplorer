@@ -106,13 +106,21 @@ document.getElementById('context-delete').addEventListener('click', () => {
 document.getElementById('context-copy').addEventListener('click', () => {
   if (selectedFile) {
     console.log(`Copying file: ${selectedFile}`);
-    const result = invoke('copy_to_clipboard', { filepath: selectedFile});
+    const result = invoke('copy_path', { filepath: selectedFile});
     console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
 
-
+document.getElementById('context-paste').addEventListener('click', () => {
+  if (selectedFile) {
+    let selectedFile = document.getElementById("file-path").value
+    console.log(`Pasting file: ${selectedFile}`);
+    const result = invoke('paste_from_path', { destination: selectedFile});
+    console.log(result);
+    contextMenu.style.display = 'none'; // Hide the menu after action
+  }
+});
 
 document.getElementById('context-cut').addEventListener('click', () => {
   if (selectedFile) {
@@ -130,15 +138,6 @@ document.getElementById('context-open_with').addEventListener('click', () => {
     console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
-});
-
-window.addEventListener("DOMContentLoaded", () => {
-  filePathInputEl = document.querySelector("#file-path");
-  resultText = document.querySelector("#result-files");
-  document.querySelector("#file-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    list_files_in_directory();
-  });
 });
 
 document.getElementById('context-rename').addEventListener('click', () => {
@@ -295,3 +294,12 @@ function removePinnedDirectory(index) {
   localStorage.setItem('pinnedDirectories', JSON.stringify(directories));
   loadPinnedDirectories();
 } */
+
+window.addEventListener("DOMContentLoaded", () => {
+  filePathInputEl = document.querySelector("#file-path");
+  resultText = document.querySelector("#result-files");
+  document.querySelector("#file-form").addEventListener("submit", (e) => {
+    e.preventDefault();
+    list_files_in_directory();
+  });
+});
