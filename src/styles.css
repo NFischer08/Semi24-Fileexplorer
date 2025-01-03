@@ -15,11 +15,14 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-text-size-adjust: 100%;
+  --header-height: 50px;
+  --header-space: 10px;
+  --header: calc(var(--header-height) + var(--header-space));
 }
 
 .container {
   margin: 1%;
-  padding-top: 10vh;
+  padding-top: 60px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -39,8 +42,10 @@
 
 .row {
   display: flex;
-  justify-content: center;
-  gap: 1px; /* Abstand zwischen den Spalten */
+  justify-content: space-between; /* Platz zwischen den Eingabefeldern */
+  gap: 20px; /* Abstand zwischen den beiden Feldern */
+  margin-top: calc(var(--header) + 10px); /* Platz für den Header oben */
+  padding: 10px 190px 10px 190px; /* Abstand innen, mit Berücksichtigung der Sidebar */
 }
 
 a {
@@ -58,10 +63,14 @@ h1 {
 }
 
 #fileTable {
-  width: 100%;
+  /*width: 100%;*/
+  width: 95%;
   border-collapse: collapse;
   text-align: left;
-  margin-top: 20px;
+  /*margin-top: 20px;*/
+  margin: 0 auto;
+  overflow-x: auto;
+  table-layout: auto;
 }
 
 #fileTable th,
@@ -157,11 +166,11 @@ td.error {
 
 .search-container,
 .file-path-container {
-  position: relative;
+  position: static;
   display: flex; /* inline-block*/
   align-items: center;
-  width: 100%; /* Optional: Breite des Suchbereichs */
-  max-width: 400px; /* Optional: maximale Breite der Suchbox */
+  /*width: 100%;  Optional: Breite des Suchbereichs */
+  width: 45%; /* Optional: maximale Breite der Suchbox */
 }
 
 .search-input,
@@ -171,9 +180,9 @@ td.error {
   border: 1px solid #ccc; /* Leichter Rand */
   border-radius: 20px; /* Runde Ecken */
   font-size: 16px;
-  box-sizing: border-box; /* Verhindert Layout-Verschiebungen */
+  /*box-sizing: border-box; /* Verhindert Layout-Verschiebungen /
   outline: none;
-  float: left;
+  float: left; */
 }
 
 .search-button,
@@ -198,14 +207,26 @@ td.error {
 
 .file-path-container,
 .search-container {
-  flex: 1; /* Beide Elemente nehmen denselben Platz ein */
+  position: fixed; /* Feststehend */
+  top: calc(var(--header) + 10px); /* Position unterhalb des Headers */
+  left: 190px; /* Platz für die Sidebar schaffen */
+  width: calc(100% - 190px); /* Nimmt den gesamten Platz rechts von der Sidebar ein */
+  display: flex;
+  flex: 0 1 auto;
+  align-items: center;
+  background-color: #1f1f1f;
+  padding: 10px;
+  border-bottom: 1px solid #444; /* Optional: Trennlinie unter den Leisten */
+  z-index: 101;
+  /*flex: 1; /* Beide Elemente nehmen denselben Platz ein /
   max-width: 45%;
-  margin-right: 2%;
+  margin-right: 2%;*/
 }
 
 .search-container {
   margin-right: 0;
-  margin-left: auto
+  margin-left: auto;
+  top: calc(var(--header) + 60px);
 }
 
 @media (max-width: 700px) {
@@ -226,13 +247,14 @@ td.error {
     flex-direction: column;
     justify-content: center;
     gap: 1px; /* Abstand zwischen den Spalten */
+    padding: 10px;
   }
 }
 
 /*Einstellungen ---------------------------------*/
-.settings-button {
+/*.settings-button {
   position: absolute;
-  right: 45px; /* Abstand vom rechten Rand */
+  right: 45px; /* Abstand vom rechten Rand /
   top: 50%;
   transform: translateY(-50%);
   background-color: transparent;
@@ -248,8 +270,8 @@ td.error {
 }
 .search-container {
   position: relative;
-  display: flex; /* Flexbox zur Ausrichtung von Suchfeld und Buttons */
-  align-items: center; /* Vertikale Zentrierung der Inhalte */
+  display: flex; /* Flexbox zur Ausrichtung von Suchfeld und Buttons /
+  align-items: center; /* Vertikale Zentrierung der Inhalte /
 }
 /* Modal-Stil */
 .modal {
@@ -276,6 +298,7 @@ td.error {
   text-align: left;
   max-width: 300px;
   width: 80%;
+  position: relative;
 }
 
 .close-button {
@@ -296,19 +319,23 @@ td.error {
   display: flex;
   flex-direction: row; /* Sidebar links, Inhalte rechts */
   margin: 0;
-  padding: 0;
-  height: 100vh; /* Vollbildhöhe */
+  padding: 45px;
+  height: calc(100vh - var(--header)); /* Vollbildhöhe */
 }
 
 .sidebar {
+  top: var(--header);
+  position: fixed;
   width: 170px;
   background-color: #1f1f1f;
   color: #ffffff;
   padding: 20px;
+  height: calc(100% - var(--header));
   display: flex;
   flex-direction: column;
   gap: 15px;
   border-right: 1px solid #444; /* Trennlinie */
+  left: 0;
 }
 
 .pinned-header {
@@ -374,6 +401,7 @@ td.error {
 }
 
 .content {
+  margin-left: 160px;
   flex-grow: 1; /* Restlichen Platz einnehmen */
   padding: 20px;
 }
@@ -457,4 +485,94 @@ td.error {
   right: 10px;
   cursor: pointer;
   font-size: 1.5em;
+}
+.close-button:hover {
+  color: red;
+}
+
+  /* Set a fixed height for the table body */
+#fileTable {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  margin-top: 20px;
+  table-layout: auto;
+}
+
+#fileTable thead {
+  background-color: #0f0f0f;
+  display: table-header-group; /* Ensure the header stays fixed */
+  /*width: 100%; /* Full width */
+  /*table-layout: fixed; /* Prevents header from resizing */
+}
+
+#fileTable tbody {
+  display: table-row-group; /* Make tbody block to allow scrolling */
+  max-height: 300px; /* Set a fixed height */
+  overflow-y: auto; /* Enable vertical scrolling */
+  /*width: 100%; /* Full width */
+}
+
+#fileTable tbody tr {
+  /*width: 100%; /* Full width */
+  /*table-layout: fixed; /* Prevents rows from resizing */
+  display: table-row;
+}
+
+#fileTable th,
+#fileTable td {
+  border-right: 1px solid #ccc;
+  padding: 8px 12px;
+}
+
+/* Headbar Styling -----------------------------------------------*/
+.headbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  height: var(--header);
+  background-color: #1f1f1f;
+  color: white;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.headbar .logo {
+  font-size: 20px;
+  font-weight: bold;
+}
+
+.headbar .menu {
+  display: flex;
+  gap: 20px;
+}
+
+.headbar .menu .icon-btn {
+  text-decoration: none;
+  color: white;
+  font-size: 18px;
+}
+
+.headbar .menu .icon-btn:hover {
+  color: #24c8db;
+}
+
+@media (max-width: 600px) {
+  .sidebar {
+    display: none; /* Sidebar ausblenden */
+  }
+
+  .content {
+    margin-left: 0; /* Stelle sicher, dass der Inhalt die volle Breite einnimmt */
+  }
+
+  #fileTable {
+    width: 100%; /* Maximale Breite */
+    margin: 0; /* Kein zusätzlicher Außenabstand */
+  }
 }
