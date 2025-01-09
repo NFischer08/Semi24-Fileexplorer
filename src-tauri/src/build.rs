@@ -1,6 +1,5 @@
 use embed_manifest::embed_manifest_file;
 
-
 fn main() {
     println!("cargo:rerun-if-env-changed=TAURI_CONF");
 
