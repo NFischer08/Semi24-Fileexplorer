@@ -1,7 +1,45 @@
 use threadpool::ThreadPool;
 use std::{sync::mpsc::channel, sync::{Arc, Mutex}};
+use std::time::Instant;
 use strsim::normalized_levenshtein;
 use walkdir::{DirEntry, WalkDir};
+
+fn main() {
+    let time_total = Instant::now();
+
+    let n_workers = 10; // Number of Threads used in Exact_Matches and Similar_Matches
+    let similarity_threshold = 0.8; // How similar a name has to be to be outputet by similar search
+    let path = "Test_dir"; // Replace with your target directory's path
+    let search_term = "Test"; // The term to compare file names against
+
+
+
+    // Exact matches search
+    println!("Starting search for exact matches...");
+    let time_exact_matches = Instant::now();
+    let (exact_matches, entries) = find_exact_matches_parallel_and_collect(path, search_term, n_workers);
+    println!( "{}, {}", "Laufzeit Exact Matches in Millisekunden", time_exact_matches.elapsed().as_millis());
+    let count = entries.len();
+    //exact matches are all found direct matches in a Vec<String>
+
+    // Similar matches search
+    println!("\nStarting search for similar matches...");
+    let time_similar_matches = Instant::now();
+    let matches_similar = find_similar_matches_parallel_from_vec(
+        entries,
+        search_term,
+        similarity_threshold,
+        n_workers,
+    );
+
+    println!( "{}, {}",  "Laufzeit Similar Matches in Millisekunden", time_similar_matches.elapsed().as_millis());
+    println!("\nFinished search");
+    println!("{}, {:?}","Anzahl der durchsuchten entries (Directorys and Files)", count);
+    println!( "{}, {}","Laufzeit Main in Millisekunden", time_total.elapsed().as_millis() );
+
+
+    // matches_similar are all found similar directorys in a Vec<String>
+}
 
 /// Finds exact matches for the search term while building a Vec of entries for further processing.
 ///
@@ -55,34 +93,7 @@ fn find_exact_matches_parallel_and_collect(
 }
 
 /// Entry point of the program
-fn main() {
-    let similarity_threshold = 0.8;
-    let path = "/"; // Replace with your target directory's path
-    let search_term = "test"; // The term to compare file names against
 
-    // Number of Threads used in Exact_Matches and Similar_Matches
-    let n_workers = 10;
-
-    // Exact matches search
-    println!("Starting search for exact matches...");
-    let (exact_matches, entries) = find_exact_matches_parallel_and_collect(path, search_term, n_workers);
-    let count = entries.len();
-    //exact matches are all found direct matches in a Vec<String>
-
-    // Similar matches search
-    println!("\nStarting search for similar matches...");
-    let matches_similar = find_similar_matches_parallel_from_vec(
-        entries,
-        search_term,
-        similarity_threshold,
-        n_workers,
-    );
-
-    println!("\nFinished search");
-    println!("{:?}", count)
-
-// matches_similar are all found similar directorys in a Vec<String>
-}
 /// Finds similar matches for the search term from a vector of directory entries.
 ///
 /// Returns the count of similar matches found.
