@@ -9,18 +9,19 @@ fn main() {
 
     let n_workers = 10; // Number of Threads used in Exact_Matches and Similar_Matches
     let similarity_threshold = 0.8; // How similar a name has to be to be outputet by similar search
+
     let path = "Test_dir"; // Replace with your target directory's path
     let search_term = "Test"; // The term to compare file names against
-
-
 
     // Exact matches search
     println!("Starting search for exact matches...");
     let time_exact_matches = Instant::now();
     let (exact_matches, entries) = find_exact_matches_parallel_and_collect(path, search_term, n_workers);
+    //exact matches = all found direct matches in a Vec<String>
+
     println!( "{}, {}", "Laufzeit Exact Matches in Millisekunden", time_exact_matches.elapsed().as_millis());
-    let count = entries.len();
-    //exact matches are all found direct matches in a Vec<String>
+
+    let count = entries.len(); // count is the len of the big Vec that is build up in Exact search
 
     // Similar matches search
     println!("\nStarting search for similar matches...");
@@ -31,18 +32,16 @@ fn main() {
         similarity_threshold,
         n_workers,
     );
+    // matches_similar = all found similar directorys in a Vec<String>
 
     println!( "{}, {}",  "Laufzeit Similar Matches in Millisekunden", time_similar_matches.elapsed().as_millis());
     println!("\nFinished search");
     println!("{}, {:?}","Anzahl der durchsuchten entries (Directorys and Files)", count);
     println!( "{}, {}","Laufzeit Main in Millisekunden", time_total.elapsed().as_millis() );
-
-
-    // matches_similar are all found similar directorys in a Vec<String>
 }
 
+
 /// Finds exact matches for the search term while building a Vec of entries for further processing.
-///
 /// Returns a tuple containing the total entries checked during the exact search and the Vec of entries.
 fn find_exact_matches_parallel_and_collect(
     path: &str,
@@ -89,15 +88,12 @@ fn find_exact_matches_parallel_and_collect(
     let exact_matches = results;
     let collected_entries = collected_entries.lock().unwrap();
     let x = (exact_matches, collected_entries.clone());
-    x // Return the total count of entries searched
+    x // Returns found exact matches and all dir searched
 }
 
-/// Entry point of the program
 
 /// Finds similar matches for the search term from a vector of directory entries.
-///
 /// Returns the count of similar matches found.
-
 fn find_similar_matches_parallel_from_vec(
     entries: Vec<DirEntry>,
     search_term: &str,
@@ -113,7 +109,6 @@ fn find_similar_matches_parallel_from_vec(
         let search_term = search_term.to_owned();
         let similarity_threshold = similarity_threshold;
 
-
         pool.execute(move || {
             let file_name = entry.file_name().to_string_lossy().clone();
             let similarity = normalized_levenshtein(&file_name, &search_term);
@@ -124,7 +119,6 @@ fn find_similar_matches_parallel_from_vec(
             }
         });
     }
-
     drop(tx);
 
     let mut results = Vec::new();

@@ -1,2 +1,0 @@
-Total files and directories searched: 20
-Total time taken: 4.33s
