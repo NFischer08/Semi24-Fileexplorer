@@ -48,9 +48,9 @@ fn find_exact_matches_parallel_and_collect(
     }
 
     // Return the count of entries checked and the collected entries
-    let findings = results;
+    let exact_matches = results;
     let collected_entries = collected_entries.lock().unwrap();
-    let x = (findings, collected_entries.clone());
+    let x = (exact_matches, collected_entries.clone());
     x // Return the total count of entries searched
 }
 
@@ -66,6 +66,7 @@ fn main() {
     // Exact matches search
     println!("Starting search for exact matches...");
     let (exact_matches, entries) = find_exact_matches_parallel_and_collect(path, search_term, n_workers);
+    let count = entries.len();
     //exact matches are all found direct matches in a Vec<String>
 
     // Similar matches search
@@ -76,6 +77,9 @@ fn main() {
         similarity_threshold,
         n_workers,
     );
+
+    println!("\nFinished search");
+    println!("{:?}", count)
 
 // matches_similar are all found similar directorys in a Vec<String>
 }
