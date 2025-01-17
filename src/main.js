@@ -116,7 +116,7 @@ document.getElementById('context-paste').addEventListener('click', () => {
   if (selectedFile) {
     let selectedFile = document.getElementById("file-path").value
     console.log(`Pasting file: ${selectedFile}`);
-    const result = invoke('paste_from_path', { destination: selectedFile});
+    const result = invoke('paste', { destination: selectedFile});
     console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }

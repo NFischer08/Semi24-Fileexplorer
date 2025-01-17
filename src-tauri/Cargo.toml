@@ -24,7 +24,7 @@ chrono = "0.4"
 walkdir = "2.5.0"
 strsim = "0.10.0"
 rayon = "1.10.0"
-regex = "1.11.1"  # Add this line
+regex = "1.11.1"
 clipboard = "0.5"
 
 

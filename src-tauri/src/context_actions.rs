@@ -2,19 +2,58 @@ use clipboard::{ClipboardContext, ClipboardProvider};
 use std::path::{Path, PathBuf};
 use std::fs::{self, File, rename, remove_file};
 use tauri::command;
-use std::io::Write;
+use std::io::{Write, Read};
 
 #[command]
-pub fn copy_file(filepath: String) -> Result<String, String> {
-    let _path: PathBuf = clean_path(filepath);
-    // TODO
-    Ok("Copied successfully!".to_string())
+pub fn copy(filepath: String) -> Result<String, String> {
+    let clean_path: PathBuf = clean_path(filepath);
+    let mode: u8 = 1;
+    match mode {
+         1 => copy_file(clean_path),
+         2 => copy_path(clean_path),
+        _ => Err(String::from("Invalid mode!"))
+    }
+}
+
+fn copy_file(path: PathBuf) -> Result<String, String> {
+    // Attempt to open the file
+    let mut file = match File::open(&path) {
+        Ok(file) => file,
+        Err(_) => {
+            return Err("Failed to open file.".to_string());
+        }
+    };
+
+    // Read the file contents
+    let mut contents = String::new();
+    match file.read_to_string(&mut contents) {
+        Ok(_) => {},
+        Err(_) => {
+            return Err("Failed to read file.".to_string());
+        }
+    };
+
+    // Create a clipboard context
+    let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
+        Ok(ctx) => ctx,
+        Err(_) => {
+            return Err("Failed to access clipboard.".to_string());
+        }
+    };
+
+    // Copy the contents to the clipboard
+    match clipboard.set_contents(contents) {
+        Ok(_) => {},
+        Err(_) => {
+            return Err("Failed to copy to clipboard.".to_string());
+        }
+    };
+
+    Ok(!format!("File copyied successfully to {}!", path.display()))
 }
 
 #[command]
-pub fn copy_path(filepath: String) -> Result<String, String> { // Copying path to Clipboard
-    let path: PathBuf = clean_path(filepath); // Pfad bereinigen
-
+fn copy_path(path: PathBuf) -> Result<String, String> { // Copying path to Clipboard
     if !path.exists() { // Pfad kann nur existieren, da er sonnst nicht übergeben werden kann! kann also eigentlich weg
         return Err("Source file does not exist.".to_string());
     }
@@ -30,7 +69,44 @@ pub fn copy_path(filepath: String) -> Result<String, String> { // Copying path t
 }
 
 #[command]
-pub fn paste_from_path(destination: String) -> Result<String, String> {
+pub fn paste(destination: String) -> Result<String, String> {
+    let dest_path: PathBuf = clean_path(destination);
+    let mode: u8 = 1;
+    match mode {
+        1 => paste_from_file(dest_path),
+        2 => paste_from_file(dest_path),
+        _ => Err("Invalid mode!".to_string()),
+    }
+}
+
+fn paste_from_file(destination: PathBuf) -> Result<String, String> {
+    // Create a clipboard context
+    let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
+        Ok(ctx) => ctx,
+        Err(_) => return Err("Failed to access clipboard.".to_string()),
+    };
+
+    // Get the contents from the clipboard
+    let contents = match clipboard.get_contents() {
+        Ok(contents) => contents,
+        Err(_) => return Err("Failed to read clipboard.".to_string()),
+    };
+
+    // Write the contents to the specified file
+    let mut file = match File::create(&destination) {
+        Ok(file) => file,
+        Err(_) => return Err("Failed to create file.".to_string()),
+    };
+
+
+    match file.write_all(contents.as_bytes()) {
+        Ok(_) => Ok(format!("Successfully copied file to {}", destination.display())),
+        Err(_) => Err("Failed write to file!".to_string()),
+
+    }
+}
+
+fn paste_from_path(dest_path: PathBuf) -> Result<String, String> {
     let mut clipboard: ClipboardContext = ClipboardProvider::new()
         .map_err(|e| format!("Failed to access clipboard: {}", e))?;
 
@@ -39,8 +115,7 @@ pub fn paste_from_path(destination: String) -> Result<String, String> {
         .get_contents()
         .map_err(|e| format!("Failed to read from clipboard: {}", e))?;
 
-    let source_path = Path::new(&source_path_str);
-    let dest_path: PathBuf = clean_path(destination); // pastet aktuell in den Zielpath -> nicht aktueller!
+    let source_path = Path::new(&source_path_str);; // pastet aktuell in den Zielpath -> nicht aktueller!
 
     // Überprüfen, ob die Quelldatei existiert
     if !source_path.exists() {
