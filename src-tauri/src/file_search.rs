@@ -1,153 +1,131 @@
-use std::{fs::File, io::Write, sync::mpsc::channel, sync::{Arc, Mutex}, thread, time::Instant};
+use threadpool::ThreadPool;
+use std::{sync::mpsc::channel, sync::{Arc, Mutex}};
+use std::time::Instant;
 use strsim::normalized_levenshtein;
-use walkdir::WalkDir;
+use walkdir::{DirEntry, WalkDir};
+
+fn main() {
+    let time_total = Instant::now();
+
+    let n_workers = 10; // Number of Threads used in Exact_Matches and Similar_Matches
+    let similarity_threshold = 0.8; // How similar a name has to be to be outputet by similar search
+
+    let path = "/"; // Replace with your target directory's path
+    let search_term = "Test"; // The term to compare file names against
+
+    // Exact matches search
+    println!("Starting search for exact matches...");
+    let time_exact_matches = Instant::now();
+    let (_exact_matches, entries) = find_exact_matches_parallel_and_collect(path, search_term, n_workers);
+    //exact_matches_ = all found direct matches in a Vec<String>
+
+    println!( "{}, {}", "Laufzeit Exact Matches in Millisekunden", time_exact_matches.elapsed().as_millis());
+
+    let count = entries.len(); // count is the len of the big Vec that is build up in Exact search
+
+    // Similar matches search
+    println!("\nStarting search for similar matches...");
+    let time_similar_matches = Instant::now();
+    let _matches_similar = find_similar_matches_parallel_from_vec(
+        entries,
+        search_term,
+        similarity_threshold,
+        n_workers,
+    );
+    // matches_similar_ = all found similar directorys in a Vec<String>
+
+    println!( "{}, {}",  "Laufzeit Similar Matches in Millisekunden", time_similar_matches.elapsed().as_millis());
+    println!("\nFinished search");
+    println!("{}, {:?}","Anzahl der durchsuchten entries (Directorys and Files)", count);
+    println!( "{}, {}","Laufzeit Main in Millisekunden", time_total.elapsed().as_millis() );
+}
+
 
 /// Finds exact matches for the search term while building a Vec of entries for further processing.
-///
 /// Returns a tuple containing the total entries checked during the exact search and the Vec of entries.
 fn find_exact_matches_parallel_and_collect(
     path: &str,
     search_term: &str,
-) -> (u32, Vec<walkdir::DirEntry>) {
-    let start_time = Instant::now(); // Start measuring time
-    let count = Arc::new(Mutex::new(0)); // Shared counter for all entries
+    n_workers: usize,
+) -> (Vec<String>, Vec<DirEntry>) {
     let collected_entries = Arc::new(Mutex::new(Vec::new())); // Shared collection for entries
 
+    let pool = ThreadPool::new(n_workers);
     let (tx, rx) = channel(); // Channel for communication between threads
-    let mut threads = Vec::new();
 
-    // Collect all top-level directories in the path
-    for entry in WalkDir::new(path).max_depth(1).into_iter().filter_map(|e| e.ok()) {
-        if entry.file_type().is_dir() {
-            let dir_path = entry.path().to_path_buf();
-            let tx_clone = tx.clone();
-            let count_clone = Arc::clone(&count);
-            let collected_entries_clone = Arc::clone(&collected_entries);
-            let search_term = search_term.to_owned();
+    for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+        let tx = tx.clone();
+        let collected_entries_clone = Arc::clone(&collected_entries);
+        let search_term = search_term.to_owned();
+        let entry_clone = entry.clone(); // Clone the entry for use in the thread
 
-            // Spawn a thread for each directory
-            let handle = thread::spawn(move || {
-                for sub_entry in WalkDir::new(dir_path.clone()).into_iter().filter_map(|e| e.ok()) {
-                    let file_name = sub_entry.file_name().to_string_lossy();
+        pool.execute(move || {
 
-                    // Increment the counter
-                    *count_clone.lock().unwrap() += 1;
+            let file_name = entry_clone.file_name().to_str().unwrap_or_default().to_owned();
 
-                    // Save the entry for later similarity search
-                    collected_entries_clone.lock().unwrap().push(sub_entry.clone());
+            // Save the entry for later similarity search
+            collected_entries_clone.lock().unwrap().push(entry_clone.clone());
 
-                    // Check for exact match
-                    if file_name == search_term {
-                        let full_path = sub_entry.path().to_string_lossy().into_owned();
-                        tx_clone.send(full_path).unwrap(); // Send the result to the main thread
-                    }
-                }
-
-                println!("Finished processing directory: {:?}", dir_path.display());
-            });
-
-            threads.push(handle);
-        }
+            // Check if the entry matches the search term
+            if file_name == search_term {
+                let full_path = entry_clone.path().to_string_lossy().into_owned();
+                tx.send(full_path).unwrap(); // Send the result to the main thread
+            }
+        });
     }
 
-    // Start a thread to print results received via the channel
-    let printer = thread::spawn(move || {
-        for message in rx {
-            let elapsed_time = start_time.elapsed();
-            println!("Found exact match: {}", message);
-            println!("Time elapsed: {:.2?}", elapsed_time);
-        }
-    });
+    // Drop the sender to close the channel
+    drop(tx);
 
-    // Wait for all threads to finish
-    for handle in threads {
-        handle.join().unwrap();
+    // Collect results from the channel
+    let mut results = Vec::new();
+    for received in rx {
+        println!("{:?}", received); // Print for debugging prints exact matches as Strings sent by tx
+        results.push(received);
     }
 
-    drop(tx); // Drop the sender to signal the printer thread to finish
-    printer.join().unwrap(); // Wait for the printer thread to finish
-
-    let collected_entries = Arc::try_unwrap(collected_entries).unwrap().into_inner().unwrap();
-    let total_count = Arc::try_unwrap(count).unwrap().into_inner().unwrap();
-    (total_count, collected_entries)
+    // Return the count of entries checked and the collected entries
+    let exact_matches = results;
+    let collected_entries = collected_entries.lock().unwrap();
+    let x = (exact_matches, collected_entries.clone());
+    x // Returns found exact matches and all dir searched
 }
 
-/// Entry point of the program
-fn main() {
-    let similarity_threshold = 0.8;
-    let path = "/"; // Replace with your target directory's path
-    let search_term = "Test"; // The term to compare file names against
 
-    // Start measuring execution time
-    let start_time = Instant::now();
-
-    // Exact matches search
-    println!("Starting search for exact matches...");
-    let exact_start_time = Instant::now();
-    let (total_entries_exact, entries) = find_exact_matches_parallel_and_collect(path, search_term);
-    let elapsed_time_after_exact = exact_start_time.elapsed();
-
-    println!(
-        "Time taken to find all exact matches: {:.2?}",
-        elapsed_time_after_exact
-    );
-
-    // Similar matches search
-    println!("\nStarting search for similar matches...");
-    let total_entries_similar = find_similar_matches_parallel_from_vec(
-        entries,
-        search_term,
-        similarity_threshold,
-    );
-
-    // Final statistics
-    let total_elapsed_time = start_time.elapsed();
-
-    println!(
-        "\nTotal files and directories searched: {}",
-        total_entries_exact + total_entries_similar
-    );
-    println!("Total time taken: {:.2?}", total_elapsed_time);
-
-    // Write the total time and file count to "time.txt"
-    let mut file = File::create("time.txt").expect("Unable to create time.txt");
-    writeln!(file, "Total files and directories searched: {}", total_entries_exact + total_entries_similar)
-        .expect("Failed to write to time.txt");
-    writeln!(file, "Total time taken: {:.2?}", total_elapsed_time)
-        .expect("Failed to write to time.txt");
-
-    println!("Finished!");
-}
-
-/// Finds similar matches for the search term based on Levenshtein distance (using the prebuilt Vec).
-///
-/// Returns the number of files processed for similarity.
+/// Finds similar matches for the search term from a vector of directory entries.
+/// Returns the count of similar matches found.
 fn find_similar_matches_parallel_from_vec(
-    entries: Vec<walkdir::DirEntry>,
+    entries: Vec<DirEntry>,
     search_term: &str,
     similarity_threshold: f64,
-) -> u32 {
+    n_workers: usize,
+) -> Vec<String> {
     let (tx, rx) = channel();
+    let pool = ThreadPool::new(n_workers);
 
-    let printer = thread::spawn(move || {
-        for message in rx {
-            println!("Found similar match: {}", message);
-        }
-    });
+    // Process each entry in parallel
+    for entry in entries {
+        let tx = tx.clone();
+        let search_term = search_term.to_owned();
+        let similarity_threshold = similarity_threshold;
 
-    let count = entries.len() as u32; // Total number of entries processed
+        pool.execute(move || {
+            let file_name = entry.file_name().to_string_lossy().clone();
+            let similarity = normalized_levenshtein(&file_name, &search_term);
 
-    entries.into_iter().for_each(|entry| {
-        let file_name = entry.file_name().to_string_lossy();
-        let similarity = normalized_levenshtein(&file_name, search_term);
-        if similarity >= similarity_threshold {
-            let full_path = entry.path().to_string_lossy().into_owned();
-            tx.send(full_path).unwrap();
-        }
-    });
+            if similarity >= similarity_threshold {
+                let full_path = entry.path().to_string_lossy().into_owned();
+                tx.send(full_path).unwrap(); // Send the result to the main thread
+            }
+        });
+    }
+    drop(tx);
 
-    drop(tx); // Close the channel
-    printer.join().unwrap();
-    count
+    let mut results = Vec::new();
+    for received in rx {
+        println!("{:?}", received);
+        results.push(received);
+    }
+    let findings = results;
+    findings
 }
-
