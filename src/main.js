@@ -106,7 +106,7 @@ document.getElementById('context-delete').addEventListener('click', () => {
 document.getElementById('context-copy').addEventListener('click', () => {
   if (selectedFile) {
     console.log(`Copying file: ${selectedFile}`);
-    const result = invoke('copy_path', { filepath: selectedFile});
+    const result = invoke('copy', { filepath: selectedFile});
     console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }

@@ -49,7 +49,7 @@ fn copy_file(path: PathBuf) -> Result<String, String> {
         }
     };
 
-    Ok(!format!("File copyied successfully to {}!", path.display()))
+    Ok(format!("File copyied successfully to {}!", path.display()))
 }
 
 #[command]
@@ -74,7 +74,7 @@ pub fn paste(destination: String) -> Result<String, String> {
     let mode: u8 = 1;
     match mode {
         1 => paste_from_file(dest_path),
-        2 => paste_from_file(dest_path),
+        2 => paste_from_path(dest_path),
         _ => Err("Invalid mode!".to_string()),
     }
 }
@@ -95,7 +95,7 @@ fn paste_from_file(destination: PathBuf) -> Result<String, String> {
     // Write the contents to the specified file
     let mut file = match File::create(&destination) {
         Ok(file) => file,
-        Err(_) => return Err("Failed to create file.".to_string()),
+        Err(e) => return Err(e.to_string()),
     };
 
 
@@ -115,7 +115,7 @@ fn paste_from_path(dest_path: PathBuf) -> Result<String, String> {
         .get_contents()
         .map_err(|e| format!("Failed to read from clipboard: {}", e))?;
 
-    let source_path = Path::new(&source_path_str);; // pastet aktuell in den Zielpath -> nicht aktueller!
+    let source_path = Path::new(&source_path_str); // pastet aktuell in den Zielpath -> nicht aktueller!
 
     // Überprüfen, ob die Quelldatei existiert
     if !source_path.exists() {
@@ -143,7 +143,7 @@ fn paste_from_path(dest_path: PathBuf) -> Result<String, String> {
 
 #[command]
 pub fn cut_file(filepath: String) -> Result<String, String> {
-    let _: Result<String, String> = match copy_file(filepath.to_owned()) {
+    let _: Result<String, String> = match copy_file(clean_path(filepath.to_owned())) {
         Ok(message) => Ok(message),
         Err(error) => return Err(error.to_string()) // returnt Error, wenn kopieren nicht klappt -> nicht wird gelöscht!
     };
