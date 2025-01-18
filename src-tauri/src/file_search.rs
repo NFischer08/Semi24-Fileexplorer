@@ -10,14 +10,14 @@ fn main() {
     let n_workers = 10; // Number of Threads used in Exact_Matches and Similar_Matches
     let similarity_threshold = 0.8; // How similar a name has to be to be outputet by similar search
 
-    let path = "Test_dir"; // Replace with your target directory's path
+    let path = "/"; // Replace with your target directory's path
     let search_term = "Test"; // The term to compare file names against
 
     // Exact matches search
     println!("Starting search for exact matches...");
     let time_exact_matches = Instant::now();
-    let (exact_matches, entries) = find_exact_matches_parallel_and_collect(path, search_term, n_workers);
-    //exact matches = all found direct matches in a Vec<String>
+    let (_exact_matches, entries) = find_exact_matches_parallel_and_collect(path, search_term, n_workers);
+    //exact_matches_ = all found direct matches in a Vec<String>
 
     println!( "{}, {}", "Laufzeit Exact Matches in Millisekunden", time_exact_matches.elapsed().as_millis());
 
@@ -26,13 +26,13 @@ fn main() {
     // Similar matches search
     println!("\nStarting search for similar matches...");
     let time_similar_matches = Instant::now();
-    let matches_similar = find_similar_matches_parallel_from_vec(
+    let _matches_similar = find_similar_matches_parallel_from_vec(
         entries,
         search_term,
         similarity_threshold,
         n_workers,
     );
-    // matches_similar = all found similar directorys in a Vec<String>
+    // matches_similar_ = all found similar directorys in a Vec<String>
 
     println!( "{}, {}",  "Laufzeit Similar Matches in Millisekunden", time_similar_matches.elapsed().as_millis());
     println!("\nFinished search");
