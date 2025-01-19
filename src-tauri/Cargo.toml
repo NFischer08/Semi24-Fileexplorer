@@ -7,8 +7,8 @@ edition = "2021"
 build = "src/build.rs"
 
 [[bin]]
-path = "src/file_search.rs"
-name = "file_search"
+path = "src/creating_database.rs"
+name = "creating_database"
 
 [dependencies]
 tauri = { version = "2", features = [] }
@@ -19,6 +19,9 @@ walkdir = "2.5.0"
 strsim = "0.10.0"
 threadpool = "1.8.1"
 rayon = "1.7.0"
+surrealdb = "2.1.4"
+tokio = "1.42.0"
+serde_json = "1.0.134"
 
 
 
