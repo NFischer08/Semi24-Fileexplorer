@@ -3,8 +3,8 @@ use std::{sync::mpsc::channel, sync::{Arc, Mutex}};
 use std::time::Instant;
 use strsim::normalized_levenshtein;
 use walkdir::{DirEntry, WalkDir};
-
 fn main() {
+
     let time_total = Instant::now();
 
     let n_workers = 10; // Number of Threads used in Exact_Matches and Similar_Matches
@@ -17,7 +17,7 @@ fn main() {
     println!("Starting search for exact matches...");
     let time_exact_matches = Instant::now();
     let (_exact_matches, entries) = find_exact_matches_parallel_and_collect(path, search_term, n_workers);
-    //exact_matches_ = all found direct matches in a Vec<String>
+    //_exact_matches = all found direct matches in a Vec<String>
 
     println!( "{}, {}", "Laufzeit Exact Matches in Millisekunden", time_exact_matches.elapsed().as_millis());
 
@@ -32,12 +32,13 @@ fn main() {
         similarity_threshold,
         n_workers,
     );
-    // matches_similar_ = all found similar directorys in a Vec<String>
+    // _matches_similar = all found similar directorys in a Vec<String>
 
     println!( "{}, {}",  "Laufzeit Similar Matches in Millisekunden", time_similar_matches.elapsed().as_millis());
     println!("\nFinished search");
     println!("{}, {:?}","Anzahl der durchsuchten entries (Directorys and Files)", count);
     println!( "{}, {}","Laufzeit Main in Millisekunden", time_total.elapsed().as_millis() );
+
 }
 
 
