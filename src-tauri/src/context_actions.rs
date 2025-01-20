@@ -80,24 +80,28 @@ pub fn paste(destination: String) -> Result<String, String> {
 }
 
 fn paste_from_file(destination: PathBuf) -> Result<String, String> {
+
     // Create a clipboard context
+    println!("Pasting: {} ... next: Access clipboard", destination.display());
     let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
         Ok(ctx) => ctx,
         Err(_) => return Err("Failed to access clipboard.".to_string()),
     };
+    println!("Accessed clipboard... next: read contents");
 
     // Get the contents from the clipboard
     let contents = match clipboard.get_contents() {
         Ok(contents) => contents,
         Err(_) => return Err("Failed to read clipboard.".to_string()),
     };
+    println!("Read Contents \"{}\" ... next: create File", contents);
 
     // Write the contents to the specified file
-    let mut file = match File::create(&destination) {
+    let mut file = match File::create(&destination.join("/UWU.txt")) {
         Ok(file) => file,
         Err(e) => return Err(e.to_string()),
     };
-
+    println!("Created File ... next: write contents");
 
     match file.write_all(contents.as_bytes()) {
         Ok(_) => Ok(format!("Successfully copied file to {}", destination.display())),
@@ -231,10 +235,10 @@ fn normalize_slashes(path: &str) -> String {
         prev_char = ch;
     }
     // removing unused / at the end
-    let length = result.len();
-    if result[length -1..length] == "/".to_string() {
-        result.remove(length);
-    }
+    //let length = result.len();
+    //if result[length -1..length] == "/".to_string() {
+    //    result.remove(length);
+    //}
 
     result
 }
