@@ -1,10 +1,12 @@
 use std::any::{type_name_of_val};
+use std::fs::File;
 use std::sync::mpsc::channel;
 use rusqlite::{Result};
 use threadpool::ThreadPool;
 use walkdir::{WalkDir};
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::ffi::{sqlite3_file, sqlite3_stmt, SQLITE_SELECT};
 
 #[derive(Debug)]
 struct Files {
@@ -24,8 +26,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let result = conn.execute(
         "CREATE TABLE IF NOT EXISTS files (
         id   INTEGER PRIMARY KEY,
-        name TEXT NOT NULL,
-        path TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        file_path TEXT NOT NULL,
         file_type  BLOB
     )",
         ())?;
@@ -33,6 +35,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("SQL Message Creating Table: {}", result);
 
     let _ = create_database(conn, "./Test_dir", 8)?;
+
+
+    let conn = pool.get()?;
+
+    checking_database(conn);
 
     Ok(())
 }
@@ -79,14 +86,14 @@ fn create_database(
 
         println!("{:?}", me);
         let exists: bool = conn.query_row(
-            "SELECT COUNT(*) > 0 FROM files WHERE name = ?1 AND path = ?2",
+            "SELECT COUNT(*) > 0 FROM files WHERE file_name = ?1 AND file_path = ?2",
             (&me.file_name, &me.file_path),
             |row| row.get(0),
         ).unwrap_or(false);
 
         if !exists {
             conn.execute(
-                "INSERT INTO files (name, path, file_type) VALUES (?1, ?2, ?3)",
+                "INSERT INTO files (file_name, file_path, file_type) VALUES (?1, ?2, ?3)",
                 (&me.file_name, &me.file_path, &me.file_type),
             )?;
             println!("Inserted: {:?}", me);
@@ -97,5 +104,33 @@ fn create_database(
     }
     println!("Done with population");
 
+    Ok(())
+}
+fn get_column_as_vec(conn: &PooledConnection<SqliteConnectionManager>, column_name: &str, table_name: &str) -> Result<Vec<String>> {
+    let mut stmt = conn.prepare(&format!("SELECT {} FROM {}", column_name, table_name))?;
+
+    let column_data = stmt.query_map([], |row| row.get(0))?
+        .collect::<Result<Vec<String>>>()?;
+
+    Ok(column_data)
+}
+
+fn checking_database(
+    conn: PooledConnection<SqliteConnectionManager>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Checking database");
+    let file_paths = get_column_as_vec(&conn, "file_path", "files");
+    let vec = file_paths.unwrap();
+    for path in vec {
+        println!("{}",std::fs::exists(&path).unwrap());
+        if (std::fs::exists(&path).unwrap() == false) {
+            //let rows_deleted = conn.execute(
+            //    "DELETE FROM files WHERE file_path = ?1",
+            //    [path.as_str()],
+            //)?;
+            //println!("rows_deleted: {}", rows_deleted);
+            println!("{}", path);
+        }
+    }
     Ok(())
 }
