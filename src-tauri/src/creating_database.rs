@@ -1,63 +1,101 @@
-#![allow(unused)] // silence unused warnings while exploring (to comment out)
+use std::any::{type_name_of_val};
+use std::sync::mpsc::channel;
+use rusqlite::{Result};
+use threadpool::ThreadPool;
+use walkdir::{WalkDir};
+use r2d2::{Pool, PooledConnection};
+use r2d2_sqlite::SqliteConnectionManager;
 
-use sqlx::postgres::{PgPoolOptions, PgRow};
-use sqlx::{FromRow, Row};
-
-#[derive(Debug, FromRow)]
-struct Ticket {
-    id: i64,
-    name: String,
+#[derive(Debug)]
+struct Files {
+    id: i32,
+    file_name: String,
+    file_path: String,
+    file_type: String,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), sqlx::Error> {
-    // 1) Create a connection pool
-    let pool = PgPoolOptions::new()
-        .max_connections(5)
-        .connect("postgres://postgres:welcome@localhost/postgres")
-        .await?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("Creating database");
+    let manager = SqliteConnectionManager::file("files.sqlite3");
+    let pool = Pool::new(manager)?;
+    let conn = pool.get()?;
 
-    // 2) Create table if not exist yet
-    sqlx::query(
-        r#"
-CREATE TABLE IF NOT EXISTS ticket (
-  id bigserial,
-  name text
-);"#,
-    )
-        .execute(&pool)
-        .await?;
+    println!("Creating tables");
+    let result = conn.execute(
+        "CREATE TABLE IF NOT EXISTS files (
+        id   INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        path TEXT NOT NULL,
+        file_type  BLOB
+    )",
+        ())?;
 
-    // 3) Insert a new ticket
-    let row: (i64,) = sqlx::query_as("insert into ticket (name) values ($1) returning id")
-        .bind("a new ticket")
-        .fetch_one(&pool)
-        .await?;
+    println!("SQL Message Creating Table: {}", result);
 
-    // 4) Select all tickets
-    let rows = sqlx::query("SELECT * FROM ticket").fetch_all(&pool).await?;
-    let str_result = rows
-        .iter()
-        .map(|r| format!("{} - {}", r.get::<i64, _>("id"), r.get::<String, _>("name")))
-        .collect::<Vec<String>>()
-        .join(", ");
-    println!("\n== select tickets with PgRows:\n{}", str_result);
+    let _ = create_database(conn, "./Test_dir", 8)?;
 
-    // 5) Select query with map() (build the Ticket manually)
-    let select_query = sqlx::query("SELECT id, name FROM ticket");
-    let tickets: Vec<Ticket> = select_query
-        .map(|row: PgRow| Ticket {
-            id: row.get("id"),
-            name: row.get("name"),
-        })
-        .fetch_all(&pool)
-        .await?;
-    println!("\n=== select tickets with query.map...:\n{:?}", tickets);
+    Ok(())
+}
 
-    // 6) Select query_as (using derive FromRow)
-    let select_query = sqlx::query_as::<_, Ticket>("SELECT id, name FROM ticket");
-    let tickets: Vec<Ticket> = select_query.fetch_all(&pool).await?;
-    println!("\n=== select tickets with query.map...: \n{:?}", tickets);
+fn create_database(
+    conn: PooledConnection<SqliteConnectionManager>,
+    path: &str, // Path to starting Folder of Indexing
+    n_workers: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
+
+    println!("Populating Database");
+
+    let pool = ThreadPool::new(n_workers);
+    let (tx, rx) = channel(); // Channel for communication between threads
+
+    println!("Iterating Entries");
+    for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) { //This Line does not Throw an Error if the Path supplied is not valid careful
+        let tx= tx.clone();
+        println!("Tx has been cloned");
+
+        pool.execute(move || {
+            let full_path = entry.path().to_owned();
+            tx.send(full_path).unwrap();
+            println!("Sent Path")
+        });
+    }
+    drop(tx);
+
+    for received in rx {
+        println!("{}, {:?}", type_name_of_val(&received), received);
+
+        let file_name = received.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let file_type = received.extension().unwrap_or_default().to_string_lossy().to_string();
+        let file_path = received.as_path().to_path_buf().to_str().unwrap().to_string();
+
+
+        println!("Instanciating struct");
+        let me = Files {
+            id: 0,
+            file_name,
+            file_path,
+            file_type,
+        };
+
+        println!("{:?}", me);
+        let exists: bool = conn.query_row(
+            "SELECT COUNT(*) > 0 FROM files WHERE name = ?1 AND path = ?2",
+            (&me.file_name, &me.file_path),
+            |row| row.get(0),
+        ).unwrap_or(false);
+
+        if !exists {
+            conn.execute(
+                "INSERT INTO files (name, path, file_type) VALUES (?1, ?2, ?3)",
+                (&me.file_name, &me.file_path, &me.file_type),
+            )?;
+            println!("Inserted: {:?}", me);
+        } else {
+            println!("Record already exists: {:?}", me);
+        }
+
+    }
+    println!("Done with population");
 
     Ok(())
 }
