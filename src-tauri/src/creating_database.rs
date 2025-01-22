@@ -90,15 +90,31 @@ fn create_database(
 
     let tx = conn.transaction()?;
     {
-        let mut stmt = tx.prepare_cached("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)")?;
+        let mut existing_files = std::collections::HashSet::new();
+        let mut stmt = tx.prepare_cached("SELECT file_name, file_path FROM files")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        for row in rows {
+            if let Ok((name, path)) = row {
+                existing_files.insert((name, path));
+            }
+        }
+
+        let mut insert_stmt = tx.prepare_cached("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)")?;
+
+        // Insert files that don't exist
         for (index, file) in files_vec.iter().enumerate() {
-            match stmt.execute(params![
-            &file.file_name,
-            &file.file_path,
-            &file.file_type,
-        ]) {
-                Ok(_) => {},
-                Err(e) => eprintln!("Error inserting file {}: {:?}", index, e),
+            if !existing_files.contains(&(file.file_name.clone(), file.file_path.clone())) {
+                match insert_stmt.execute(params![
+                &file.file_name,
+                &file.file_path,
+                &file.file_type,
+            ]) {
+                    Ok(_) => {},
+                    Err(e) => eprintln!("Error inserting file {}: {:?}", index, e),
+                }
+            } else {
             }
         }
     }
