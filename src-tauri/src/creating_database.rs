@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::mpsc::channel;
 use rusqlite::{params, Result};
 use threadpool::ThreadPool;
@@ -19,6 +20,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manager = SqliteConnectionManager::file("files.sqlite3");
     let pool = Pool::new(manager)?;
     let conn = pool.get()?;
+    let thread_count = 8;
 
     let pragma_check: String = conn.query_row("PRAGMA integrity_check", [], |row| row.get(0))?;
     if pragma_check != "ok" {
@@ -37,12 +39,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("SQL Message Creating Table: {}", result);
 
-    let _ = create_database(conn, "/", 8)?;
+    let _ = create_database(conn, "/", thread_count)?;
 
 
     let conn = pool.get()?;
 
-    //checking_database(conn);
+    checking_database(conn, thread_count);
 
     Ok(())
 }
@@ -95,7 +97,7 @@ fn create_database(
             &file.file_path,
             &file.file_type,
         ]) {
-                Ok(_) => println!("Inserted file {}", index),
+                Ok(_) => {},
                 Err(e) => eprintln!("Error inserting file {}: {:?}", index, e),
             }
         }
@@ -119,20 +121,26 @@ fn get_column_as_vec(conn: &PooledConnection<SqliteConnectionManager>, column_na
 
 fn checking_database(
     conn: PooledConnection<SqliteConnectionManager>,
+    n_workers: usize,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Checking database");
-    let file_paths = get_column_as_vec(&conn, "file_path", "files");
-    let vec = file_paths.unwrap();
-    for path in vec {
-        println!("{}",std::fs::exists(&path).unwrap());
-        if (std::fs::exists(&path).unwrap() == false) {
-            //let rows_deleted = conn.execute(
-            //    "DELETE FROM files WHERE file_path = ?1",
-            //    [path.as_str()],
-            //)?;
-            //println!("rows_deleted: {}", rows_deleted);
-            println!("{}", path);
-        }
+
+    let file_paths = get_column_as_vec(&conn, "file_path", "files").unwrap();
+    let mut bad_paths: Vec<String> = Vec::new();
+
+    let pool = ThreadPool::new(n_workers);
+
+    for path in file_paths {
+        let bad_paths = bad_paths.clone();
+        pool.execute(move || {
+            if Path::new(&path).exists() {
+                let mut bad_paths = bad_paths;
+                bad_paths.push(path);
+            }
+        });
     }
+
+    println!("Number of bad files: {}", bad_paths.len());
+
     Ok(())
 }
