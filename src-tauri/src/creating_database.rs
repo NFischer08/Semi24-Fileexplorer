@@ -33,11 +33,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     conn.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)", [])?;
 
     let allowed_file_extensions: HashSet<String> = [
-        "txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-        "jpg", "jpeg", "png", "gif", "mp3", "mp4", "avi", "mov",
-        "zip", "rar", "7z", "tar", "gz", "csv", "json", "xml",
-        "html", "htm", "css", "js", "py", "java", "c", "cpp", "h",
-        "rs", "go", "php", "rb", "pl", "sh", "bat", "ps1"
+        ".txt", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+        ".jpg", ".jpeg", ".png", ".gif", ".mp3", ".mp4", ".avi", ".mov",
+        ".zip", ".rar", ".7z", ".tar", ".gz", ".csv", ".json", ".xml",
+        ".html", ".htm", ".css", ".js", ".py", ".java", ".c", ".cpp", ".h",
+        ".rs", ".go", ".php", ".rb", ".pl", ".sh", ".bat", ".ps1"
     ].iter().map(|&s| s.to_string()).collect();
 
     let _ = create_database(conn, "/", thread_count, &allowed_file_extensions)?;
@@ -94,7 +94,7 @@ fn create_database(
 
     let tx = conn.transaction()?;
     {
-        let mut existing_files = std::collections::HashSet::new();
+        let mut existing_files = HashSet::new();
         let mut stmt = tx.prepare_cached("SELECT file_name, file_path FROM files")?;
         let rows = stmt.query_map([], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
@@ -174,11 +174,10 @@ fn checking_database(
         println!("bad files: {:?}", bad_paths);
         println!("Number of bad files: {}", bad_paths.len());
 
-        // Optionally, remove bad paths from the database
-        //let mut delete_stmt = tx.prepare_cached("DELETE FROM files WHERE file_path = ?")?;
-        //for path in bad_paths {
-        //    delete_stmt.execute([&path])?;
-        //}
+        let mut delete_stmt = tx.prepare_cached("DELETE FROM files WHERE file_path = ?")?;
+        for path in bad_paths {
+            delete_stmt.execute([&path])?;
+        }
     }
     tx.commit()?;
 
