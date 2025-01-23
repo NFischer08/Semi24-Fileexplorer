@@ -768,6 +768,7 @@ dependencies = [
  "r2d2_sqlite",
  "rusqlite",
  "serde",
+ "strsim",
  "tauri",
  "tauri-plugin-shell",
  "threadpool",
