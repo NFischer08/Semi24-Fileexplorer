@@ -12,7 +12,7 @@ struct Files {
     id: i32,
     file_name: String,
     file_path: String,
-    file_type: String,
+    file_type: Option<String>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -69,12 +69,16 @@ fn create_database(
 
     for entry in rx {
         let path = entry.path();
-        if is_allowed_file(path, allowed_file_extensions) && !should_ignore_path(path) {
+        if !should_ignore_path(path) && (path.is_dir() || is_allowed_file(path, allowed_file_extensions)) {
             let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
             let file_path = path.to_string_lossy().to_string();
-            let file_type = path.extension()
-                .and_then(|s| s.to_str())
-                .unwrap_or("").to_string();
+            let file_type = if path.is_dir() {
+                Some("directory".to_string())
+            } else {
+                path.extension()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.to_string())
+            };
 
             let me = Files {
                 id: 0,
@@ -108,10 +112,10 @@ fn create_database(
             for file in chunk {
                 if !existing_files.contains(&(file.file_name.clone(), file.file_path.clone())) {
                     insert_stmt.execute(params![
-                file.file_name,
-                file.file_path,
-                file.file_type
-            ])?;
+                        file.file_name,
+                        file.file_path,
+                        file.file_type.as_deref()
+                    ])?;
                 }
             }
         }
@@ -184,9 +188,6 @@ fn checking_database(
 fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bool {
     if should_ignore_path(path) {
         return false;
-    }
-    if path.is_dir() {
-        return true;
     }
     path.extension()
         .and_then(|s| s.to_str())
