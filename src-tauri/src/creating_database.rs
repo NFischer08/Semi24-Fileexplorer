@@ -1,14 +1,12 @@
-use std::sync::mpsc::channel;
+use std::sync::{mpsc::channel, Arc, Mutex};
 use rusqlite::{params, Result};
 use threadpool::ThreadPool;
-use walkdir::{WalkDir};
+use walkdir::WalkDir;
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use std::collections::HashSet;
 use std::path::Path;
 use std::time::Instant;
-use std::sync::Arc;
-use std::sync::Mutex;
 
 
 #[derive(Debug)]
@@ -149,16 +147,6 @@ fn create_database(
     Ok(())
 }
 
-
-fn get_column_as_vec(conn: &PooledConnection<SqliteConnectionManager>, column_name: &str, table_name: &str) -> Result<Vec<String>> {
-    let mut stmt = conn.prepare(&format!("SELECT {} FROM {}", column_name, table_name))?;
-
-    let column_data = stmt.query_map([], |row| row.get(0))?
-        .collect::<Result<Vec<String>>>()?;
-
-    Ok(column_data)
-}
-
 fn checking_database(
     conn: PooledConnection<SqliteConnectionManager>,
     n_workers: usize,
@@ -208,7 +196,6 @@ fn checking_database(
     Ok(())
 }
 
-
 fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bool {
     if should_ignore_path(path) {
         return false;
@@ -218,7 +205,6 @@ fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bo
         .map(|ext| allowed_file_extensions.contains(ext))
         .unwrap_or(false)
 }
-
 
 fn should_ignore_path(path: &Path) -> bool {
     path.to_str().map_or(false, |s| s.starts_with("/proc") || s.starts_with("/sys"))
