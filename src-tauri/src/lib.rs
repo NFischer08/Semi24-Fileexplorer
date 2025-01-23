@@ -1,5 +1,8 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
+mod searching_database;
+mod creating_database;
+
 use std::fs;
 use std::path::PathBuf;
 use std::time::SystemTime;

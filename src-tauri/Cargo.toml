@@ -7,18 +7,20 @@ edition = "2021"
 build = "src/build.rs"
 
 [[bin]]
-path = "src/file_search.rs"
-name = "file_search"
+path = "src/searching_database.rs"
+name = "creating_database"
 
 [dependencies]
 tauri = { version = "2", features = [] }
 tauri-plugin-shell = "2"
 serde = { version = "1", features = ["derive"] }
 chrono = "0.4"
+rusqlite = "0.33.0"
 walkdir = "2.5.0"
-strsim = "0.10.0"
 threadpool = "1.8.1"
-rayon = "1.7.0"
+r2d2 = "0.8.10"
+r2d2_sqlite = "0.26.0"
+strsim = "0.11.1"
 
 
 
