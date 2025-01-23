@@ -33,11 +33,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     conn.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)", [])?;
 
     let allowed_file_extensions: HashSet<String> = [
-        ".txt", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-        ".jpg", ".jpeg", ".png", ".gif", ".mp3", ".mp4", ".avi", ".mov",
-        ".zip", ".rar", ".7z", ".tar", ".gz", ".csv", ".json", ".xml",
-        ".html", ".htm", ".css", ".js", ".py", ".java", ".c", ".cpp", ".h",
-        ".rs", ".go", ".php", ".rb", ".pl", ".sh", ".bat", ".ps1"
+        "txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+        "jpg", "jpeg", "png", "gif", "mp3", "mp4", "avi", "mov",
+        "zip", "rar", "7z", "tar", "gz", "csv", "json", "xml",
+        "html", "htm", "css", "js", "py", "java", "c", "cpp", "h",
+        "rs", "go", "php", "rb", "pl", "sh", "bat", "ps1"
     ].iter().map(|&s| s.to_string()).collect();
 
     let _ = create_database(conn, "/", thread_count, &allowed_file_extensions)?;
