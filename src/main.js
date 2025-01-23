@@ -114,7 +114,7 @@ document.getElementById('context-copy').addEventListener('click', () => {
 
 document.getElementById('context-paste').addEventListener('click', () => {
   if (selectedFile) {
-    let selectedFile = document.getElementById("file-path").value
+    //let selectedFile = document.getElementById("file-path").value
     console.log(`Pasting file: ${selectedFile}`);
     const result = invoke('paste', { destination: selectedFile});
     console.log(result);
@@ -189,12 +189,31 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 })
 
+// double click to open file / folder
+document.getElementById('fileTable').addEventListener('dblclick', async (event) => {
+  event.preventDefault();
+  const target = event.target.closest('tr');
+  if (target) {
+    selectedFile = target.dataset.filepath
+    console.log(`Opening file: ${selectedFile}`);
+    document.getElementById('file-path').value = selectedFile;
+    await loadFilesAndFolders();
+  }
+})
+
+// submit Filepath by pressing enter
+document.getElementById('file-path').addEventListener('keypress', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    document.getElementById('file-path-selector').click();
+  }
+})
 
 
 /*
 
 async function loadSearchResults() {
-  //Initialisierung
+  //Initialisierungq
   const filepath = document.getElementById('file-path').value; // Aktuellen Pfad auslesen
   const fileListElement = document.getElementById('fileList');
   const errorMessageElement = document.getElementById('error-message');

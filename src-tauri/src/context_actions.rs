@@ -3,6 +3,7 @@ use std::path::{Path, PathBuf};
 use std::fs::{self, File, rename, remove_file};
 use tauri::command;
 use std::io::{Write, Read};
+use tauri::utils::assets::phf::phf_ordered_set;
 
 #[command]
 pub fn copy(filepath: String) -> Result<String, String> {
@@ -16,6 +17,7 @@ pub fn copy(filepath: String) -> Result<String, String> {
 }
 
 fn copy_file(path: PathBuf) -> Result<String, String> {
+    println!("copying file {}", path.display());
     // Attempt to open the file
     let mut file = match File::open(&path) {
         Ok(file) => file,
@@ -32,6 +34,13 @@ fn copy_file(path: PathBuf) -> Result<String, String> {
             return Err("Failed to read file.".to_string());
         }
     };
+
+    // append file type and name !TODO
+    let filetype = match path.extension() {
+        Some(ext) => ext.to_str().unwrap(),
+        None => "."
+    };
+    contents += filetype;
 
     // Create a clipboard context
     let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
@@ -95,9 +104,13 @@ fn paste_from_file(destination: PathBuf) -> Result<String, String> {
         Err(_) => return Err("Failed to read clipboard.".to_string()),
     };
     println!("Read Contents \"{}\" ... next: create File", contents);
+    let extension = match contents.rfind('.') {
+        Some(index) => format!(".{}", &contents[index + 1..]),
+        None => String::from("")
+    };
 
     // Write the contents to the specified file
-    let mut file = match File::create(&destination.join("/UWU.txt")) {
+    let mut file = match File::create(&destination.join(extension)) {
         Ok(file) => file,
         Err(e) => return Err(e.to_string()),
     };
