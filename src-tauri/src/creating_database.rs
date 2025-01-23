@@ -6,6 +6,10 @@ use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use std::collections::HashSet;
 use std::path::Path;
+use std::time::Instant;
+use std::sync::Arc;
+use std::sync::Mutex;
+
 
 #[derive(Debug)]
 struct Files {
@@ -16,6 +20,8 @@ struct Files {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let start_time = Instant::now();
+
     let manager = SqliteConnectionManager::file("files.sqlite3");
     let pool = Pool::new(manager)?;
     let conn = pool.get()?;
@@ -33,20 +39,38 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     conn.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)", [])?;
 
     let allowed_file_extensions: HashSet<String> = [
-        "txt", "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-        "jpg", "jpeg", "png", "gif", "mp3", "mp4", "avi", "mov",
-        "zip", "rar", "7z", "tar", "gz", "csv", "json", "xml",
-        "html", "htm", "css", "js", "py", "java", "c", "cpp", "h",
-        "rs", "go", "php", "rb", "pl", "sh", "bat", "ps1"
-    ].iter().map(|&s| s.to_string()).collect();
+        // Text and documents
+        "txt", "pdf", "doc", "docx", "rtf", "odt", "tex", "md", "epub",
+        // Spreadsheets and presentations
+        "xls", "xlsx", "csv", "ods", "ppt", "pptx", "odp", "key",
+        // Images
+        "jpg", "jpeg", "png", "gif", "bmp", "tiff", "svg", "webp", "ico", "raw",
+        // Audio and video
+        "mp3", "wav", "ogg", "flac", "aac", "wma", "m4a", "mp4", "avi", "mov", "wmv", "flv", "mkv", "webm", "m4v", "3gp",
+        // Archives and data
+        "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "json", "xml", "yaml", "yml", "toml", "ini", "cfg",
+        // Web and programming
+        "html", "htm", "css", "js", "php", "asp", "jsp", "py", "java", "c", "cpp", "h", "hpp", "cs", "rs", "go", "rb", "pl", "swift", "kt", "ts", "coffee", "scala", "groovy", "lua", "r",
+        // Scripts and executables
+        "sh", "bash", "zsh", "fish", "bat", "cmd", "ps1", "exe", "dll", "so", "dylib",
+        // Other formats
+        "sql", "db", "sqlite", "mdb", "ttf", "otf", "woff", "woff2", "obj", "stl", "fbx", "dxf", "dwg", "psd", "ai", "indd", "iso", "img", "dmg", "bak", "tmp", "log", "pcap"
+    ].iter().map(|&s| String::from(s)).collect();
 
+    let create_db_start = Instant::now();
     let _ = create_database(conn, "/", thread_count, &allowed_file_extensions)?;
+    println!("Database creation took: {:?}", create_db_start.elapsed());
 
     let conn = pool.get()?;
 
+    let check_db_start = Instant::now();
     checking_database(conn, thread_count, &allowed_file_extensions)?;
+    println!("Database checking took: {:?}", check_db_start.elapsed());
+
+    println!("Total execution time: {:?}", start_time.elapsed());
     Ok(())
 }
+
 
 fn create_database(
     conn: PooledConnection<SqliteConnectionManager>,
@@ -65,8 +89,8 @@ fn create_database(
             tx.send(entry).unwrap();
         });
     }
-    drop(tx);
 
+    drop(tx);
     for entry in rx {
         let path = entry.path();
         if !should_ignore_path(path) && (path.is_dir() || is_allowed_file(path, allowed_file_extensions)) {
@@ -89,6 +113,7 @@ fn create_database(
             files_vec.push(me);
         }
     }
+
 
     println!("Number of files to insert: {}", files_vec.len());
 
@@ -121,7 +146,6 @@ fn create_database(
         }
     }
     tx.commit()?;
-
     Ok(())
 }
 
@@ -140,49 +164,50 @@ fn checking_database(
     n_workers: usize,
     allowed_file_extensions: &HashSet<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut conn = conn;
+    let conn = Arc::new(Mutex::new(conn));
+    let pool = ThreadPool::new(n_workers);
+    let (sender, receiver) = channel();
+    let allowed_file_extensions = Arc::new(allowed_file_extensions.clone());
 
-    let tx = conn.transaction()?;
     {
-        let mut stmt = tx.prepare_cached("SELECT file_path FROM files")?;
+        let conn = conn.lock().unwrap();
+        let mut stmt = conn.prepare_cached("SELECT file_path FROM files")?;
         let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
-
-        let mut bad_paths = Vec::new();
-
-        let pool = ThreadPool::new(n_workers);
-        let (sender, receiver) = channel();
 
         for path in rows {
             let path = path?;
             let sender = sender.clone();
-            let allowed_file_extensions = allowed_file_extensions.clone();
+            let allowed_extensions = Arc::clone(&allowed_file_extensions);
             pool.execute(move || {
                 let path_obj = Path::new(&path);
-                if !is_allowed_file(path_obj, &allowed_file_extensions) &&
+                if !is_allowed_file(path_obj, &allowed_extensions) &&
                     !std::fs::metadata(&path).is_ok() {
                     sender.send(path).unwrap();
                 }
             });
         }
-
-        drop(sender); // Close the sender
-
-        for path in receiver {
-            bad_paths.push(path);
-        }
-
-        println!("bad files: {:?}", bad_paths);
-        println!("Number of bad files: {}", bad_paths.len());
-
-        let mut delete_stmt = tx.prepare_cached("DELETE FROM files WHERE file_path = ?")?;
-        for path in bad_paths {
-            delete_stmt.execute([&path])?;
-        }
     }
-    tx.commit()?;
+
+    drop(sender);
+
+    let bad_paths: Vec<String> = receiver.iter().collect();
+    println!("Number of bad files: {}", bad_paths.len());
+
+    if !bad_paths.is_empty() {
+        let mut conn = conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        {
+            let placeholders = bad_paths.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+            let query = format!("DELETE FROM files WHERE file_path IN ({})", placeholders);
+            let mut stmt = tx.prepare_cached(&query)?;
+            stmt.execute(rusqlite::params_from_iter(bad_paths.iter()))?;
+        }
+        tx.commit()?;
+    }
 
     Ok(())
 }
+
 
 fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bool {
     if should_ignore_path(path) {
