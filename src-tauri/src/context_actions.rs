@@ -17,6 +17,11 @@ pub fn copy(filepath: String) -> Result<String, String> {
 }
 
 fn copy_file(path: PathBuf) -> Result<String, String> {
+    // checks if path refers to a directory
+    if path.is_dir() {
+        return Err(String::from("Can't copy directory! yet!"));
+    }
+
     println!("copying file {}", path.display());
     // Attempt to open the file
     let mut file = match File::open(&path) {
@@ -35,12 +40,14 @@ fn copy_file(path: PathBuf) -> Result<String, String> {
         }
     };
 
-    // append file type and name !TODO
-    let filetype = match path.extension() {
-        Some(ext) => ext.to_str().unwrap(),
-        None => "."
+    // Append filename and fileextension to the content
+    let filename: String = match path.file_name() {
+        Some(name) => format!("={}", name.to_string_lossy()),
+        None => String::from("=Unbenannt"),
     };
-    contents += filetype;
+    println!("Filename: {}", filename);
+
+    contents += filename.as_str();
 
     // Create a clipboard context
     let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
@@ -89,7 +96,11 @@ pub fn paste(destination: String) -> Result<String, String> {
 }
 
 fn paste_from_file(destination: PathBuf) -> Result<String, String> {
-
+    // File already exists? TODO => replace, keep both, cancel
+    // => like Linux? => user has to enter other filename
+    if destination.exists() {
+        return Err(String::from("File already exists!"));
+    }
     // Create a clipboard context
     println!("Pasting: {} ... next: Access clipboard", destination.display());
     let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
@@ -104,13 +115,16 @@ fn paste_from_file(destination: PathBuf) -> Result<String, String> {
         Err(_) => return Err("Failed to read clipboard.".to_string()),
     };
     println!("Read Contents \"{}\" ... next: create File", contents);
-    let extension = match contents.rfind('.') {
-        Some(index) => format!(".{}", &contents[index + 1..]),
-        None => String::from("")
+
+    let (name, index) = match contents.rfind('=') {
+        Some(index) => (format!("{}", &contents[index + 1..]), index),
+        None => (String::from("Unbenannt"), contents.len()),
     };
+    println!("Name: {}", name);
+    let contents: String = contents[..index].to_string();
 
     // Write the contents to the specified file
-    let mut file = match File::create(&destination.join(extension)) {
+    let mut file = match File::create(&destination.join(name)) {
         Ok(file) => file,
         Err(e) => return Err(e.to_string()),
     };
@@ -160,9 +174,9 @@ fn paste_from_path(dest_path: PathBuf) -> Result<String, String> {
 
 #[command]
 pub fn cut_file(filepath: String) -> Result<String, String> {
-    let _: Result<String, String> = match copy_file(clean_path(filepath.to_owned())) {
-        Ok(message) => Ok(message),
-        Err(error) => return Err(error.to_string()) // returnt Error, wenn kopieren nicht klappt -> nicht wird gelöscht!
+    match copy_file(clean_path(filepath.to_owned())) {
+        Ok(_) => {},
+        Err(error) => return Err(error) // returnt Error, wenn kopieren nicht klappt -> nicht wird gelöscht!
     };
     match delete_file(filepath) { //nicht lieber erstmal überprüfen, ob die auch wieder gespeichert wurde? Nino: wenns nicht klappt wird ein Error returnt!
         Ok(_) => Ok("Cut successfully!".to_string()),
