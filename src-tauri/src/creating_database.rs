@@ -18,11 +18,14 @@ struct Files {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    println!("Main is running");
     let start_time = Instant::now();
 
     let manager = SqliteConnectionManager::file("files.sqlite3");
     let pool = Pool::new(manager)?;
     let conn = pool.get()?;
+    println!("Main is still running");
+
 
     let _result = conn.execute(
         "CREATE TABLE IF NOT EXISTS files (
@@ -33,6 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )",
         ())?;
 
+    println!("Main is still running");
     conn.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)", [])?;
 
     let allowed_file_extensions: HashSet<String> = [
@@ -54,8 +58,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "sql", "db", "sqlite", "mdb", "ttf", "otf", "woff", "woff2", "obj", "stl", "fbx", "dxf", "dwg", "psd", "ai", "indd", "iso", "img", "dmg", "bak", "tmp", "log", "pcap"
     ].iter().map(|&s| String::from(s)).collect();
 
+    println!("Main is still running");
     let create_db_start = Instant::now();
-    let _ = create_database(conn, "/", &allowed_file_extensions)?;
+    let _ = create_database(conn, r"C:\Users\maxmu", &allowed_file_extensions)?;
     println!("Database creation took: {:?}", create_db_start.elapsed());
 
     let conn = pool.get()?;
@@ -74,6 +79,10 @@ fn create_database(
     path: &str,
     allowed_file_extensions: &HashSet<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    println!("Starting create_database function");
+    println!("Scanning directory: {}", path);
+
+    let start_time = std::time::Instant::now();
     let files_vec: Vec<Files> = WalkDir::new(path)
         .parallelism(jwalk::Parallelism::RayonNewPool(num_cpus::get()))
         .into_iter()
@@ -98,10 +107,14 @@ fn create_database(
         })
         .collect();
 
+    println!("Directory scan completed in {:?}", start_time.elapsed());
     println!("Number of files to insert: {}", files_vec.len());
+
     let mut conn = conn;
     let tx = conn.transaction()?;
     {
+        println!("Starting to fetch existing files");
+        let fetch_start = std::time::Instant::now();
         let mut existing_files = HashSet::new();
         let mut stmt = tx.prepare_cached("SELECT file_name, file_path FROM files")?;
         let rows = stmt.query_map([], |row| {
@@ -113,10 +126,14 @@ fn create_database(
                 existing_files.insert((name, path));
             }
         }
+        println!("Fetched {} existing files in {:?}", existing_files.len(), fetch_start.elapsed());
 
+        println!("Starting file insertion");
+        let insert_start = std::time::Instant::now();
         let mut insert_stmt = tx.prepare_cached("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)")?;
         let batch_size = 1000;
-        for chunk in files_vec.chunks(batch_size) {
+        let mut inserted_count = 0;
+        for (i, chunk) in files_vec.chunks(batch_size).enumerate() {
             for file in chunk {
                 if !existing_files.contains(&(file.file_name.clone(), file.file_path.clone())) {
                     insert_stmt.execute(params![
@@ -124,13 +141,24 @@ fn create_database(
                         file.file_path,
                         file.file_type.as_deref()
                     ])?;
+                    inserted_count += 1;
                 }
             }
+            if (i + 1) % 10 == 0 {
+            }
         }
+        println!("File insertion completed in {:?}", insert_start.elapsed());
+        println!("Total files inserted: {}", inserted_count);
     }
+    println!("Committing transaction");
+    let commit_start = std::time::Instant::now();
     tx.commit()?;
+    println!("Transaction committed in {:?}", commit_start.elapsed());
+
+    println!("create_database function completed in {:?}", start_time.elapsed());
     Ok(())
 }
+
 
 fn checking_database(
     conn: PooledConnection<SqliteConnectionManager>,
