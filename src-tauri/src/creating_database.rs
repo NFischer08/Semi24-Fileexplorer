@@ -1,7 +1,7 @@
-use std::sync::{mpsc::channel, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 use rusqlite::{params, Result};
-use threadpool::ThreadPool;
-use walkdir::WalkDir;
+use rayon::prelude::*;
+use jwalk::WalkDir;
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use std::collections::HashSet;
@@ -23,7 +23,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manager = SqliteConnectionManager::file("files.sqlite3");
     let pool = Pool::new(manager)?;
     let conn = pool.get()?;
-    let thread_count = 4;
 
     let _result = conn.execute(
         "CREATE TABLE IF NOT EXISTS files (
@@ -56,13 +55,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     ].iter().map(|&s| String::from(s)).collect();
 
     let create_db_start = Instant::now();
-    let _ = create_database(conn, "/", thread_count, &allowed_file_extensions)?;
+    let _ = create_database(conn, "/", &allowed_file_extensions)?;
     println!("Database creation took: {:?}", create_db_start.elapsed());
 
     let conn = pool.get()?;
 
     let check_db_start = Instant::now();
-    checking_database(conn, thread_count, &allowed_file_extensions)?;
+    checking_database(conn, &allowed_file_extensions)?;
     println!("Database checking took: {:?}", check_db_start.elapsed());
 
     println!("Total execution time: {:?}", start_time.elapsed());
@@ -73,48 +72,34 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn create_database(
     conn: PooledConnection<SqliteConnectionManager>,
     path: &str,
-    n_workers: usize,
     allowed_file_extensions: &HashSet<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut files_vec: Vec<Files> = Vec::new();
-    let pool = ThreadPool::new(n_workers);
-    let (tx, rx) = channel();
-    let mut conn = conn;
-
-    for entry in WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
-        let tx = tx.clone();
-        pool.execute(move || {
-            tx.send(entry).unwrap();
-        });
-    }
-
-    drop(tx);
-    for entry in rx {
-        let path = entry.path();
-        if !should_ignore_path(path) && (path.is_dir() || is_allowed_file(path, allowed_file_extensions)) {
-            let file_name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-            let file_path = path.to_string_lossy().to_string();
-            let file_type = if path.is_dir() {
-                Some("directory".to_string())
-            } else {
-                path.extension()
-                    .and_then(|s| s.to_str())
-                    .map(|s| s.to_string())
-            };
-
-            let me = Files {
-                id: 0,
-                file_name,
-                file_path,
-                file_type,
-            };
-            files_vec.push(me);
-        }
-    }
-
+    let files_vec: Vec<Files> = WalkDir::new(path)
+        .parallelism(jwalk::Parallelism::RayonNewPool(num_cpus::get()))
+        .into_iter()
+        .filter_map(|entry_result| {
+            entry_result.ok().and_then(|entry| {
+                let path = entry.path();
+                if !should_ignore_path(&path) && (path.is_dir() || is_allowed_file(&path, allowed_file_extensions)) {
+                    Some(Files {
+                        id: 0,
+                        file_name: entry.file_name().to_string_lossy().to_string(),
+                        file_path: path.to_string_lossy().to_string(),
+                        file_type: if path.is_dir() {
+                            Some("directory".to_string())
+                        } else {
+                            path.extension().and_then(|s| s.to_str()).map(String::from)
+                        },
+                    })
+                } else {
+                    None
+                }
+            })
+        })
+        .collect();
 
     println!("Number of files to insert: {}", files_vec.len());
-
+    let mut conn = conn;
     let tx = conn.transaction()?;
     {
         let mut existing_files = HashSet::new();
@@ -149,36 +134,30 @@ fn create_database(
 
 fn checking_database(
     conn: PooledConnection<SqliteConnectionManager>,
-    n_workers: usize,
     allowed_file_extensions: &HashSet<String>,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let conn = Arc::new(Mutex::new(conn));
-    let pool = ThreadPool::new(n_workers);
-    let (sender, receiver) = channel();
     let allowed_file_extensions = Arc::new(allowed_file_extensions.clone());
 
-    {
+    let bad_paths: Vec<String> = {
         let conn = conn.lock().unwrap();
         let mut stmt = conn.prepare_cached("SELECT file_path FROM files")?;
-        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        let rows: Vec<Result<String, _>> = stmt.query_map([], |row| row.get::<_, String>(0))?.collect();
 
-        for path in rows {
-            let path = path?;
-            let sender = sender.clone();
-            let allowed_extensions = Arc::clone(&allowed_file_extensions);
-            pool.execute(move || {
+        rows.into_par_iter()
+            .filter_map(|path_result| {
+                let path = path_result.ok()?;
                 let path_obj = Path::new(&path);
-                if !is_allowed_file(path_obj, &allowed_extensions) &&
+                if !is_allowed_file(path_obj, &allowed_file_extensions) &&
                     !std::fs::metadata(&path).is_ok() {
-                    sender.send(path).unwrap();
+                    Some(path)
+                } else {
+                    None
                 }
-            });
-        }
-    }
+            })
+            .collect()
+    };
 
-    drop(sender);
-
-    let bad_paths: Vec<String> = receiver.iter().collect();
     println!("Number of bad files: {}", bad_paths.len());
 
     if !bad_paths.is_empty() {
@@ -195,6 +174,7 @@ fn checking_database(
 
     Ok(())
 }
+
 
 fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bool {
     if should_ignore_path(path) {
