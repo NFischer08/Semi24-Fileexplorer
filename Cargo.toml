@@ -2,3 +2,6 @@
 members = [
     "src-tauri"
 ]
+
+[profile.release]
+debug = true

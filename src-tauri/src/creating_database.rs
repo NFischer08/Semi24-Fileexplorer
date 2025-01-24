@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manager = SqliteConnectionManager::file("files.sqlite3");
     let pool = Pool::new(manager)?;
     let conn = pool.get()?;
-    let thread_count = 8;
+    let thread_count = 4;
 
     let _result = conn.execute(
         "CREATE TABLE IF NOT EXISTS files (
