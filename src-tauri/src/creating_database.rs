@@ -1,4 +1,3 @@
-use std::sync::{Arc, Mutex};
 use rusqlite::{params, Result};
 use rayon::prelude::*;
 use jwalk::WalkDir;
@@ -22,8 +21,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let start_time = Instant::now();
 
     let manager = SqliteConnectionManager::file("files.sqlite3");
-    let pool = Pool::new(manager)?;
-    let conn = pool.get()?;
+    let connection_pool = Pool::new(manager)?;
+    let conn = connection_pool.get()?;
     println!("Main is still running");
 
 
@@ -58,15 +57,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "sql", "db", "sqlite", "mdb", "ttf", "otf", "woff", "woff2", "obj", "stl", "fbx", "dxf", "dwg", "psd", "ai", "indd", "iso", "img", "dmg", "bak", "tmp", "log", "pcap"
     ].iter().map(|&s| String::from(s)).collect();
 
+    let thread_pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(num_cpus::get())
+        .build()
+        .unwrap();
+
     println!("Main is still running");
     let create_db_start = Instant::now();
-    let _ = create_database(conn, r"C:\Users\maxmu", &allowed_file_extensions)?;
+    let _ = create_database(conn, r"C:\Users\maxmu", &allowed_file_extensions, &thread_pool)?;
     println!("Database creation took: {:?}", create_db_start.elapsed());
 
-    let conn = pool.get()?;
+    let conn = connection_pool.get()?;
 
     let check_db_start = Instant::now();
-    checking_database(conn, &allowed_file_extensions)?;
+    checking_database(conn, &allowed_file_extensions, &thread_pool)?;
     println!("Database checking took: {:?}", check_db_start.elapsed());
 
     println!("Total execution time: {:?}", start_time.elapsed());
@@ -78,34 +82,39 @@ fn create_database(
     conn: PooledConnection<SqliteConnectionManager>,
     path: &str,
     allowed_file_extensions: &HashSet<String>,
+    pool: &rayon::ThreadPool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting create_database function");
     println!("Scanning directory: {}", path);
 
-    let start_time = std::time::Instant::now();
-    let files_vec: Vec<Files> = WalkDir::new(path)
-        .parallelism(jwalk::Parallelism::RayonNewPool(num_cpus::get()))
-        .into_iter()
-        .filter_map(|entry_result| {
-            entry_result.ok().and_then(|entry| {
-                let path = entry.path();
-                if !should_ignore_path(&path) && (path.is_dir() || is_allowed_file(&path, allowed_file_extensions)) {
-                    Some(Files {
-                        id: 0,
-                        file_name: entry.file_name().to_string_lossy().to_string(),
-                        file_path: path.to_string_lossy().to_string(),
-                        file_type: if path.is_dir() {
-                            Some("directory".to_string())
-                        } else {
-                            path.extension().and_then(|s| s.to_str()).map(String::from)
-                        },
-                    })
-                } else {
-                    None
-                }
+    let start_time = Instant::now();
+    let files_vec: Vec<Files> = pool.install(|| {
+        WalkDir::new(path)
+
+            .parallelism(jwalk::Parallelism::RayonNewPool(num_cpus::get()))
+            .into_iter()
+            .par_bridge()
+            .filter_map(|entry_result| {
+                entry_result.ok().and_then(|entry| {
+                    let path = entry.path();
+                    if !should_ignore_path(&path) && (path.is_dir() || is_allowed_file(&path, allowed_file_extensions)) {
+                        Some(Files {
+                            id: 0,
+                            file_name: entry.file_name().to_string_lossy().to_string(),
+                            file_path: path.to_string_lossy().to_string(),
+                            file_type: if path.is_dir() {
+                                Some("directory".to_string())
+                            } else {
+                                path.extension().and_then(|s| s.to_str()).map(String::from)
+                            },
+                        })
+                    } else {
+                        None
+                    }
+                })
             })
-        })
-        .collect();
+            .collect()
+    });
 
     println!("Directory scan completed in {:?}", start_time.elapsed());
     println!("Number of files to insert: {}", files_vec.len());
@@ -114,7 +123,7 @@ fn create_database(
     let tx = conn.transaction()?;
     {
         println!("Starting to fetch existing files");
-        let fetch_start = std::time::Instant::now();
+        let fetch_start = Instant::now();
         let mut existing_files = HashSet::new();
         let mut stmt = tx.prepare_cached("SELECT file_name, file_path FROM files")?;
         let rows = stmt.query_map([], |row| {
@@ -129,7 +138,7 @@ fn create_database(
         println!("Fetched {} existing files in {:?}", existing_files.len(), fetch_start.elapsed());
 
         println!("Starting file insertion");
-        let insert_start = std::time::Instant::now();
+        let insert_start = Instant::now();
         let mut insert_stmt = tx.prepare_cached("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)")?;
         let batch_size = 1000;
         let mut inserted_count = 0;
@@ -151,7 +160,7 @@ fn create_database(
         println!("Total files inserted: {}", inserted_count);
     }
     println!("Committing transaction");
-    let commit_start = std::time::Instant::now();
+    let commit_start = Instant::now();
     tx.commit()?;
     println!("Transaction committed in {:?}", commit_start.elapsed());
 
@@ -161,35 +170,39 @@ fn create_database(
 
 
 fn checking_database(
-    conn: PooledConnection<SqliteConnectionManager>,
+    mut conn: PooledConnection<SqliteConnectionManager>,
     allowed_file_extensions: &HashSet<String>,
+    pool: &rayon::ThreadPool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let conn = Arc::new(Mutex::new(conn));
-    let allowed_file_extensions = Arc::new(allowed_file_extensions.clone());
+    // ... (existing code)
 
     let bad_paths: Vec<String> = {
-        let conn = conn.lock().unwrap();
+        let conn = &conn;
         let mut stmt = conn.prepare_cached("SELECT file_path FROM files")?;
         let rows: Vec<Result<String, _>> = stmt.query_map([], |row| row.get::<_, String>(0))?.collect();
 
-        rows.into_par_iter()
-            .filter_map(|path_result| {
-                let path = path_result.ok()?;
-                let path_obj = Path::new(&path);
-                if !is_allowed_file(path_obj, &allowed_file_extensions) &&
-                    !std::fs::metadata(&path).is_ok() {
-                    Some(path)
-                } else {
-                    None
-                }
-            })
-            .collect()
+        pool.install(|| {
+            rows.into_par_iter()
+                .filter_map(|path_result| {
+                    path_result.ok().and_then(|path| {
+                        let path_obj = Path::new(&path);
+                        if !is_allowed_file(path_obj, &allowed_file_extensions) &&
+                            !std::fs::metadata(&path).is_ok() {
+                            Some(path)
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .collect()
+        })
     };
+
 
     println!("Number of bad files: {}", bad_paths.len());
 
     if !bad_paths.is_empty() {
-        let mut conn = conn.lock().unwrap();
+        let mut conn = &mut conn;
         let tx = conn.transaction()?;
         {
             let placeholders = bad_paths.iter().map(|_| "?").collect::<Vec<_>>().join(",");
