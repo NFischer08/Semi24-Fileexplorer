@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="styles.css" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>File Explorer</title>
+  <script type="module" src="main.js" defer></script>
+</head>
+
+<body>
+<main class="container">
+  <div class="sidebar">
+    <div class="pinned-header">
+      <h3>Pinned</h3>
+      <button id="add-pinned" class="add-btn">+</button>
+    </div>
+    <ul id="pinned-list"></ul>
+    <h3>Directories</h3>
+    <ul id="folderSystem-list"></ul>
+  </div>
+  <div class="content">
+    <div class="row">
+      <div class="file-path-container">
+        <label for="file-path"></label><input type="text" id="file-path" class="file-path-input" value="C:\" placeholder="Enter a file path...">
+        <button type="button" id="file-path-selector" class="file-path-button">Go To</button>
+      </div>
+
+      <div class="search-container">
+        <label for="file-name"></label><input type="text" id="file-name" class="search-input" placeholder="Search...">
+        <button type="button" id="search-button" class="search-button">🔍</button>
+        <button type="button" id="settings-button" class="settings-button">⚙️</button>
+      </div>
+
+      <!-- Dialog/MODAL-Fenster -->
+      <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+          <span id="close-modal" class="close-button">&times;</span>
+          <h3>Stettings</h3>
+          <form id="settings-form">
+            <label><input type="checkbox" id="setting1"> Setting 1</label><br>
+            <label><input type="checkbox" id="setting2"> Setting 2</label><br>
+            <label><input type="checkbox" id="setting3"> Setting 3</label><br>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <table id="fileTable">
+      <thead>
+      <tr>
+        <th>Filename</th>
+        <th>Last Modified</th>
+        <th>File Type</th>
+        <th>Size</th>
+      </tr>
+      </thead>
+      <tbody id="fileList"></tbody>
+    </table>
+    <div id="error-message" class="hidden"></div>
+
+  <!-- Context Menu-->
+    <div id="context-menu">
+    <ul>
+      <li id="context-copy">
+        <span class="icon">🗐</span>
+        <span class="label">Copy</span>
+      </li>
+      <li id="context-cut">
+        <span class="icon">✂️</span>
+        <span class="label">Cut</span>
+      </li>
+      <li id="context-rename">
+        <span class="icon">✏️</span>
+        <span class="label">Rename</span>
+      </li>
+      <li id="context-delete">
+        <span class="icon">🗑️</span>
+        <span class="label">Delete</span>
+      </li>
+      <li id="context-open_with">
+        <span class="icon">📂</span>
+        <span class="label">Open with ...</span>
+      </li>
+    </ul>
+    </div>
+  </div>
+</main>
+</body>
+</html>

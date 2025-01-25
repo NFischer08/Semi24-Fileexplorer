@@ -1,44 +1,20 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-
 use std::fs;
 use std::path::PathBuf;
 use std::time::SystemTime;
-use tauri::command;
 use chrono::{DateTime, Local, TimeZone};
-
-#[derive(Debug, serde::Serialize)]
-enum FileType {
-    Directory,
-    File(String),
-    None,
-}
-
-#[derive(Debug)]
-struct FileEntry {
-    name: String,
-    last_modified: DateTime<Local>,
-    file_type: FileType,
-    size_in_kb: u64
-}
-
-#[derive(Debug, serde::Serialize)]
-struct FileDataFormatted {
-    name: String,
-    last_modified: String,
-    file_type: String,
-    size: String
-}
+use crate::{FileEntry, FileType, FileDataFormatted};
+use tauri::command;
 
 fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
     let path = PathBuf::from(path);
 
     // Check if the path exists
-    if !path.exists() || !path.is_dir() {
+    if !path.exists() {
         return Err("The specified path does not exist.".into());
     }
 
     // Check if the path is a directory
-    if !path.exists() || !path.is_dir() {
+    if !path.is_dir() {
         return Err("The specified path is not a directory.".into());
     }
 
@@ -64,7 +40,7 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
                         let size: u64 = metadata.len() / 1024; // size of the file in KB, if folder: 0
 
                         // Convert the last modified time to a readable format
-                        let last_modified = format_time(modified_time);
+                        let last_modified = get_last_modified_time(modified_time);
 
                         entries.push(FileEntry {
                             name: file_name,
@@ -84,17 +60,18 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
 }
 
 // Function to format the last modified time
-fn format_time(time: SystemTime) -> DateTime<Local> { // String
+fn get_last_modified_time(time: SystemTime) -> DateTime<Local> { // String
     // Convert SystemTime to DateTime<Local>
     time.duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| Local.timestamp(d.as_secs() as i64, d.subsec_nanos()))
-        .unwrap_or_else(|_| Local::now()) // Fallback to current time if there's an error
-
-    //datetime.format("%d.%m.%Y %H:%M Uhr").to_string()
+        .map(|d| Local.timestamp_opt(d.as_secs() as i64, d.subsec_nanos())
+            .single()
+            .unwrap_or_else(Local::now)
+        )        // Fallback to current time if there's an error
+        .unwrap()
 }
 
 #[command]
-fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
+pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
     let files = list_files_and_folders(path);
 
     match files {
@@ -102,13 +79,15 @@ fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
             let mut formatted_files: Vec<FileDataFormatted> = Vec::new();
 
             for file in files {
-                let file_type: String = match file.file_type {
-                    FileType::Directory => "Directory".to_string(),
-                    FileType::File(extension) => extension,
-                    FileType::None => "File".to_string()
+                let (file_type, is_dir) = match file.file_type {
+                    FileType::Directory => {
+                        ("Directory".to_string(), true)
+                    },
+                    FileType::File(extension) => (extension, false),
+                    FileType::None => ("File".to_string(), false)
                 };
-                let size: String = if file_type == "Directory" {
-                    "".to_string()
+                let size: String = if is_dir {
+                    "Unknown".to_string()
                 }
                 else {
                     let size_kb_f: f64 = file.size_in_kb as f64;
@@ -140,13 +119,4 @@ fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
         }
         Err(error) => Err(error)
     }
-}
-
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
-pub fn run() {
-    tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![format_file_data])
-        .run(tauri::generate_context!("Fileexplorer/src-tauri/tauri.conf.json"))
-        .expect("error while running tauri application");
 }
