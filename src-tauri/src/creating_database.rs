@@ -6,7 +6,7 @@ use r2d2_sqlite::SqliteConnectionManager;
 use std::collections::HashSet;
 use std::path::Path;
 use std::time::Instant;
-
+use std::path::PathBuf;
 
 #[derive(Debug)]
 struct Files {
@@ -62,9 +62,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .build()
         .unwrap();
 
+    let db_path = PathBuf::from("/");
+
     println!("Main is still running");
     let create_db_start = Instant::now();
-    let _ = create_database(conn, r"C:\Users\maxmu", &allowed_file_extensions, &thread_pool)?;
+    let _ = create_database(conn, db_path, &allowed_file_extensions, &thread_pool)?;
     println!("Database creation took: {:?}", create_db_start.elapsed());
 
     let conn = connection_pool.get()?;
@@ -80,17 +82,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 fn create_database(
     conn: PooledConnection<SqliteConnectionManager>,
-    path: &str,
+    path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     pool: &rayon::ThreadPool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting create_database function");
-    println!("Scanning directory: {}", path);
+    println!("Scanning directory: {}", path.display());
 
     let start_time = Instant::now();
     let files_vec: Vec<Files> = pool.install(|| {
-        WalkDir::new(path)
-
+        WalkDir::new(&path)
             .parallelism(jwalk::Parallelism::RayonNewPool(num_cpus::get()))
             .into_iter()
             .par_bridge()
@@ -100,8 +101,8 @@ fn create_database(
                     if !should_ignore_path(&path) && (path.is_dir() || is_allowed_file(&path, allowed_file_extensions)) {
                         Some(Files {
                             id: 0,
-                            file_name: entry.file_name().to_string_lossy().to_string(),
-                            file_path: path.to_string_lossy().to_string(),
+                            file_name: entry.file_name().to_string_lossy().into_owned(),
+                            file_path: path.to_string_lossy().into_owned(),
                             file_type: if path.is_dir() {
                                 Some("directory".to_string())
                             } else {
@@ -115,7 +116,6 @@ fn create_database(
             })
             .collect()
     });
-
     println!("Directory scan completed in {:?}", start_time.elapsed());
     println!("Number of files to insert: {}", files_vec.len());
 
@@ -144,11 +144,11 @@ fn create_database(
         let mut inserted_count = 0;
         for (i, chunk) in files_vec.chunks(batch_size).enumerate() {
             for file in chunk {
-                if !existing_files.contains(&(file.file_name.clone(), file.file_path.clone())) {
+                if !existing_files.contains(&(file.file_name.to_string(), file.file_path.to_string())) {
                     insert_stmt.execute(params![
                         file.file_name,
                         file.file_path,
-                        file.file_type.as_deref()
+                        file.file_type.as_deref().map::<&str, _>(|s| s.as_ref())
                     ])?;
                     inserted_count += 1;
                 }
