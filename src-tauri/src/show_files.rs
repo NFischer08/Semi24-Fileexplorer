@@ -87,7 +87,7 @@ pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
                     FileType::None => ("File".to_string(), false)
                 };
                 let size: String = if is_dir {
-                    "".to_string() //vorher Unknown
+                    String::from("Unkown")
                 }
                 else {
                     let size_kb_f: f64 = file.size_in_kb as f64;
@@ -97,16 +97,8 @@ pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
                         (size_kb_f / 1024.0, "MB")
                     } else if file.size_in_kb < 1024 * 1024 * 1024 {
                         (size_kb_f / (1024.0 * 1024.0), "GB")
-                    } else if file.size_in_kb < 1024 * 1024 * 1024 * 1024 {
-                        (size_kb_f / (1024.0 * 1024.0 * 1024.0), "TB")
-                    } else if file.size_in_kb < 1024 * 1024 * 1024 * 1024 * 1024 {
-                        (size_kb_f / (1024.0 * 1024.0 * 1024.0 * 1024.0), "PB")
-                    } else if file.size_in_kb < 1024 * 1024 * 1024 * 1024 * 1024 * 1024 {
-                        (size_kb_f / (1024.0 * 1024.0 * 1024.0 * 1024.0 * 1024.0), "EB")
-                    } else if file.size_in_kb < 1024 * 1024 * 1024 * 1024 * 1024 * 1024 * 1024 {
-                        (size_kb_f / (1024.0 * 1024.0 * 1024.0 * 1024.0 * 1024.0 * 1024.0), "ZB")
                     } else {
-                        (size_kb_f / (1024.0 * 1024.0 * 1024.0 * 1024.0 * 1024.0 * 1024.0 * 1024.0), "YB")
+                        (size_kb_f / (1024.0 * 1024.0 * 1024.0), "TB")
                     };
 
                     let rounded_size = (size * 10.0).round() / 10.0;
