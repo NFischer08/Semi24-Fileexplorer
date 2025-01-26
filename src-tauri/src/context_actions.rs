@@ -3,20 +3,19 @@ use std::path::{Path, PathBuf};
 use std::fs::{self, File, rename, remove_file};
 use tauri::command;
 use std::io::{Write, Read};
-use tauri::utils::assets::phf::phf_ordered_set;
 
 #[command]
-pub fn copy(filepath: String) -> Result<String, String> {
+pub fn copy_file(filepath: String) -> Result<String, String> {
     let clean_path: PathBuf = clean_path(filepath);
     let mode: u8 = 1;
     match mode {
-         1 => copy_file(clean_path),
-         2 => copy_path(clean_path),
+         1 => copy_from_file(clean_path),
+         2 => copy_from_path(clean_path),
         _ => Err(String::from("Invalid mode!"))
     }
 }
 
-fn copy_file(path: PathBuf) -> Result<String, String> {
+fn copy_from_file(path: PathBuf) -> Result<String, String> {
     // checks if path refers to a directory
     if path.is_dir() {
         return Err(String::from("Can't copy directory! yet!"));
@@ -68,8 +67,7 @@ fn copy_file(path: PathBuf) -> Result<String, String> {
     Ok(format!("File copyied successfully to {}!", path.display()))
 }
 
-#[command]
-fn copy_path(path: PathBuf) -> Result<String, String> { // Copying path to Clipboard
+fn copy_from_path(path: PathBuf) -> Result<String, String> { // Copying path to Clipboard
     if !path.exists() { // Pfad kann nur existieren, da er sonnst nicht übergeben werden kann! kann also eigentlich weg
         return Err("Source file does not exist.".to_string());
     }
@@ -156,15 +154,18 @@ fn paste_from_path(dest_path: PathBuf) -> Result<String, String> {
     // Sicherstellen, dass das Zielverzeichnis existiert
     if let Some(parent) = dest_path.parent() {
         if !parent.exists() {
-            fs::create_dir_all(parent).map_err(|e| {
-                format!("Failed to create destination directory: {}", e)
-            })?;
+            match fs::create_dir_all(parent) {
+                Ok(_) => {},
+                Err(e) => return Err(format!("Failed to create destination directory: {}", e))
+            };
         }
     }
 
     // Datei kopieren
-    fs::copy(&source_path, &dest_path)
-        .map_err(|e| format!("Failed to paste file: {}", e))?;
+    match fs::copy(&source_path, &dest_path) {
+        Ok(_) => println!("Successfully copied file to {}", dest_path.display()),
+        Err(_) => return Err("Failed to copy file!".to_string()),
+    }
 
     Ok(format!(
         "File pasted successfully to {}.",
@@ -174,7 +175,7 @@ fn paste_from_path(dest_path: PathBuf) -> Result<String, String> {
 
 #[command]
 pub fn cut_file(filepath: String) -> Result<String, String> {
-    match copy_file(clean_path(filepath.to_owned())) {
+    match copy_from_file(clean_path(filepath.to_owned())) {
         Ok(_) => {},
         Err(error) => return Err(error) // returnt Error, wenn kopieren nicht klappt -> nicht wird gelöscht!
     };
