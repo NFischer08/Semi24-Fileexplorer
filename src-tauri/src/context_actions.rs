@@ -64,6 +64,7 @@ fn copy_from_file(path: PathBuf) -> Result<String, String> {
         }
     };
 
+    println!("Copied successfully!");
     Ok(format!("File copyied successfully to {}!", path.display()))
 }
 
@@ -96,9 +97,10 @@ pub fn paste(destination: String) -> Result<String, String> {
 fn paste_from_file(destination: PathBuf) -> Result<String, String> {
     // File already exists? TODO => replace, keep both, cancel
     // => like Linux? => user has to enter other filename
-    if destination.exists() {
-        return Err(String::from("File already exists!"));
-    }
+    //if destination.exists() { => only folder not file => always throws an error
+    //    println!("File already exists!; {}", destination.display());
+    //    return Err(String::from("File already exists!"));
+    //}
     // Create a clipboard context
     println!("Pasting: {} ... next: Access clipboard", destination.display());
     let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
