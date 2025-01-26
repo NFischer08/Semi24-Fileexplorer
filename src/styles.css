@@ -7,8 +7,8 @@
   line-height: 24px;
   font-weight: 400;
 
-  color: #0f0f0f;
-  background-color: #ccc;
+  color: #f6f6f6;
+  background-color: #2f2f2f;
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -40,7 +40,7 @@
 .row {
   display: flex;
   justify-content: center;
-  gap: 1px; /* Abstand zwischen den Spalten */
+  gap: -1px; /* Abstand zwischen den Spalten */
 }
 
 a {
@@ -50,7 +50,7 @@ a {
 }
 
 a:hover {
-  color: #535bf2;
+  color: #24c8db;
 }
 
 h1 {
@@ -112,35 +112,16 @@ td.error {
 
 /* Fehlermeldung anzeigen */
 #error-message {
-  margin-top: 10px; /* Abstand zur Tabelle */
-  padding: 10px; /* Innenabstand für besseren Look */
-  background-color: #f8d7da; /* Hellroter Hintergrund für Fehlermeldungen */
-  color: #721c24; /* Dunkelrote Schriftfarbe */
-  border: 1px solid #ff001b; /* Passende Rahmenfarbe */
-  border-radius: 5px; /* Runde Ecken */
-  font-size: 16px; /* Lesbare Schriftgröße */
-  text-align: left; /* Text zentrieren */
+  margin-top: 10px;
+  padding: 10px;
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #ff001b;
+  border-radius: 5px;
+  font-size: 16px;
+  text-align: left;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    color: #f6f6f6;
-    background-color: #2f2f2f;
-  }
-
-  a:hover {
-    color: #24c8db;
-  }
-
-  input,
-  button {
-    color: #ffffff;
-    background-color: #0f0f0f98;
-  }
-  button:active {
-    background-color: #0f0f0f69;
-  }
-}
 
 /*Eingabefelder -----------------------------------------------*/
 
@@ -176,8 +157,20 @@ td.error {
   float: left;
 }
 
+.file-path-input{
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.search-input{
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: none;
+}
+
 .search-button,
-.file-path-button {
+.file-path-button,
+.settings-button {
   position: absolute;
   right: 10px; /* Abstand vom rechten Rand */
   top: 50%;
@@ -191,24 +184,38 @@ td.error {
   float: left;
 }
 
+.search-button {
+  right: 45px;
+}
+
 .search-button:hover,
 .file-path-button:hover {
   color: #ffffff;
 }
 
-.file-path-container,
-.search-container {
+.file-path-container{
   flex: 1; /* Beide Elemente nehmen denselben Platz ein */
-  max-width: 45%;
-  margin-right: 2%;
+  max-width: 60%;
+  margin-right: 0;
 }
 
 .search-container {
   margin-right: 0;
-  margin-left: auto
+  margin-left: auto;
+  flex: 1; /* Beide Elemente nehmen denselben Platz ein */
+  max-width: 40%;
 }
 
-@media (max-width: 700px) {
+input,
+button {
+  color: #ffffff;
+  background-color: #0f0f0f98;
+}
+button:active {
+  background-color: #0f0f0f69;
+}
+
+@media (max-width: 450px) {
   .container {
     flex-direction: column; /* Items untereinander anordnen */
     align-items: stretch; /* Items füllen die volle Breite */
@@ -218,30 +225,30 @@ td.error {
   .search-container {
     max-width: 100%; /* Volle Breite für Mobile */
     margin-right: 0; /* Kein Seitenabstand */
-    margin-bottom: 10px; /* Abstand zwischen den Containern für Mobile */
+    margin-bottom: 0; /* Abstand zwischen den Containern für Mobile */
+  }
+
+  .file-path-input{
+    border-top-right-radius: 20px;
+    border-bottom-left-radius: 0;
+  }
+
+  .search-input{
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 20px;
+    border-left: 1px solid #ccc;
+    border-top: none;
   }
 
   .row {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 1px; /* Abstand zwischen den Spalten */
+    gap: 0; /* Abstand zwischen den Spalten */
   }
 }
 
 /*Einstellungen ---------------------------------*/
-.settings-button {
-  position: absolute;
-  right: 45px; /* Abstand vom rechten Rand */
-  top: 50%;
-  transform: translateY(-50%);
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
-  font-size: 18px;
-  padding: 5px;
-  color: #555;
-}
 
 .settings-button:hover {
   color: #ffffff;
@@ -304,7 +311,7 @@ td.error {
   width: 170px;
   background-color: #1f1f1f;
   color: #ffffff;
-  padding: 20px;
+  padding: 20px;/*20px*/
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -377,7 +384,17 @@ td.error {
   flex-grow: 1; /* Restlichen Platz einnehmen */
   padding: 20px;
 }
+
+@media (max-width: 700px) {
+  .sidebar {
+    display: none;
+  }
+
+}
+
 /* Context menu styles -------------------------------------------------------------------*/
+
+
 #context-menu {
   display: none;
   position: absolute;
