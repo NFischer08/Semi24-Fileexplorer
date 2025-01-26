@@ -1,8 +1,9 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
 use std::path::{Path, PathBuf};
-use std::fs::{self, File, rename, remove_file};
+//use std::fs::{self, File, rename, remove_file};
+use std::fs::{self, rename};
 use tauri::command;
-use std::io::Write;
+//use std::io::Write;
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {

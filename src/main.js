@@ -1,7 +1,7 @@
 const { invoke } = window.__TAURI__.core;
 
-let filePathInputEl;
-let resultText;
+//let filePathInputEl;
+//let resultText;
 
 async function loadFilesAndFolders() {
   const filepath = document.getElementById('file-path').value; // Aktuellen Pfad auslesen
@@ -293,13 +293,14 @@ function removePinnedDirectory(index) {
   directories.splice(index, 1);
   localStorage.setItem('pinnedDirectories', JSON.stringify(directories));
   loadPinnedDirectories();
+//list_files_in_directory();
 } */
 
-window.addEventListener("DOMContentLoaded", () => {
+/*window.addEventListener("DOMContentLoaded", () => {
   filePathInputEl = document.querySelector("#file-path");
   resultText = document.querySelector("#result-files");
   document.querySelector("#file-form").addEventListener("submit", (e) => {
     e.preventDefault();
-    list_files_in_directory();
+
   });
-});
+});*/
