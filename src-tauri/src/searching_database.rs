@@ -6,7 +6,7 @@ use threadpool::ThreadPool;
 use strsim::normalized_levenshtein;
 use std::time::Instant;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let manager = SqliteConnectionManager::file("files.sqlite3");
     let pool = Pool::new(manager)?;
     let conn = pool.get()?;
@@ -36,7 +36,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-fn find_similar_matches_parallel(
+pub fn find_similar_matches_parallel(
     conn: &Connection,
     search_term: &str,
     similarity_threshold: f64,

@@ -16,7 +16,7 @@ struct Files {
     file_type: Option<String>,
 }
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Main is running");
     let start_time = Instant::now();
 
@@ -54,7 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Scripts and executables
         "sh", "bash", "zsh", "fish", "bat", "cmd", "ps1", "exe", "dll", "so", "dylib",
         // Other formats
-        "sql", "db", "sqlite", "mdb", "ttf", "otf", "woff", "woff2", "obj", "stl", "fbx", "dxf", "dwg", "psd", "ai", "indd", "iso", "img", "dmg", "bak", "tmp", "log", "pcap"
+        "sql", "db", "sqlite", "mdb", "ttf", "otf", "woff", "woff2", "obj", "stl", "fbx", "dxf", "dwg", "psd", "ai", "ind", "iso", "img", "dmg", "bak", "tmp", "log", "pcap"
     ].iter().map(|&s| String::from(s)).collect();
 
     let thread_pool = rayon::ThreadPoolBuilder::new()
@@ -72,7 +72,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let conn = connection_pool.get()?;
 
     let check_db_start = Instant::now();
-    checking_database(conn, &allowed_file_extensions, &thread_pool)?;
+    check_database(conn, &allowed_file_extensions, &thread_pool)?;
     println!("Database checking took: {:?}", check_db_start.elapsed());
 
     println!("Total execution time: {:?}", start_time.elapsed());
@@ -80,7 +80,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 
-fn create_database(
+pub fn create_database(
     conn: PooledConnection<SqliteConnectionManager>,
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
@@ -169,7 +169,7 @@ fn create_database(
 }
 
 
-fn checking_database(
+pub fn check_database(
     mut conn: PooledConnection<SqliteConnectionManager>,
     allowed_file_extensions: &HashSet<String>,
     pool: &rayon::ThreadPool,
