@@ -22,10 +22,10 @@ async function loadFilesAndFolders() {
       const fileTypeCell = document.createElement('td');
       const fileSizeCell = document.createElement('td');
 
-      filenameCell.textContent = entry.name; // Dateiname
-      lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
-      fileTypeCell.textContent = entry.file_type; // Dateityp
-      fileSizeCell.textContent = entry.size; //Größe
+      filenameCell.textContent = entry.name;
+      lastModifiedCell.textContent = entry.last_modified;
+      fileTypeCell.textContent = entry.file_type;
+      fileSizeCell.textContent = entry.size;
 
       row.appendChild(filenameCell);
       row.appendChild(lastModifiedCell);
@@ -38,58 +38,68 @@ async function loadFilesAndFolders() {
     console.error('Error:', error);
 
     // Fehlermeldung unter der Tabelle anzeigen
-    errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
+    errorMessageElement.textContent = 'Error: ' + error;
     errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
   }
 }
 
-async function loadSearchResults() {
-  //Initialisierung
-  const filepath = document.getElementById('file-path').value; // Aktuellen Pfad auslesen
-  const fileListElement = document.getElementById('fileList');
-  const errorMessageElement = document.getElementById('error-message');
-  fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
-  errorMessageElement.classList.add('hidden');
-
-  try {
-    const entries = await invoke('search_results', { path: filepath });
-
-    entries.forEach(entry => {
-      const row = document.createElement('tr');
-      row.dataset.filepath = filepath + "/" + entry.name;
-
-      const filenameCell = document.createElement('td');
-      const lastModifiedCell = document.createElement('td');
-      const fileTypeCell = document.createElement('td');
-      const fileSizeCell = document.createElement('td');
-      const pathCell = document.createElement('tr');
-
-      filenameCell.textContent = entry.name; // Dateiname
-      lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
-      fileTypeCell.textContent = entry.file_type; // Dateityp
-      fileSizeCell.textContent = entry.size; //Größe
-      pathCell.textContent = entry.path; // Path
-
-      row.appendChild(filenameCell);
-      row.appendChild(lastModifiedCell);
-      row.appendChild(fileTypeCell);
-      row.appendChild(fileSizeCell);
-      fileListElement.appendChild(row);
-      fileListElement.appendChild(pathCell);
-    });
-
-  } catch (error) {
-    console.error('Error:', error);
-
-    // Fehlermeldung unter der Tabelle anzeigen
-    errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
-    errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
-  }
-}
+/**
+ * async function loadSearchResults() {
+ *   //Initialisierung
+ *   const filepath = document.getElementById('file-path').value; // Aktuellen Pfad auslesen
+ *   const fileListElement = document.getElementById('fileList');
+ *   const errorMessageElement = document.getElementById('error-message');
+ *   fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
+ *   errorMessageElement.classList.add('hidden');
+ *
+ *   try {
+ *     const entries = await invoke('search_results', { path: filepath });
+ *
+ *     entries.forEach(entry => {
+ *       const row = document.createElement('tr');
+ *       row.dataset.filepath = filepath + "/" + entry.name;
+ *
+ *       const filenameCell = document.createElement('td');
+ *       const lastModifiedCell = document.createElement('td');
+ *       const fileTypeCell = document.createElement('td');
+ *       const fileSizeCell = document.createElement('td');
+ *       const pathCell = document.createElement('tr');
+ *
+ *       filenameCell.textContent = entry.name; // Dateiname
+ *       lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
+ *       fileTypeCell.textContent = entry.file_type; // Dateityp
+ *       fileSizeCell.textContent = entry.size; //Größe
+ *       pathCell.textContent = entry.path; // Path
+ *
+ *       row.appendChild(filenameCell);
+ *       row.appendChild(lastModifiedCell);
+ *       row.appendChild(fileTypeCell);
+ *       row.appendChild(fileSizeCell);
+ *       fileListElement.appendChild(row);
+ *       fileListElement.appendChild(pathCell);
+ *     });
+ *
+ *   } catch (error) {
+ *     console.error('Error:', error);
+ *
+ *     // Fehlermeldung unter der Tabelle anzeigen
+ *     errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
+ *     errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
+ *   }
+ * }
+ */
 
 
 document.getElementById('file-path-selector').addEventListener('click', async () => {
   await loadFilesAndFolders();
+});
+
+const toggleButton = document.getElementById('toggle-sidebar');
+const sidebar = document.querySelector('.sidebar');
+
+toggleButton.addEventListener('click', () => {
+  sidebar.classList.toggle('collapsed'); // Toggle der Klasse für das Ein- und Ausklappen
+  toggleButton.textContent = sidebar.classList.contains('collapsed') ? '>' : '<'; // Ändern des Pfeils
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
