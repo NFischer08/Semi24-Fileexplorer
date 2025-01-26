@@ -87,7 +87,7 @@ pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
                     FileType::None => ("File".to_string(), false)
                 };
                 let size: String = if is_dir {
-                    String::from("Unkown")
+                    "--".to_string()
                 }
                 else {
                     let size_kb_f: f64 = file.size_in_kb as f64;
@@ -101,6 +101,7 @@ pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
                         (size_kb_f / (1024.0 * 1024.0 * 1024.0), "TB")
                     };
 
+                    // Round to one decimal place
                     let rounded_size = (size * 10.0).round() / 10.0;
 
                     // Format the output
