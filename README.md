@@ -12,6 +12,12 @@ Die Hauptfunktionen umfassen:
 
 - Fehlerbehandlung und visuelle Rückmeldung bei fehlerhaften Aktionen.
 
+## To-Do Liste
+- Search Algorithm:
+    - **Threadpool**
+    - **Datenbank**
+    - **Vectorspaces**
+
 ## Projektstruktur
 Das Projekt wird in zwei Hauptteilen untergliedert:
 ### 1. **Frontend** (HTML, CSS, JavaScript)
