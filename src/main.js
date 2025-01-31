@@ -43,16 +43,6 @@ async function loadFilesAndFolders() {
   }
 }
 
-
-
-document.getElementById('file-path-selector').addEventListener('click', async () => {
-  await loadFilesAndFolders();
-});
-
-document.addEventListener('DOMContentLoaded', async () => {
-  await loadFilesAndFolders();
-});
-
 //Einstellungskästchen
 const settingsButton = document.getElementById('settings-button');
 const settingsModal = document.getElementById('settings-modal');

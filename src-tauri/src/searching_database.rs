@@ -6,37 +6,7 @@ use threadpool::ThreadPool;
 use strsim::normalized_levenshtein;
 use std::time::Instant;
 
-pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let manager = SqliteConnectionManager::file("files.sqlite3");
-    let pool = Pool::new(manager)?;
-    let conn = pool.get()?;
-
-    let search_term = "Test";
-    let similarity_threshold = 0.7;
-    let n_workers = 8;
-
-    let start_time = Instant::now();
-
-    match find_similar_matches_parallel(&conn, search_term, similarity_threshold, n_workers) {
-        Ok(file_paths) => {
-            let duration = start_time.elapsed();
-            if file_paths.is_empty() {
-                println!("No similar files found for: {}", search_term);
-            } else {
-                println!("Similar files found for '{}' (sorted by similarity):", search_term);
-                for (path, similarity) in file_paths {
-                    println!("  {} (similarity: {:.4})", path, similarity);
-                }
-            }
-            println!("Search completed in {:.2?}", duration);
-        },
-        Err(e) => println!("Error searching for similar files: {}", e),
-    }
-
-    Ok(())
-}
-
-pub fn find_similar_matches_parallel(
+pub fn search_database(
     conn: &Connection,
     search_term: &str,
     similarity_threshold: f64,

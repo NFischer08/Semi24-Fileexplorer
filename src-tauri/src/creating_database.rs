@@ -4,9 +4,8 @@ use jwalk::WalkDir;
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Instant;
-use std::path::PathBuf;
 
 #[derive(Debug)]
 struct Files {
@@ -16,28 +15,25 @@ struct Files {
     file_type: Option<String>,
 }
 
-pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Main is running");
-    let start_time = Instant::now();
-
+pub fn initialize_database_and_extensions() -> Result<(Pool<SqliteConnectionManager>, HashSet<String>), Box<dyn std::error::Error>> {
+    // Initialize database
     let manager = SqliteConnectionManager::file("files.sqlite3");
     let connection_pool = Pool::new(manager)?;
     let conn = connection_pool.get()?;
-    println!("Main is still running");
 
-
-    let _result = conn.execute(
+    conn.execute(
         "CREATE TABLE IF NOT EXISTS files (
         id   INTEGER PRIMARY KEY,
         file_name TEXT NOT NULL,
         file_path TEXT NOT NULL,
         file_type  BLOB
     )",
-        ())?;
+        (),
+    )?;
 
-    println!("Main is still running");
     conn.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)", [])?;
 
+    // Get allowed file extensions
     let allowed_file_extensions: HashSet<String> = [
         // Text and documents
         "txt", "pdf", "doc", "docx", "rtf", "odt", "tex", "md", "epub",
@@ -57,31 +53,12 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
         "sql", "db", "sqlite", "mdb", "ttf", "otf", "woff", "woff2", "obj", "stl", "fbx", "dxf", "dwg", "psd", "ai", "ind", "iso", "img", "dmg", "bak", "tmp", "log", "pcap"
     ].iter().map(|&s| String::from(s)).collect();
 
-    let thread_pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get())
-        .build()
-        .unwrap();
-
-    let db_path = PathBuf::from("/");
-
-    println!("Main is still running");
-    let create_db_start = Instant::now();
-    let _ = create_database(conn, db_path, &allowed_file_extensions, &thread_pool)?;
-    println!("Database creation took: {:?}", create_db_start.elapsed());
-
-    let conn = connection_pool.get()?;
-
-    let check_db_start = Instant::now();
-    check_database(conn, &allowed_file_extensions, &thread_pool)?;
-    println!("Database checking took: {:?}", check_db_start.elapsed());
-
-    println!("Total execution time: {:?}", start_time.elapsed());
-    Ok(())
+    Ok((connection_pool, allowed_file_extensions))
 }
 
 
 pub fn create_database(
-    conn: PooledConnection<SqliteConnectionManager>,
+    conn: &PooledConnection<SqliteConnectionManager>,
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     pool: &rayon::ThreadPool,
@@ -119,7 +96,7 @@ pub fn create_database(
     println!("Directory scan completed in {:?}", start_time.elapsed());
     println!("Number of files to insert: {}", files_vec.len());
 
-    let mut conn = conn;
+    let mut conn: &PooledConnection<SqliteConnectionManager> = conn;
     let tx = conn.transaction()?;
     {
         println!("Starting to fetch existing files");
@@ -154,6 +131,7 @@ pub fn create_database(
                 }
             }
             if (i + 1) % 10 == 0 {
+                // Progress reporting can be added here if needed
             }
         }
         println!("File insertion completed in {:?}", insert_start.elapsed());
@@ -168,14 +146,11 @@ pub fn create_database(
     Ok(())
 }
 
-
 pub fn check_database(
-    mut conn: PooledConnection<SqliteConnectionManager>,
+    mut conn: &PooledConnection<SqliteConnectionManager>,
     allowed_file_extensions: &HashSet<String>,
     pool: &rayon::ThreadPool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // ... (existing code)
-
     let bad_paths: Vec<String> = {
         let conn = &conn;
         let mut stmt = conn.prepare_cached("SELECT file_path FROM files")?;
@@ -198,7 +173,6 @@ pub fn check_database(
         })
     };
 
-
     println!("Number of bad files: {}", bad_paths.len());
 
     if !bad_paths.is_empty() {
@@ -215,7 +189,6 @@ pub fn check_database(
 
     Ok(())
 }
-
 
 fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bool {
     if should_ignore_path(path) {
