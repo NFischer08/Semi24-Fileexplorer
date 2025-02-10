@@ -58,7 +58,7 @@ pub fn initialize_database_and_extensions() -> Result<(Pool<SqliteConnectionMana
 
 
 pub fn create_database(
-    conn: &PooledConnection<SqliteConnectionManager>,
+    mut conn: PooledConnection<SqliteConnectionManager>,
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     pool: &rayon::ThreadPool,
@@ -96,7 +96,7 @@ pub fn create_database(
     println!("Directory scan completed in {:?}", start_time.elapsed());
     println!("Number of files to insert: {}", files_vec.len());
 
-    let mut conn: &PooledConnection<SqliteConnectionManager> = conn;
+    let mut conn = conn;
     let tx = conn.transaction()?;
     {
         println!("Starting to fetch existing files");
@@ -147,12 +147,11 @@ pub fn create_database(
 }
 
 pub fn check_database(
-    mut conn: &PooledConnection<SqliteConnectionManager>,
+    mut conn: PooledConnection<SqliteConnectionManager>,
     allowed_file_extensions: &HashSet<String>,
     pool: &rayon::ThreadPool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let bad_paths: Vec<String> = {
-        let conn = &conn;
         let mut stmt = conn.prepare_cached("SELECT file_path FROM files")?;
         let rows: Vec<Result<String, _>> = stmt.query_map([], |row| row.get::<_, String>(0))?.collect();
 
@@ -176,7 +175,6 @@ pub fn check_database(
     println!("Number of bad files: {}", bad_paths.len());
 
     if !bad_paths.is_empty() {
-        let mut conn = &mut conn;
         let tx = conn.transaction()?;
         {
             let placeholders = bad_paths.iter().map(|_| "?").collect::<Vec<_>>().join(",");

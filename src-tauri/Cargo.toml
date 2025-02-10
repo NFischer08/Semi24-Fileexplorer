@@ -7,7 +7,7 @@ edition = "2021"
 build = "src/build.rs"
 
 [[bin]]
-path = "src/testing_database.rs"
+path = "src/main.rs"
 name = "Semi24-Fileexplorer"
 
 [lib]

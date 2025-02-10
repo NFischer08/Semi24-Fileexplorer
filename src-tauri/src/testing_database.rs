@@ -23,13 +23,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let conn = connection_pool.get()?;
 
     // Create the database
-    create_database(&conn, db_path, &allowed_file_extensions, &thread_pool)?;
+    create_database(conn, db_path, &allowed_file_extensions, &thread_pool)?;
 
     // Get another connection from the pool
     let conn = connection_pool.get()?;
 
     // Check the database
-    check_database(&conn, &allowed_file_extensions, &thread_pool)?;
+    check_database(conn, &allowed_file_extensions, &thread_pool)?;
+
+    let conn = connection_pool.get()?;
 
     let found_paths = search_database(&conn, "Test", 0.8, num_cpus::get())?;
 
