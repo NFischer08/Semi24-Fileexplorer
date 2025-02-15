@@ -2,11 +2,7 @@
 mod manager;
 mod context_actions;
 
-use manager::file_information::get_file_information;
-
-
-use manager::{manager_basic_search, manager_check_database, manager_create_database};
-use manager::file_information::format_file_data;
+use manager::{ file_information::{get_file_information, format_file_data}, manager_basic_search };
 use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file};
 use chrono::{DateTime, Local};
 
