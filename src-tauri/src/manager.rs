@@ -107,11 +107,7 @@ pub fn manager_create_database(
 }
 
 #[command]
-pub fn manager_basic_search(
-    searchterm: &str,
-) -> Result<Vec<SearchResult>, String>
-{
-pub fn manager_basic_search(searchterm: &str) -> Result<(Vec<SearchResult>), String> {
+pub fn manager_basic_search(searchterm: &str) -> Result<Vec<SearchResult>, String> {
     let pooled_connection = match manager_make_pooled_connection() {
         Ok(pooled_connection) => pooled_connection,
         Err(e) => return Err(e.to_string())
