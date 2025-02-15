@@ -59,7 +59,7 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
     Ok(entries)
 }
 
-fn get_file_information(entry: DirEntry) -> FileEntry{
+pub fn get_file_information(entry: DirEntry) -> FileEntry{
     // get the name of the file
     let file_name = entry.file_name().into_string().unwrap_or_default();
 
@@ -141,9 +141,9 @@ pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
                     let size_kb_f: f64 = file.size_in_kb as f64;
                     let (size, unit) = if file.size_in_kb < 1000 {
                         (size_kb_f, "KB")
-                    } else if file.size_in_kb < 1024 * 1024 {
+                    } else if file.size_in_kb < 1_000_000 {
                         (size_kb_f / 1_000.0, "MB")
-                    } else if file.size_in_kb < 1024 * 1024 * 1024 {
+                    } else if file.size_in_kb < 1_000_000_000 {
                         (size_kb_f / 1_000_000.0, "GB")
                     } else {
                         (size_kb_f / 1_000_000_000.0, "TB")

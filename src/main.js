@@ -44,29 +44,32 @@ async function loadFilesAndFolders() {
 }
 
 async function display_search_results() {
-  const search_term = document.getElementById('search-term-input').value; // Suchwert auslesen
+  const search_term = document.getElementById('search-term-input').value; // read the search term
   const fileListElement = document.getElementById('fileList');
   const errorMessageElement = document.getElementById('error-message');
-  fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
-  errorMessageElement.classList.add('hidden');
+  fileListElement.innerHTML = ''; // delete previous results
+  errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
 
   try {
-    const names = await invoke('search_database', { search_term: search_term });
+    const entries = await invoke('search_database', { search_term: search_term }); // get the search results (structs with all the information)
 
-    names.forEach(name => {
+    entries.forEach(entry => { // display every result (already sorted by importance)
       const row = document.createElement('tr');
-      row.dataset.filepath = filepath + "/" + entry.name;
+      row.dataset.filepath = entry.filepath // store the filepath of the search result, so rust later knows where it is
 
+      // create new row
       const filenameCell = document.createElement('td');
       const lastModifiedCell = document.createElement('td');
       const fileTypeCell = document.createElement('td');
       const fileSizeCell = document.createElement('td');
 
-      filenameCell.textContent = name; // Dateiname
-      lastModifiedCell.textContent = "-TODAY-"; // Letzte Änderung
-      fileTypeCell.textContent = "--"; // Dateityp
-      fileSizeCell.textContent = "--"; //Größe
+      // insert the information in the row
+      filenameCell.textContent = entry.name; // Dateiname
+      lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
+      fileTypeCell.textContent = entry.file_type; // Dateityp
+      fileSizeCell.textContent = entry.size; //Größe
 
+      // append row
       row.appendChild(filenameCell);
       row.appendChild(lastModifiedCell);
       row.appendChild(fileTypeCell);

@@ -5,6 +5,16 @@ use std::path::PathBuf;
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use database_operations::{initialize_database_and_extensions, create_database, check_database, search_database };
+use crate::file_information::get_file_information;
+
+#[derive(Debug, serde::Serialize)] // TODO: braucht man diese Zeile?
+pub struct SearchResult {
+    name: String,
+    path: String,
+    last_modified: String,
+    file_type: String,
+    size: String
+}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // This is just for testing
