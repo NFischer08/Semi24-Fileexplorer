@@ -44,7 +44,7 @@ async function loadFilesAndFolders() {
 }
 
 async function display_search_results() {
-  const search_term = document.getElementById('file-name').value; // Aktuellen Pfad auslesen
+  const search_term = document.getElementById('file-name').value; // Suchwert auslesen
   const fileListElement = document.getElementById('fileList');
   const errorMessageElement = document.getElementById('error-message');
   fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen

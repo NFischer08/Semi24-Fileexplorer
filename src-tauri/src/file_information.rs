@@ -1,9 +1,10 @@
 use std::fs;
 use std::path::PathBuf;
 use std::time::SystemTime;
-use chrono::{DateTime, Local, TimeZone};
+use chrono::{Local, TimeZone};
 use crate::{FileEntry, FileType, FileDataFormatted};
 use tauri::command;
+use fs::DirEntry;
 
 fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
     let path = PathBuf::from(path);
@@ -26,28 +27,7 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
             for entry in dir_entries {
                 match entry {
                     Ok(entry) => {
-                        let file_name = entry.file_name().into_string().unwrap_or_default();
-                        let metadata = entry.metadata().map_err(|e| e.to_string())?;
-                        let modified_time = metadata.modified().map_err(|e| e.to_string())?;
-                        let file_type = if metadata.is_dir() {
-                            FileType::Directory
-                        } else {
-                            match entry.path().extension() {
-                                Some(ext) => FileType::File(ext.to_string_lossy().into_owned()),
-                                None => FileType::None
-                            }
-                        };
-                        let size: u64 = metadata.len() / 1024; // size of the file in KB, if folder: 0
-
-                        // Convert the last modified time to a readable format
-                        let last_modified = get_last_modified_time(modified_time);
-
-                        entries.push(FileEntry {
-                            name: file_name,
-                            last_modified,
-                            file_type,
-                            size_in_kb: size
-                        });
+                        entries.push(get_file_information(entry))
                     }
                     Err(e) => return Err(e.to_string()),
                 }
@@ -59,15 +39,63 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
     Ok(entries)
 }
 
-// Function to format the last modified time
-fn get_last_modified_time(time: SystemTime) -> DateTime<Local> { // String
+fn get_file_information(entry: DirEntry) -> FileEntry{
+    // get the name of the file
+    let file_name = entry.file_name().into_string().unwrap_or_default();
+
+    // get the metadata of the file
+    let metadata = match entry.metadata() {
+        Ok(metadata) => metadata,
+        Err(_) => { // if an Error occurs while catching metadata, the name gets return and the other values are set to the standard
+            return FileEntry {
+                name: file_name,
+                file_type: FileType::None,
+                last_modified: Local::now(),
+                size_in_kb: 0
+            }
+        },
+    };
+
+    // get the filetype of file
+    let file_type = if metadata.is_dir() {
+        FileType::Directory // either type directory or ...
+    } else {
+        match entry.path().extension() {
+            Some(ext) => FileType::File(ext.to_string_lossy().into_owned()), // ... type actual file (-> extension as String) or ...
+            None => FileType::None // ... no file extension at all
+        }
+    };
+
+    // size of the file in KB, if folder: 0
+    let size: u64 = metadata.len() / 1000;
+
+    // get the last modified time of the file
+    let modified_time = match metadata.modified() {
+        Ok(time) => time,
+        Err(_) => { // if it's unable to read the modified time it returns all information currently known
+            return FileEntry {
+                name: file_name,
+                last_modified: Local::now(), // last_modified is set to the current time
+                file_type,
+                size_in_kb: size
+            }
+        }
+    }; // Convert the last modified time to a readable format
     // Convert SystemTime to DateTime<Local>
-    time.duration_since(SystemTime::UNIX_EPOCH)
+    let last_modified = modified_time.duration_since(SystemTime::UNIX_EPOCH)
         .map(|d| Local.timestamp_opt(d.as_secs() as i64, d.subsec_nanos())
             .single()
             .unwrap_or_else(Local::now)
         )        // Fallback to current time if there's an error
-        .unwrap()
+        .unwrap(); // TODO => keine Ahnung was das macht!
+
+    // append the important information to the Vector with the FileEntries
+    FileEntry {
+        name: file_name,
+        last_modified,
+        file_type,
+        size_in_kb: size
+    }
 }
 
 #[command]
@@ -91,14 +119,14 @@ pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
                 }
                 else {
                     let size_kb_f: f64 = file.size_in_kb as f64;
-                    let (size, unit) = if file.size_in_kb < 1024 {
+                    let (size, unit) = if file.size_in_kb < 1000 {
                         (size_kb_f, "KB")
                     } else if file.size_in_kb < 1024 * 1024 {
-                        (size_kb_f / 1024.0, "MB")
+                        (size_kb_f / 1_000.0, "MB")
                     } else if file.size_in_kb < 1024 * 1024 * 1024 {
-                        (size_kb_f / (1024.0 * 1024.0), "GB")
+                        (size_kb_f / 1_000_000.0, "GB")
                     } else {
-                        (size_kb_f / (1024.0 * 1024.0 * 1024.0), "TB")
+                        (size_kb_f / 1_000_000_000.0, "TB")
                     };
 
                     // Round to one decimal place
