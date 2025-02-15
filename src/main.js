@@ -119,6 +119,33 @@ window.addEventListener('click', (event) => {
   }
 });
 
+// double click to open file / folder
+document.getElementById('fileTable').addEventListener('dblclick', async (event) => {
+  event.preventDefault();
+  const target = event.target.closest('tr');
+  if (target) {
+    selectedFile = target.dataset.filepath
+    console.log(`Opening file: ${selectedFile}`);
+    document.getElementById('file-path-input').value = selectedFile;
+    await loadFilesAndFolders();
+  }
+})
+
+// submit Filepath by pressing enter
+document.getElementById('file-path-input').addEventListener('keypress', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    document.getElementById('go-to-file-path-button').click();
+  }
+})
+
+// submit search term by pressing enter
+document.getElementById('search-term-input').addEventListener('keypress', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    document.getElementById('search-button').click();
+  }
+})
 
 // context Menu
 const contextMenu = document.getElementById('context-menu');
@@ -234,27 +261,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 })
-
-// double click to open file / folder
-document.getElementById('fileTable').addEventListener('dblclick', async (event) => {
-  event.preventDefault();
-  const target = event.target.closest('tr');
-  if (target) {
-    selectedFile = target.dataset.filepath
-    console.log(`Opening file: ${selectedFile}`);
-    document.getElementById('file-path-input').value = selectedFile;
-    await loadFilesAndFolders();
-  }
-})
-
-// submit Filepath by pressing enter
-document.getElementById('file-path-input').addEventListener('keypress', (event) => {
-  if (event.key === 'Enter') {
-    event.preventDefault();
-    document.getElementById('go-to-file-path-button').click();
-  }
-})
-
 
 /*
 
