@@ -1,4 +1,3 @@
-
 mod searching_database;
 mod creating_database;
 
@@ -46,7 +45,7 @@ pub fn manager_create_database(
 
 pub fn manager_basic_search(
     search_term: &str,
-) -> Result<(), Box<dyn std::error::Error>>
+) -> Result<(Vec<String>), Box<dyn std::error::Error>>
 {
     let pooled_connection= manager_make_pooled_connection()?;
 
@@ -54,7 +53,7 @@ pub fn manager_basic_search(
     let threads = num_cpus::get();
 
     let return_paths = search_database(&pooled_connection, search_term, similarity_threshold, threads)?;  // Hier kann das Frontend abgreifen
-    Ok(())
+    Ok(return_paths)
 }
 
 pub fn manager_check_database() -> Result<(), Box<dyn std::error::Error>> {

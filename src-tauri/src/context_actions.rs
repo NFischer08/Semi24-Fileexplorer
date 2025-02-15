@@ -223,14 +223,6 @@ pub fn open_file_with(filepath: String) -> Result<String, String> {
     // TODO
     Ok("Copied successfully!".to_string())
 }
-/*
-#[command]
-pub fn copy_path_old(filepath: String) -> Result<String, String> {
-    let path: String = normalize_slashes(&filepath.replace("\\", "/")); // ignore the part, where the new PathBuf is created, since not needed
-    let mut clipboard: ClipboardContext = ClipboardProvider::new().map_err(|e| e.to_string())?;
-    clipboard.set_contents(path.to_string()).map_err(|e| e.to_string())?;
-    Ok("Copied successfully!".to_string())
-} */
 
 /// Bereinigt einen eingegebenen Dateipfad (String) für konsistentes und fehlerfreies Arbeiten.
 ///

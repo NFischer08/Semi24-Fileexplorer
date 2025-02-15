@@ -4,7 +4,7 @@ let filePathInputEl;
 let resultText;
 
 async function loadFilesAndFolders() {
-  const filepath = document.getElementById('file-path').value; // Aktuellen Pfad auslesen
+  const filepath = document.getElementById('file-path-input').value; // Aktuellen Pfad auslesen
   const fileListElement = document.getElementById('fileList');
   const errorMessageElement = document.getElementById('error-message');
   fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
@@ -44,7 +44,7 @@ async function loadFilesAndFolders() {
 }
 
 async function display_search_results() {
-  const search_term = document.getElementById('file-name').value; // Suchwert auslesen
+  const search_term = document.getElementById('search-term-input').value; // Suchwert auslesen
   const fileListElement = document.getElementById('fileList');
   const errorMessageElement = document.getElementById('error-message');
   fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
@@ -84,7 +84,7 @@ async function display_search_results() {
 }
 
 
-document.getElementById('file-path-selector').addEventListener('click', async () => {
+document.getElementById('go-to-file-path-button').addEventListener('click', async () => {
   await loadFilesAndFolders();
 });
 
@@ -239,16 +239,16 @@ document.getElementById('fileTable').addEventListener('dblclick', async (event) 
   if (target) {
     selectedFile = target.dataset.filepath
     console.log(`Opening file: ${selectedFile}`);
-    document.getElementById('file-path').value = selectedFile;
+    document.getElementById('file-path-input').value = selectedFile;
     await loadFilesAndFolders();
   }
 })
 
 // submit Filepath by pressing enter
-document.getElementById('file-path').addEventListener('keypress', (event) => {
+document.getElementById('file-path-input').addEventListener('keypress', (event) => {
   if (event.key === 'Enter') {
     event.preventDefault();
-    document.getElementById('file-path-selector').click();
+    document.getElementById('go-to-file-path-button').click();
   }
 })
 

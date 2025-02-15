@@ -1,10 +1,30 @@
-use std::fs;
-use std::path::PathBuf;
-use std::time::SystemTime;
-use chrono::{Local, TimeZone};
-use crate::{FileEntry, FileType, FileDataFormatted};
+use std::{fs::{self, DirEntry}, path::PathBuf, time::SystemTime};
+use chrono::{DateTime, Local, TimeZone};
 use tauri::command;
-use fs::DirEntry;
+
+#[derive(Debug)]
+enum FileType {
+    Directory,
+    File(String),
+    None,
+}
+
+#[derive(Debug)]
+struct FileEntry {
+    name: String,
+    last_modified: DateTime<Local>,
+    file_type: FileType,
+    size_in_kb: u64
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct FileDataFormatted {
+    name: String,
+    last_modified: String,
+    file_type: String,
+    size: String
+}
+
 
 fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
     let path = PathBuf::from(path);
