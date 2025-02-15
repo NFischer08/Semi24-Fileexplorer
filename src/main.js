@@ -6,6 +6,7 @@ let resultText;
 async function loadFilesAndFolders() {
   const filepath = document.getElementById('file-path-input').value; // Aktuellen Pfad auslesen
   const fileListElement = document.getElementById('fileList');
+  document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(3)').textContent = "File Type";
   const errorMessageElement = document.getElementById('error-message');
   fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
   errorMessageElement.classList.add('hidden');
@@ -45,17 +46,19 @@ async function loadFilesAndFolders() {
 
 async function display_search_results() {
   const search_term = document.getElementById('search-term-input').value; // read the search term
+  const search_path = document.getElementById('file-path-input').value;
   const fileListElement = document.getElementById('fileList');
+  document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(3)').textContent = "File Path"; // rename column
   const errorMessageElement = document.getElementById('error-message');
   fileListElement.innerHTML = ''; // delete previous results
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
 
   try {
-    const entries = await invoke('manager_basic_search', { searchterm: search_term }); // get the search results (structs with all the information)
+    const entries = await invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path }); // get the search results (structs with all the information)
 
     entries.forEach(entry => { // display every result (already sorted by importance)
       const row = document.createElement('tr');
-      row.dataset.filepath = entry.filepath // store the filepath of the search result, so rust later knows where it is
+      row.dataset.filepath = entry.path // store the filepath of the search result, so rust later knows where it is
 
       // create new row
       const filenameCell = document.createElement('td');
@@ -66,7 +69,7 @@ async function display_search_results() {
       // insert the information in the row
       filenameCell.textContent = entry.name; // Dateiname
       lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
-      fileTypeCell.textContent = entry.file_type; // Dateityp
+      fileTypeCell.textContent = entry.path; // Path
       fileSizeCell.textContent = entry.size; //Größe
 
       // append row
