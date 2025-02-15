@@ -1,11 +1,13 @@
 mod database_operations;
+pub mod file_information;
 
-use rayon::{ThreadPoolBuilder};
+use std::fs::DirEntry;
+use rayon::ThreadPoolBuilder;
 use std::path::PathBuf;
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
-use database_operations::{initialize_database_and_extensions, create_database, check_database, search_database };
-use crate::file_information::get_file_information;
+use database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
+use file_information::{get_file_information, };
 
 #[derive(Debug, serde::Serialize)] // TODO: braucht man diese Zeile?
 pub struct SearchResult {
@@ -15,6 +17,21 @@ pub struct SearchResult {
     file_type: String,
     size: String
 }
+fn build_struct(paths: Vec<DirEntry>) -> Vec<SearchResult> {
+    paths.into_iter()
+        .map(|path| {
+            let file_entry = get_file_information(&path);
+            SearchResult {
+                name: file_entry.name,
+                path: path.path().to_string_lossy().into_owned(),
+                last_modified: file_entry.last_modified.to_rfc3339(),
+                file_type: format!("{:?}", file_entry.file_type),
+                size: format!("{} KB", file_entry.size_in_kb)
+            }
+        })
+        .collect()
+}
+
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // This is just for testing
@@ -54,7 +71,7 @@ pub fn manager_create_database(
 
 pub fn manager_basic_search(
     search_term: &str,
-) -> Result<(), Box<dyn std::error::Error>>
+) -> Result<(Vec<SearchResult>), Box<dyn std::error::Error>>
 {
     let pooled_connection= manager_make_pooled_connection()?;
 
@@ -66,8 +83,8 @@ pub fn manager_basic_search(
         .unwrap();
 
     let return_paths = search_database(&pooled_connection, search_term, similarity_threshold, &thread_pool)?;  // Hier kann das Frontend abgreifen
-
-    Ok(())
+    let search_result = build_struct(return_paths);
+    Ok(search_result)
 }
 
 pub fn manager_check_database() -> Result<(), Box<dyn std::error::Error>> {

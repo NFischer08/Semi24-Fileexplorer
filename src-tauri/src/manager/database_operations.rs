@@ -8,6 +8,7 @@ use std::path::{Path, PathBuf};
 use std::sync::mpsc::channel;
 use std::time::Instant;
 use strsim::normalized_levenshtein;
+use std::fs::DirEntry;
 
 #[derive(Debug)]
 struct Files {
@@ -208,8 +209,7 @@ pub fn search_database(
     search_term: &str,
     similarity_threshold: f64,
     thread_pool: &rayon::ThreadPool,
-) -> Result<Vec<String>> {
-
+) -> Result<Vec<DirEntry>> {
     let start_time = Instant::now();
     let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files")?;
     let rows = stmt.query_map([], |row| Ok((
@@ -239,9 +239,19 @@ pub fn search_database(
 
     let mut results: Vec<(String, f64)> = rx.iter().collect();
     results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-    let return_paths: Vec<String> = results.iter().map(|p| p.0.clone()).collect();
+
+    let return_entries: Vec<DirEntry> = results
+        .iter()
+        .filter_map(|(path, _)| {
+            std::fs::read_dir(PathBuf::from(path).parent().unwrap())
+                .ok()?
+                .find(|entry| entry.as_ref().map(|e| e.path().to_str() == Some(path)).unwrap_or(false))
+                .and_then(|entry| entry.ok())
+        })
+        .collect();
+
     let duration = start_time.elapsed();
     println!("Parallel search completed in {:.2?}", duration);
 
-    Ok(return_paths)
+    Ok(return_entries)
 }

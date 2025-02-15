@@ -3,18 +3,18 @@ use chrono::{DateTime, Local, TimeZone};
 use tauri::command;
 
 #[derive(Debug)]
-enum FileType {
+pub(crate) enum FileType {
     Directory,
     File(String),
     None,
 }
 
 #[derive(Debug)]
-struct FileEntry {
-    name: String,
-    last_modified: DateTime<Local>,
-    file_type: FileType,
-    size_in_kb: u64
+pub struct FileEntry {
+    pub(crate) name: String,
+    pub(crate) last_modified: DateTime<Local>,
+    pub(crate) file_type: FileType,
+    pub(crate) size_in_kb: u64
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -47,7 +47,7 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
             for entry in dir_entries {
                 match entry {
                     Ok(entry) => {
-                        entries.push(get_file_information(entry))
+                        entries.push(get_file_information(&entry))
                     }
                     Err(e) => return Err(e.to_string()),
                 }
@@ -59,7 +59,7 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
     Ok(entries)
 }
 
-pub fn get_file_information(entry: DirEntry) -> FileEntry{
+pub fn get_file_information(entry: &DirEntry) -> FileEntry{
     // get the name of the file
     let file_name = entry.file_name().into_string().unwrap_or_default();
 
