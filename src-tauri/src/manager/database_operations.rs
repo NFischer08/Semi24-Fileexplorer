@@ -9,6 +9,7 @@ use std::sync::mpsc::channel;
 use std::time::Instant;
 use strsim::normalized_levenshtein;
 use std::fs::DirEntry;
+use std::fs;
 #[derive(Debug)]
 struct Files {
     id: i32,
@@ -181,7 +182,7 @@ pub fn check_database(
                     path_result.ok().and_then(|path| {
                         let path_obj = Path::new(&path);
                         if !is_allowed_file(path_obj, &allowed_file_extensions) &&
-                            !std::fs::metadata(&path).is_ok() {
+                            !fs::metadata(&path).is_ok() {
                             Some(path)
                         } else {
                             None
@@ -262,13 +263,13 @@ pub fn search_database(
     let mut results: Vec<(String, f64)> = rx.iter().collect();
     results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-    let return_entries: Vec<DirEntry> = results
-        .iter()
-        .filter_map(|(path, _)| {
-            std::fs::read_dir(PathBuf::from(path).parent().unwrap())
-                .ok()?
-                .find(|entry| entry.as_ref().map(|e| e.path().to_str() == Some(path)).unwrap_or(false))
-                .and_then(|entry| entry.ok())
+    let return_entries: Vec<DirEntry> = results.into_iter()
+        .filter_map(|(s, _)| {
+            let path = Path::new(&s);
+            fs::read_dir(path.parent().unwrap_or(Path::new(".")))
+                .ok()
+                .and_then(|mut dir| dir.find(|e| e.as_ref().map(|d| d.path() == path).unwrap_or(false)))
+                .and_then(|e| e.ok())
         })
         .collect();
 

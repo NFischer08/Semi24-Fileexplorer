@@ -117,7 +117,7 @@ pub fn manager_basic_search(searchterm: &str, searchpath: &str) -> Result<Vec<Se
 
     let similarity_threshold = 0.7;
 
-    let search_path = PathBuf::from(r"/Users\maxmu\RustroverProjects\");
+    let search_path = PathBuf::from(searchpath);
     println!("{:?}", search_path);
 
     let thread_pool = ThreadPoolBuilder::new()
@@ -129,7 +129,9 @@ pub fn manager_basic_search(searchterm: &str, searchpath: &str) -> Result<Vec<Se
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string())
     };  // Hier kann das Frontend abgreifen
+
     let search_result = build_struct(return_paths);
+    println!("{:?}", search_result);
     Ok(search_result)
 }
 
