@@ -9,7 +9,6 @@ use std::sync::mpsc::channel;
 use std::time::Instant;
 use strsim::normalized_levenshtein;
 use std::fs::DirEntry;
-
 #[derive(Debug)]
 struct Files {
     id: i32,
@@ -67,6 +66,7 @@ pub fn create_database(
     println!("Starting create_database function");
     println!("Scanning directory: {}", path.display());
 
+
     let start_time = Instant::now();
     let files_vec: Vec<Files> = thread_pool.install(|| {
         WalkDir::new(&path)
@@ -77,10 +77,11 @@ pub fn create_database(
                 entry_result.ok().and_then(|entry| {
                     let path = entry.path();
                     if !should_ignore_path(&path) && (path.is_dir() || is_allowed_file(&path, allowed_file_extensions)) {
+                        let path_slashes = convert_to_forward_slashes(&path);
                         Some(Files {
                             id: 0,
                             file_name: entry.file_name().to_string_lossy().into_owned(),
-                            file_path: path.to_string_lossy().into_owned(),
+                            file_path: path_slashes,
                             file_type: if path.is_dir() {
                                 Some("directory".to_string())
                             } else {
@@ -130,7 +131,7 @@ pub fn create_database(
             Ok(stmt) => stmt,
             Err(e) => return Err(e.to_string())
         };
-        let batch_size = 1000;
+        let batch_size = 10000;
         let mut inserted_count = 0;
         for (i, chunk) in files_vec.chunks(batch_size).enumerate() {
             for file in chunk {
@@ -227,6 +228,7 @@ pub fn search_database(
     search_term: &str,
     similarity_threshold: f64,
     thread_pool: &rayon::ThreadPool,
+    searchpath: PathBuf
 ) -> Result<Vec<DirEntry>> {
     let start_time = Instant::now();
     let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files")?;
@@ -242,13 +244,15 @@ pub fn search_database(
         file_data.into_par_iter().for_each(|(file_name, file_path, file_type)| {
             let tx = tx.clone();
             let search_term = search_term.to_owned();
+            let searchpath = searchpath.to_owned();
             let name_to_compare = if file_type.as_deref() == Some("directory") {
-                file_name
+                &file_name
             } else {
-                file_name.split('.').next().unwrap_or(&file_name).to_string()
+                &file_name.split('.').next().unwrap_or(&file_name).to_string()
             };
             let similarity = normalized_levenshtein(&name_to_compare, &search_term);
-            if similarity >= similarity_threshold {
+            if similarity >= similarity_threshold && file_path.starts_with(searchpath.to_str().unwrap()) {
+                println!("{}, {}", file_name, file_path);
                 tx.send((file_path, similarity)).unwrap();
             }
         });
@@ -272,4 +276,10 @@ pub fn search_database(
     println!("Parallel search completed in {:.2?}", duration);
 
     Ok(return_entries)
+}
+
+fn convert_to_forward_slashes(path: &PathBuf) -> String {
+    path.to_str()
+        .map(|s| s.replace('\\', "/"))
+        .unwrap_or_else(|| String::new())
 }
