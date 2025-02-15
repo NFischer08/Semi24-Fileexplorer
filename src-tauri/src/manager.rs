@@ -9,6 +9,7 @@ use r2d2_sqlite::SqliteConnectionManager;
 use tauri::command;
 use database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
 use file_information::{get_file_information, FileType};
+use crate::manager::file_information::FileEntry;
 
 #[derive(Debug, serde::Serialize)] // TODO: braucht man diese Zeile?
 pub struct SearchResult {
@@ -18,26 +19,52 @@ pub struct SearchResult {
     file_type: String,
     size: String
 }
+
+impl SearchResult {
+    fn format(file_entry: FileEntry, path: DirEntry) -> SearchResult {
+        let (file_type, is_dir) = match file_entry.file_type {
+            FileType::Directory => {
+                ("Directory".to_string(), true)
+            },
+            FileType::File(extension) => (extension, false),
+            FileType::None => ("File".to_string(), false)
+        };
+        let size: String = if is_dir {
+            "--".to_string()
+        }
+        else {
+            let size_kb_f: f64 = file_entry.size_in_kb as f64;
+            let (size, unit) = if file_entry.size_in_kb < 1000 {
+                (size_kb_f, "KB")
+            } else if file_entry.size_in_kb < 1_000_000 {
+                (size_kb_f / 1_000.0, "MB")
+            } else if file_entry.size_in_kb < 1_000_000_000 {
+                (size_kb_f / 1_000_000.0, "GB")
+            } else {
+                (size_kb_f / 1_000_000_000.0, "TB")
+            };
+
+            // Round to one decimal place
+            let rounded_size = (size * 10.0).round() / 10.0;
+
+            // Format the output
+            format!("{:.1} {}", rounded_size, unit)
+        };
+
+        SearchResult {
+            name: file_entry.name,
+            path: path.path().to_string_lossy().into_owned(),
+            last_modified: file_entry.last_modified.format("%d.%m.%Y %H:%M Uhr").to_string(),
+            file_type,
+            size
+        }
+    }
+}
+
 fn build_struct(paths: Vec<DirEntry>) -> Vec<SearchResult> {
     paths.into_iter()
-        .map(|path| {
-            let file_entry = get_file_information(&path);
-            SearchResult {
-                name: file_entry.name,
-                path: path.path().to_string_lossy().into_owned(),
-                last_modified: file_entry.last_modified.format("%d.%m.%Y %H:%M Uhr").to_string(),
-                file_type: {
-                    match file_entry.file_type {
-                        FileType::Directory => {
-                            "Directory".to_string()
-                        },
-                        FileType::File(extension) => extension,
-                        FileType::None => "File".to_string()
-                    }
-                },
-                size: format!("{} KB", file_entry.size_in_kb)
-            }
-        })
+        .map(|path| { SearchResult::format(get_file_information(&path), path) }
+        )
         .collect()
 }
 
@@ -84,6 +111,7 @@ pub fn manager_basic_search(
     searchterm: &str,
 ) -> Result<Vec<SearchResult>, String>
 {
+pub fn manager_basic_search(searchterm: &str) -> Result<(Vec<SearchResult>), String> {
     let pooled_connection = match manager_make_pooled_connection() {
         Ok(pooled_connection) => pooled_connection,
         Err(e) => return Err(e.to_string())

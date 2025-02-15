@@ -59,7 +59,7 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
     Ok(entries)
 }
 
-pub fn get_file_information(entry: &DirEntry) -> FileEntry{
+pub fn get_file_information(entry: &DirEntry) -> FileEntry {
     // get the name of the file
     let file_name = entry.file_name().into_string().unwrap_or_default();
 
