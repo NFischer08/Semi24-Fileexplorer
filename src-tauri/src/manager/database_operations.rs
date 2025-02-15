@@ -9,7 +9,7 @@ use std::sync::mpsc::channel;
 use std::time::Instant;
 use strsim::normalized_levenshtein;
 use std::fs::DirEntry;
-
+use std::fs;
 #[derive(Debug)]
 struct Files {
     id: i32,
@@ -67,6 +67,7 @@ pub fn create_database(
     println!("Starting create_database function");
     println!("Scanning directory: {}", path.display());
 
+
     let start_time = Instant::now();
     let files_vec: Vec<Files> = thread_pool.install(|| {
         WalkDir::new(&path)
@@ -77,10 +78,11 @@ pub fn create_database(
                 entry_result.ok().and_then(|entry| {
                     let path = entry.path();
                     if !should_ignore_path(&path) && (path.is_dir() || is_allowed_file(&path, allowed_file_extensions)) {
+                        let path_slashes = convert_to_forward_slashes(&path);
                         Some(Files {
                             id: 0,
                             file_name: entry.file_name().to_string_lossy().into_owned(),
-                            file_path: path.to_string_lossy().into_owned(),
+                            file_path: path_slashes,
                             file_type: if path.is_dir() {
                                 Some("directory".to_string())
                             } else {
@@ -130,7 +132,7 @@ pub fn create_database(
             Ok(stmt) => stmt,
             Err(e) => return Err(e.to_string())
         };
-        let batch_size = 1000;
+        let batch_size = 10000;
         let mut inserted_count = 0;
         for (i, chunk) in files_vec.chunks(batch_size).enumerate() {
             for file in chunk {
@@ -180,7 +182,7 @@ pub fn check_database(
                     path_result.ok().and_then(|path| {
                         let path_obj = Path::new(&path);
                         if !is_allowed_file(path_obj, &allowed_file_extensions) &&
-                            !std::fs::metadata(&path).is_ok() {
+                            !fs::metadata(&path).is_ok() {
                             Some(path)
                         } else {
                             None
@@ -227,6 +229,7 @@ pub fn search_database(
     search_term: &str,
     similarity_threshold: f64,
     thread_pool: &rayon::ThreadPool,
+    searchpath: PathBuf
 ) -> Result<Vec<DirEntry>> {
     let start_time = Instant::now();
     let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files")?;
@@ -242,13 +245,15 @@ pub fn search_database(
         file_data.into_par_iter().for_each(|(file_name, file_path, file_type)| {
             let tx = tx.clone();
             let search_term = search_term.to_owned();
+            let searchpath = searchpath.to_owned();
             let name_to_compare = if file_type.as_deref() == Some("directory") {
-                file_name
+                &file_name
             } else {
-                file_name.split('.').next().unwrap_or(&file_name).to_string()
+                &file_name.split('.').next().unwrap_or(&file_name).to_string()
             };
             let similarity = normalized_levenshtein(&name_to_compare, &search_term);
-            if similarity >= similarity_threshold {
+            if similarity >= similarity_threshold && file_path.starts_with(searchpath.to_str().unwrap()) {
+                println!("{}, {}", file_name, file_path);
                 tx.send((file_path, similarity)).unwrap();
             }
         });
@@ -258,13 +263,13 @@ pub fn search_database(
     let mut results: Vec<(String, f64)> = rx.iter().collect();
     results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-    let return_entries: Vec<DirEntry> = results
-        .iter()
-        .filter_map(|(path, _)| {
-            std::fs::read_dir(PathBuf::from(path).parent().unwrap())
-                .ok()?
-                .find(|entry| entry.as_ref().map(|e| e.path().to_str() == Some(path)).unwrap_or(false))
-                .and_then(|entry| entry.ok())
+    let return_entries: Vec<DirEntry> = results.into_iter()
+        .filter_map(|(s, _)| {
+            let path = Path::new(&s);
+            fs::read_dir(path.parent().unwrap_or(Path::new(".")))
+                .ok()
+                .and_then(|mut dir| dir.find(|e| e.as_ref().map(|d| d.path() == path).unwrap_or(false)))
+                .and_then(|e| e.ok())
         })
         .collect();
 
@@ -272,4 +277,10 @@ pub fn search_database(
     println!("Parallel search completed in {:.2?}", duration);
 
     Ok(return_entries)
+}
+
+fn convert_to_forward_slashes(path: &PathBuf) -> String {
+    path.to_str()
+        .map(|s| s.replace('\\', "/"))
+        .unwrap_or_else(|| String::new())
 }

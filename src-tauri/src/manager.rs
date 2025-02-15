@@ -93,7 +93,7 @@ pub fn manager_create_database(
     };
 
     let thread_pool = ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get())
+        .num_threads(num_cpus::get()-2)
         .build()
         .unwrap();
 
@@ -117,16 +117,21 @@ pub fn manager_basic_search(searchterm: &str, searchpath: &str) -> Result<Vec<Se
 
     let similarity_threshold = 0.7;
 
+    let search_path = PathBuf::from(searchpath);
+    println!("{:?}", search_path);
+
     let thread_pool = ThreadPoolBuilder::new()
         .num_threads(num_cpus::get())
         .build()
         .unwrap();
 
-    let return_paths = match search_database(&pooled_connection, searchterm, similarity_threshold, &thread_pool) {
+    let return_paths = match search_database(&pooled_connection, searchterm, similarity_threshold, &thread_pool, search_path) {
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string())
     };  // Hier kann das Frontend abgreifen
+
     let search_result = build_struct(return_paths);
+    println!("{:?}", search_result);
     Ok(search_result)
 }
 
