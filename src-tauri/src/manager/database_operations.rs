@@ -62,13 +62,13 @@ pub fn create_database(
     conn: PooledConnection<SqliteConnectionManager>,
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
-    pool: &rayon::ThreadPool,
+    thread_pool: &rayon::ThreadPool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting create_database function");
     println!("Scanning directory: {}", path.display());
 
     let start_time = Instant::now();
-    let files_vec: Vec<Files> = pool.install(|| {
+    let files_vec: Vec<Files> = thread_pool.install(|| {
         WalkDir::new(&path)
             .parallelism(jwalk::Parallelism::RayonNewPool(num_cpus::get()))
             .into_iter()
