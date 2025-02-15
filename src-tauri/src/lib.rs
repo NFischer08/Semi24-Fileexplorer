@@ -1,12 +1,8 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
-mod show_files;
 mod manager;
 mod file_information;
 mod context_actions;
-use show_files::format_file_data;
-mod creating_database;
-mod searching_database;
 
 use file_information::format_file_data;
 use context_actions::{cut_file, delete_file, rename_file, open_file_with, paste, copy_file};
