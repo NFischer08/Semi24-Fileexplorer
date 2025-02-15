@@ -6,8 +6,9 @@ use rayon::ThreadPoolBuilder;
 use std::path::PathBuf;
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
+use tauri::command;
 use database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
-use file_information::{get_file_information, };
+use file_information::{get_file_information, FileType};
 
 #[derive(Debug, serde::Serialize)] // TODO: braucht man diese Zeile?
 pub struct SearchResult {
@@ -24,8 +25,16 @@ fn build_struct(paths: Vec<DirEntry>) -> Vec<SearchResult> {
             SearchResult {
                 name: file_entry.name,
                 path: path.path().to_string_lossy().into_owned(),
-                last_modified: file_entry.last_modified.to_rfc3339(),
-                file_type: format!("{:?}", file_entry.file_type),
+                last_modified: file_entry.last_modified.format("%d.%m.%Y %H:%M Uhr").to_string(),
+                file_type: {
+                    match file_entry.file_type {
+                        FileType::Directory => {
+                            "Directory".to_string()
+                        },
+                        FileType::File(extension) => extension,
+                        FileType::None => "File".to_string()
+                    }
+                },
                 size: format!("{} KB", file_entry.size_in_kb)
             }
         })
@@ -49,6 +58,7 @@ fn manager_make_pooled_connection() -> Result<PooledConnection<SqliteConnectionM
 
     Ok(pooled_connection)
 }
+
 pub fn manager_create_database(
     database_scan_start: &str,
 )  -> Result<(), Box<dyn std::error::Error>>
@@ -69,11 +79,15 @@ pub fn manager_create_database(
     Ok(())
 }
 
+#[command]
 pub fn manager_basic_search(
-    search_term: &str,
-) -> Result<(Vec<SearchResult>), Box<dyn std::error::Error>>
+    searchterm: &str,
+) -> Result<(Vec<SearchResult>), String>
 {
-    let pooled_connection= manager_make_pooled_connection()?;
+    let pooled_connection = match manager_make_pooled_connection() {
+        Ok(pooled_connection) => pooled_connection,
+        Err(e) => return Err(String::from("Error"))
+    };
 
     let similarity_threshold = 0.7;
 
@@ -82,7 +96,10 @@ pub fn manager_basic_search(
         .build()
         .unwrap();
 
-    let return_paths = search_database(&pooled_connection, search_term, similarity_threshold, &thread_pool)?;  // Hier kann das Frontend abgreifen
+    let return_paths = match search_database(&pooled_connection, searchterm, similarity_threshold, &thread_pool) {
+        Ok(return_paths) => return_paths,
+        Err(e) => return Err(String::from("Error"))
+    };  // Hier kann das Frontend abgreifen
     let search_result = build_struct(return_paths);
     Ok(search_result)
 }

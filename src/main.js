@@ -51,7 +51,7 @@ async function display_search_results() {
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
 
   try {
-    const entries = await invoke('search_database', { search_term: search_term }); // get the search results (structs with all the information)
+    const entries = await invoke('manager_basic_search', { searchterm: search_term }); // get the search results (structs with all the information)
 
     entries.forEach(entry => { // display every result (already sorted by importance)
       const row = document.createElement('tr');
