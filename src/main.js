@@ -43,6 +43,45 @@ async function loadFilesAndFolders() {
   }
 }
 
+async function display_search_results() {
+  const search_term = document.getElementById('file-name').value; // Aktuellen Pfad auslesen
+  const fileListElement = document.getElementById('fileList');
+  const errorMessageElement = document.getElementById('error-message');
+  fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
+  errorMessageElement.classList.add('hidden');
+
+  try {
+    const names = await invoke('search_database', { search_term: search_term });
+
+    names.forEach(name => {
+      const row = document.createElement('tr');
+      row.dataset.filepath = filepath + "/" + entry.name;
+
+      const filenameCell = document.createElement('td');
+      const lastModifiedCell = document.createElement('td');
+      const fileTypeCell = document.createElement('td');
+      const fileSizeCell = document.createElement('td');
+
+      filenameCell.textContent = name; // Dateiname
+      lastModifiedCell.textContent = "-TODAY-"; // Letzte Änderung
+      fileTypeCell.textContent = "--"; // Dateityp
+      fileSizeCell.textContent = "--"; //Größe
+
+      row.appendChild(filenameCell);
+      row.appendChild(lastModifiedCell);
+      row.appendChild(fileTypeCell);
+      row.appendChild(fileSizeCell);
+      fileListElement.appendChild(row);
+    });
+
+  } catch (error) {
+    console.error('Error:', error);
+
+    // Fehlermeldung unter der Tabelle anzeigen
+    errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
+    errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
+  }
+}
 
 
 document.getElementById('file-path-selector').addEventListener('click', async () => {
@@ -52,6 +91,10 @@ document.getElementById('file-path-selector').addEventListener('click', async ()
 document.addEventListener('DOMContentLoaded', async () => {
   await loadFilesAndFolders();
 });
+
+document.getElementById('search-button').addEventListener('click', async () => {
+  await display_search_results();
+})
 
 //Einstellungskästchen
 const settingsButton = document.getElementById('settings-button');

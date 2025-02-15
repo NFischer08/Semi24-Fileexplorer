@@ -9,7 +9,7 @@ use show_files::format_file_data;
 use context_actions::{cut_file, delete_file, rename_file, open_file_with, paste, copy_file};
 use chrono::{DateTime, Local};
 use creating_database::{initialize_database_and_extensions, create_database, check_database};
-use searching_database::{ search_database};
+use searching_database::search_database;
 
 #[derive(Debug, serde::Serialize)]
 enum FileType {
@@ -38,7 +38,7 @@ struct FileDataFormatted {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
-        .invoke_handler(tauri::generate_handler![format_file_data, copy_file, paste, cut_file, delete_file, rename_file, open_file_with])
+        .invoke_handler(tauri::generate_handler![format_file_data, copy_file, paste, cut_file, delete_file, rename_file, open_file_with, search_database])
         .run(tauri::generate_context!("tauri.conf.json"))
         .expect("error while running tauri application");
 }
