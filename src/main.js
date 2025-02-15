@@ -50,12 +50,11 @@ async function display_search_results() {
   const fileListElement = document.getElementById('fileList');
   document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(3)').textContent = "File Path"; // rename column
   const errorMessageElement = document.getElementById('error-message');
-  fileListElement.innerHTML = ''; // delete previous results
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
 
   try {
     const entries = await invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path }); // get the search results (structs with all the information)
-
+    fileListElement.innerHTML = ''; // delete previous results
     entries.forEach(entry => { // display every result (already sorted by importance)
       const row = document.createElement('tr');
       row.dataset.filepath = entry.path // store the filepath of the search result, so rust later knows where it is
