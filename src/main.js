@@ -48,7 +48,7 @@ async function display_search_results() {
   const search_term = document.getElementById('search-term-input').value; // read the search term
   const search_path = document.getElementById('file-path-input').value;
   const fileListElement = document.getElementById('fileList');
-  document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(3)').textContent = "Path"; // rename column
+  document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(3)').textContent = "File Path"; // rename column
   const errorMessageElement = document.getElementById('error-message');
   fileListElement.innerHTML = ''; // delete previous results
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
