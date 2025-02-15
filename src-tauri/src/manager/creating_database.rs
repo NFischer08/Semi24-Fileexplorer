@@ -1,7 +1,7 @@
 use rusqlite::{params, Result};
 use rayon::prelude::*;
 use jwalk::WalkDir;
-use r2d2::{Pool, PooledConnection};
+use r2d2::{PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -15,13 +15,11 @@ struct Files {
     file_type: Option<String>,
 }
 
-pub fn initialize_database_and_extensions() -> Result<(Pool<SqliteConnectionManager>, HashSet<String>), Box<dyn std::error::Error>> {
-    // Initialize database
-    let manager = SqliteConnectionManager::file("files.sqlite3");
-    let connection_pool = Pool::new(manager)?;
-    let conn = connection_pool.get()?;
+pub fn initialize_database_and_extensions(
+    connection: &PooledConnection<SqliteConnectionManager>,
+) -> Result<HashSet<String>, Box<dyn std::error::Error>> {
 
-    conn.execute(
+    connection.execute(
         "CREATE TABLE IF NOT EXISTS files (
         id   INTEGER PRIMARY KEY,
         file_name TEXT NOT NULL,
@@ -31,7 +29,7 @@ pub fn initialize_database_and_extensions() -> Result<(Pool<SqliteConnectionMana
         (),
     )?;
 
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)", [])?;
+    connection.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)", [])?;
 
     // Get allowed file extensions
     let allowed_file_extensions: HashSet<String> = [
@@ -53,12 +51,12 @@ pub fn initialize_database_and_extensions() -> Result<(Pool<SqliteConnectionMana
         "sql", "db", "sqlite", "mdb", "ttf", "otf", "woff", "woff2", "obj", "stl", "fbx", "dxf", "dwg", "psd", "ai", "ind", "iso", "img", "dmg", "bak", "tmp", "log", "pcap"
     ].iter().map(|&s| String::from(s)).collect();
 
-    Ok((connection_pool, allowed_file_extensions))
+    Ok(allowed_file_extensions)
 }
 
 
 pub fn create_database(
-    mut conn: PooledConnection<SqliteConnectionManager>,
+    conn: PooledConnection<SqliteConnectionManager>,
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     pool: &rayon::ThreadPool,
@@ -197,6 +195,7 @@ fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bo
         .map(|ext| allowed_file_extensions.contains(ext))
         .unwrap_or(false)
 }
+
 
 fn should_ignore_path(path: &Path) -> bool {
     path.to_str().map_or(false, |s| s.starts_with("/proc") || s.starts_with("/sys"))

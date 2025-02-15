@@ -1,6 +1,4 @@
-use r2d2::Pool;
 use rusqlite::{Connection, Result};
-use r2d2_sqlite::SqliteConnectionManager;
 use std::sync::mpsc::channel;
 use threadpool::ThreadPool;
 use strsim::normalized_levenshtein;
@@ -48,7 +46,7 @@ pub fn search_database(
     let mut results: Vec<(String, f64)> = rx.iter().collect();
     results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
-    let return_paths: Vec<(String)> = results.iter().map(|p| p.0.clone()).collect();
+    let return_paths: Vec<String> = results.iter().map(|p| p.0.clone()).collect();
 
     let duration = start_time.elapsed();
     println!("Parallel search completed in {:.2?}", duration);
