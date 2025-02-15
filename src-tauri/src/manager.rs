@@ -73,7 +73,8 @@ fn manager_make_pooled_connection() -> Result<PooledConnection<SqliteConnectionM
     let connection_pool = Pool::new(manager)?;
     let pooled_connection = connection_pool.get()?;
     pooled_connection.pragma_update(None, "journal_mode", "WAL")?;
-
+    pooled_connection.pragma_update(None, "synchronous", "NORMAL")?;
+    pooled_connection.pragma_update(None, "wal_autocheckpoint", "1000")?;
     Ok(pooled_connection)
 }
 
