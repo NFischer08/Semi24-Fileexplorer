@@ -253,7 +253,6 @@ pub fn search_database(
             };
             let similarity = normalized_levenshtein(&name_to_compare, &search_term);
             if similarity >= similarity_threshold && file_path.starts_with(searchpath.to_str().unwrap()) {
-                println!("{}, {}", file_name, file_path);
                 tx.send((file_path, similarity)).unwrap();
             }
         });
