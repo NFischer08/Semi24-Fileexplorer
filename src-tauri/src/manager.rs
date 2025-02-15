@@ -41,31 +41,28 @@ fn build_struct(paths: Vec<DirEntry>) -> Vec<SearchResult> {
         .collect()
 }
 
-
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // This is just for testing
-
-    let database_scan_start = "/";
-    manager_create_database(database_scan_start)?;
-    manager_basic_search("Test")?;
-    manager_check_database()?;
-    Ok(())
-}
 fn manager_make_pooled_connection() -> Result<PooledConnection<SqliteConnectionManager>, Box<dyn std::error::Error>> {
     let manager = SqliteConnectionManager::file("files.sqlite3");
     let connection_pool = Pool::new(manager)?;
     let pooled_connection = connection_pool.get()?;
+    pooled_connection.pragma_update(None, "journal_mode", "WAL")?;
 
     Ok(pooled_connection)
 }
 
 pub fn manager_create_database(
     database_scan_start: &str,
-)  -> Result<(), Box<dyn std::error::Error>>
+)  -> Result<(), String>
 {
-    let pooled_connection= manager_make_pooled_connection()?;
+    let pooled_connection = match manager_make_pooled_connection() {
+        Ok(pooled_connection) => pooled_connection,
+        Err(e) => return Err(e.to_string())
+    };
 
-    let allowed_file_extensions= initialize_database_and_extensions(&pooled_connection)?;
+    let allowed_file_extensions= match initialize_database_and_extensions(&pooled_connection) {
+        Ok(allowed_file_extensions) => allowed_file_extensions,
+        Err(e) => return Err(e.to_string())
+    };
 
     let thread_pool = ThreadPoolBuilder::new()
         .num_threads(num_cpus::get())
@@ -74,7 +71,10 @@ pub fn manager_create_database(
 
     let db_path = PathBuf::from(database_scan_start);
 
-    create_database(pooled_connection, db_path, &allowed_file_extensions, &thread_pool)?;
+    match create_database(pooled_connection, db_path, &allowed_file_extensions, &thread_pool){
+        Ok(_) => {},
+        Err(e) => return Err(e.to_string())
+    };
 
     Ok(())
 }
@@ -82,11 +82,11 @@ pub fn manager_create_database(
 #[command]
 pub fn manager_basic_search(
     searchterm: &str,
-) -> Result<(Vec<SearchResult>), String>
+) -> Result<Vec<SearchResult>, String>
 {
     let pooled_connection = match manager_make_pooled_connection() {
         Ok(pooled_connection) => pooled_connection,
-        Err(e) => return Err(String::from("Error"))
+        Err(e) => return Err(e.to_string())
     };
 
     let similarity_threshold = 0.7;
@@ -98,7 +98,7 @@ pub fn manager_basic_search(
 
     let return_paths = match search_database(&pooled_connection, searchterm, similarity_threshold, &thread_pool) {
         Ok(return_paths) => return_paths,
-        Err(e) => return Err(String::from("Error"))
+        Err(e) => return Err(e.to_string())
     };  // Hier kann das Frontend abgreifen
     let search_result = build_struct(return_paths);
     Ok(search_result)

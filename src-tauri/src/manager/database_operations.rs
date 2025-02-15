@@ -63,7 +63,7 @@ pub fn create_database(
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), String> {
     println!("Starting create_database function");
     println!("Scanning directory: {}", path.display());
 
@@ -98,15 +98,24 @@ pub fn create_database(
     println!("Number of files to insert: {}", files_vec.len());
 
     let mut conn = conn;
-    let tx = conn.transaction()?;
+    let tx = match conn.transaction() {
+        Ok(tx) => tx,
+        Err(e) => return Err(e.to_string())
+    };
     {
         println!("Starting to fetch existing files");
         let fetch_start = Instant::now();
         let mut existing_files = HashSet::new();
-        let mut stmt = tx.prepare_cached("SELECT file_name, file_path FROM files")?;
-        let rows = stmt.query_map([], |row| {
+        let mut stmt = match tx.prepare_cached("SELECT file_name, file_path FROM files") {
+            Ok(stmt) => stmt,
+            Err(e) => return Err(e.to_string())
+        };
+        let rows = match stmt.query_map([], |row| {
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })?;
+        }) {
+            Ok(rows) => rows,
+            Err(e) => return Err(e.to_string())
+        };
 
         for row in rows {
             if let Ok((name, path)) = row {
@@ -117,17 +126,23 @@ pub fn create_database(
 
         println!("Starting file insertion");
         let insert_start = Instant::now();
-        let mut insert_stmt = tx.prepare_cached("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)")?;
+        let mut insert_stmt = match tx.prepare_cached("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)") {
+            Ok(stmt) => stmt,
+            Err(e) => return Err(e.to_string())
+        };
         let batch_size = 1000;
         let mut inserted_count = 0;
         for (i, chunk) in files_vec.chunks(batch_size).enumerate() {
             for file in chunk {
                 if !existing_files.contains(&(file.file_name.to_string(), file.file_path.to_string())) {
-                    insert_stmt.execute(params![
+                    match insert_stmt.execute(params![
                         file.file_name,
                         file.file_path,
                         file.file_type.as_deref().map::<&str, _>(|s| s.as_ref())
-                    ])?;
+                    ]) {
+                        Ok(_) => (),
+                        Err(e) => return Err(e.to_string())
+                    };
                     inserted_count += 1;
                 }
             }
@@ -140,7 +155,10 @@ pub fn create_database(
     }
     println!("Committing transaction");
     let commit_start = Instant::now();
-    tx.commit()?;
+    match tx.commit() {
+        Ok(_) => {},
+        Err(e) => return Err(e.to_string())
+    };
     println!("Transaction committed in {:?}", commit_start.elapsed());
 
     println!("create_database function completed in {:?}", start_time.elapsed());
