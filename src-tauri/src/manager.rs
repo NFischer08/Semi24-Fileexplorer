@@ -1,13 +1,11 @@
-
-mod searching_database;
-mod creating_database;
+mod database_operations;
 
 use rayon::ThreadPoolBuilder;
 use std::path::PathBuf;
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
-use creating_database::{initialize_database_and_extensions, create_database, check_database };
-use searching_database::search_database;
+use database_operations::{initialize_database_and_extensions, create_database, check_database, search_database };
+
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // This is just for testing
 
@@ -17,7 +15,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     manager_check_database()?;
     Ok(())
 }
-pub fn manager_make_pooled_connection() -> Result<PooledConnection<SqliteConnectionManager>, Box<dyn std::error::Error>> {
+fn manager_make_pooled_connection() -> Result<PooledConnection<SqliteConnectionManager>, Box<dyn std::error::Error>> {
     let manager = SqliteConnectionManager::file("files.sqlite3");
     let connection_pool = Pool::new(manager)?;
     let pooled_connection = connection_pool.get()?;
@@ -46,7 +44,7 @@ pub fn manager_create_database(
 
 pub fn manager_basic_search(
     search_term: &str,
-) -> Result<(), Box<dyn std::error::Error>>
+) -> Result<(Vec<String>), Box<dyn std::error::Error>>
 {
     let pooled_connection= manager_make_pooled_connection()?;
 
@@ -54,7 +52,7 @@ pub fn manager_basic_search(
     let threads = num_cpus::get();
 
     let return_paths = search_database(&pooled_connection, search_term, similarity_threshold, threads)?;  // Hier kann das Frontend abgreifen
-    Ok(())
+    Ok(return_paths)
 }
 
 pub fn manager_check_database() -> Result<(), Box<dyn std::error::Error>> {
