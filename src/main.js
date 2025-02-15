@@ -150,6 +150,13 @@ document.getElementById('search-term-input').addEventListener('keypress', (event
   }
 })
 
+// hide Sidebar
+document.getElementById('toggle-sidebar-button').addEventListener('click', () => {
+  console.log('Toggle Sidebar');
+  document.getElementById('sidebar').style.display = 'none';
+});
+
+
 // context Menu
 const contextMenu = document.getElementById('context-menu');
 let selectedFile = null;
@@ -218,7 +225,7 @@ document.getElementById('context-open_with').addEventListener('click', () => {
 
 document.getElementById('context-rename').addEventListener('click', () => {
   if (selectedFile) {
-    console.log(`Renaming file: ${selectedFile}`);
+    // console.log(`Renaming file: ${selectedFile}`);
     //const result = invoke('rename_file', { filepath: selectedFile, newFilename: "TEstoto"});
     //console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
@@ -266,51 +273,6 @@ document.addEventListener("DOMContentLoaded", () => {
 })
 
 /*
-
-async function loadSearchResults() {
-  //Initialisierungq
-  const filepath = document.getElementById('file-path').value; // Aktuellen Pfad auslesen
-  const fileListElement = document.getElementById('fileList');
-  const errorMessageElement = document.getElementById('error-message');
-  fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
-  errorMessageElement.classList.add('hidden');
-
-  try {
-    const entries = await invoke('search_results', { path: filepath });
-
-    entries.forEach(entry => {
-      const row = document.createElement('tr');
-      row.dataset.filepath = filepath + "/" + entry.name;
-
-      const filenameCell = document.createElement('td');
-      const lastModifiedCell = document.createElement('td');
-      const fileTypeCell = document.createElement('td');
-      const fileSizeCell = document.createElement('td');
-      const pathCell = document.createElement('tr');
-
-      filenameCell.textContent = entry.name; // Dateiname
-      lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
-      fileTypeCell.textContent = entry.file_type; // Dateityp
-      fileSizeCell.textContent = entry.size; //Größe
-      pathCell.textContent = entry.path; // Path
-
-      row.appendChild(filenameCell);
-      row.appendChild(lastModifiedCell);
-      row.appendChild(fileTypeCell);
-      row.appendChild(fileSizeCell);
-      fileListElement.appendChild(row);
-      fileListElement.appendChild(pathCell);
-    });
-
-  } catch (error) {
-    console.error('Error:', error);
-
-    // Fehlermeldung unter der Tabelle anzeigen
-    errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
-    errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
-  }
-}
-
 
 document.addEventListener('DOMContentLoaded', () => {
   loadPinnedDirectories();
