@@ -1,8 +1,7 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
-use std::path::{Path, PathBuf};
-use std::fs::{self, File, rename, remove_file};
+use std::{ io::{ Write, Read }, path::{ Path, PathBuf}, fs::{ self, File, rename, remove_file } };
+use opener::open;
 use tauri::command;
-use std::io::{Write, Read};
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
@@ -222,6 +221,13 @@ pub fn open_file_with(filepath: String) -> Result<String, String> {
     let _path: PathBuf = clean_path(filepath);
     // TODO
     Ok("Copied successfully!".to_string())
+}
+
+pub fn open_file(filepath: &PathBuf) -> Result<String, String> {
+    match open(filepath) {
+        Ok(_) => Ok(String::from("File opened successfully!")),
+        Err(_) => Err(String::from("Failed to open file for user."))
+    }
 }
 
 /// Bereinigt einen eingegebenen Dateipfad (String) für konsistentes und fehlerfreies Arbeiten.

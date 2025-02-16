@@ -92,10 +92,31 @@ h1 {
   background-color: #1f1f1f;
 }
 
-#fileTable td:nth-child(2),
-#fileTable td:nth-child(3),
+#fileTable td:nth-child(1) {
+  width: 20%;
+}
+
+#fileTable td:nth-child(2) {
+  width: 45%;
+}
+
+#fileTable td:nth-child(3) {
+  width: 17%;
+}
+
 #fileTable td:nth-child(4) {
+  width: 12%;
+}
+
+#fileTable td:nth-child(5) {
+  width: 6%;
   color: #bbbdbf;
+}
+
+#fileTable td {
+  word-wrap: break-word; /* Allows long words to be broken and wrap onto the next line */
+  white-space: normal; /* Allows text to wrap normally */
+  /*max-width: 150px; /* Set a maximum width for the cell */
 }
 
 td.error {

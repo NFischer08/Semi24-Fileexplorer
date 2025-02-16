@@ -28,6 +28,7 @@ jwalk = "0.8.1"
 strsim = "0.11.1"
 rayon = "1.10.0"
 clipboard = "0.5"
+opener = "0.7.2"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

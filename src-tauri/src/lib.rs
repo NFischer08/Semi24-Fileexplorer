@@ -1,9 +1,13 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-mod manager;
 mod context_actions;
+mod manager;
+mod file_information;
+mod database_operations;
 
-use manager::{ file_information::{get_file_information, format_file_data}, manager_basic_search };
-use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file};
+use manager::manager_basic_search;
+use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file, open_file};
+use file_information::{ get_file_information, format_file_data };
+use database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
 use chrono::{DateTime, Local};
 
 

@@ -6,7 +6,7 @@ let resultText;
 async function loadFilesAndFolders() {
   const filepath = document.getElementById('file-path-input').value; // Aktuellen Pfad auslesen
   const fileListElement = document.getElementById('fileList');
-  document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(3)').textContent = "File Type";
+  document.getElementById('fileTable').rows[0].cells[1].style.display = 'none'; // display File Path
   const errorMessageElement = document.getElementById('error-message');
   fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
   errorMessageElement.classList.add('hidden');
@@ -48,7 +48,8 @@ async function display_search_results() {
   const search_term = document.getElementById('search-term-input').value; // read the search term
   const search_path = document.getElementById('file-path-input').value;
   const fileListElement = document.getElementById('fileList');
-  document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(3)').textContent = "File Path"; // rename column
+  //document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(4)').textContent = "File Path"; // rename column
+  document.getElementById('fileTable').rows[0].cells[1].style.display = ''; // display File Path
   const errorMessageElement = document.getElementById('error-message');
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
 
@@ -61,18 +62,21 @@ async function display_search_results() {
 
       // create new row
       const filenameCell = document.createElement('td');
+      const filePathCell = document.createElement('td');
       const lastModifiedCell = document.createElement('td');
       const fileTypeCell = document.createElement('td');
       const fileSizeCell = document.createElement('td');
 
       // insert the information in the row
       filenameCell.textContent = entry.name; // Dateiname
+      filePathCell.textContent = entry.path // File Path
       lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
-      fileTypeCell.textContent = entry.path; // Path
+      fileTypeCell.textContent = entry.file_type; // Type
       fileSizeCell.textContent = entry.size; //Größe
 
       // append row
       row.appendChild(filenameCell);
+      row.appendChild(filePathCell);
       row.appendChild(lastModifiedCell);
       row.appendChild(fileTypeCell);
       row.appendChild(fileSizeCell);
