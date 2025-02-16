@@ -1,15 +1,11 @@
-mod database_operations;
-pub mod file_information;
-
 use std::fs::DirEntry;
 use rayon::ThreadPoolBuilder;
 use std::path::PathBuf;
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use tauri::command;
-use database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
-use file_information::{get_file_information, FileType};
-use crate::manager::file_information::FileEntry;
+use crate::database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
+use crate::file_information::{get_file_information, FileType, FileEntry};
 
 #[derive(Debug, serde::Serialize)] // TODO: braucht man diese Zeile?
 pub struct SearchResult {
