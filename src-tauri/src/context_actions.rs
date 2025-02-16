@@ -1,5 +1,5 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
-use std::{ io::{ Write, Read }, path::{ Path, PathBuf}, fs::{ self, File, rename, remove_file } };
+use std::{ io::{ Write, Read }, path::{ Path, PathBuf}, fs::{ self, File, rename, remove_file }, process::Command };
 use opener::open;
 use tauri::command;
 
@@ -218,9 +218,40 @@ pub fn delete_file(filepath: String) -> Result<String, String> {
 
 #[command]
 pub fn open_file_with(filepath: String) -> Result<String, String> {
-    let _path: PathBuf = clean_path(filepath);
-    // TODO
-    Ok("Copied successfully!".to_string())
+    open_file_with_complicated(filepath)
+}
+
+fn open_file_with_complicated(filepath: String) -> Result<String, String> {
+    let path: PathBuf = clean_path(filepath);
+    #[cfg(target_os = "windows")]
+    {
+        match Command::new("cmd")
+            .args(&["/C", "start", "", path.to_str().unwrap()])
+            .spawn() {
+            Ok(_) => Ok("File opened successfully.".to_string()),
+            Err(_) => Err("Failed to open file.".to_string()),
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        match Command::new("open")
+            .arg(path)
+            .spawn() {
+            Ok(_) => Ok("File opened successfully.".to_string()),
+            Err(_) => Err("Failed to open file.".to_string()),
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        match Command::new("xdg-open")
+            .arg(path)
+            .spawn() {
+            Ok(_) => Ok("File opened successfully.".to_string()),
+            Err(_) => Err("Failed to open file.".to_string()),
+        }
+    }
 }
 
 pub fn open_file(filepath: &PathBuf) -> Result<String, String> {
