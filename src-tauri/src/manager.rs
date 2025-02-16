@@ -93,7 +93,7 @@ pub fn manager_create_database(
     };
 
     let thread_pool = ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get()-2)
+        .num_threads(num_cpus::get())
         .build()
         .unwrap();
 

@@ -132,7 +132,7 @@ pub fn create_database(
             Ok(stmt) => stmt,
             Err(e) => return Err(e.to_string())
         };
-        let batch_size = 10000;
+        let batch_size = 100000;
         let mut inserted_count = 0;
         for (i, chunk) in files_vec.chunks(batch_size).enumerate() {
             for file in chunk {
@@ -233,8 +233,13 @@ pub fn search_database(
     searchpath: PathBuf
 ) -> Result<Vec<DirEntry>> {
     let start_time = Instant::now();
-    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files")?;
-    let rows = stmt.query_map([], |row| Ok((
+
+    // Convert searchpath to a string
+    let search_path_str = searchpath.to_str().unwrap_or("");
+
+    // Modify the SQL query to filter by path
+    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE file_path LIKE ?")?;
+    let rows = stmt.query_map(&[&format!("{}%", search_path_str)], |row| Ok((
         row.get::<_, String>(0)?,
         row.get::<_, String>(1)?,
         row.get::<_, Option<String>>(2)?
@@ -246,14 +251,13 @@ pub fn search_database(
         file_data.into_par_iter().for_each(|(file_name, file_path, file_type)| {
             let tx = tx.clone();
             let search_term = search_term.to_owned();
-            let searchpath = searchpath.to_owned();
             let name_to_compare = if file_type.as_deref() == Some("directory") {
                 &file_name
             } else {
                 &file_name.split('.').next().unwrap_or(&file_name).to_string()
             };
             let similarity = normalized_levenshtein(&name_to_compare, &search_term);
-            if similarity >= similarity_threshold && file_path.starts_with(searchpath.to_str().unwrap()) {
+            if similarity >= similarity_threshold {
                 tx.send((file_path, similarity)).unwrap();
             }
         });
@@ -278,6 +282,7 @@ pub fn search_database(
 
     Ok(return_entries)
 }
+
 
 fn convert_to_forward_slashes(path: &PathBuf) -> String {
     path.to_str()
