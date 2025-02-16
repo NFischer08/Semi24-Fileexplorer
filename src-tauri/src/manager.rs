@@ -3,7 +3,7 @@ pub mod file_information;
 
 use std::fs::DirEntry;
 use rayon::ThreadPoolBuilder;
-use std::path::PathBuf;
+use std::path::{PathBuf};
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use tauri::command;
@@ -79,7 +79,7 @@ fn manager_make_pooled_connection() -> Result<PooledConnection<SqliteConnectionM
 }
 
 pub fn manager_create_database(
-    database_scan_start: &str,
+    database_scan_start: PathBuf,
 )  -> Result<(), String>
 {
     let pooled_connection = match manager_make_pooled_connection() {
@@ -97,9 +97,9 @@ pub fn manager_create_database(
         .build()
         .unwrap();
 
-    let db_path = PathBuf::from(database_scan_start);
 
-    match create_database(pooled_connection, db_path, &allowed_file_extensions, &thread_pool){
+
+    match create_database(pooled_connection, database_scan_start, &allowed_file_extensions, &thread_pool){
         Ok(_) => {},
         Err(e) => return Err(e.to_string())
     };
@@ -121,6 +121,8 @@ pub fn manager_basic_search(searchterm: &str, searchpath: &str) -> Result<Vec<Se
         .num_threads(num_cpus::get())
         .build()
         .unwrap();
+
+    println!("{}", searchpath);
 
     let return_paths = match search_database(&pooled_connection, searchterm, similarity_threshold, &thread_pool, search_path) {
         Ok(return_paths) => return_paths,

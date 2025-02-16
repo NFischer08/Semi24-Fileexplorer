@@ -35,3 +35,11 @@ embed-manifest = "1"
 
 [features]
 mobile = []
+
+[dependencies.windows]
+version = "0.51.1"  # or your current version
+features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem"
+]
+
