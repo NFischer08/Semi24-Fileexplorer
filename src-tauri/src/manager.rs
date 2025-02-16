@@ -1,6 +1,5 @@
-use std::fs::DirEntry;
 use rayon::ThreadPoolBuilder;
-use std::path::PathBuf;
+use std::{ path::PathBuf, fs::DirEntry };
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use tauri::command;
