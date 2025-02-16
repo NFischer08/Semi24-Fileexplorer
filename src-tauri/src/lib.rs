@@ -1,9 +1,8 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-mod context_actions;
-//mod manager;
-mod file_information;
-mod database_operations;
-
+pub mod context_actions;
+pub mod file_information;
+pub mod database_operations;
+pub mod manager;
 //use manager::manager_basic_search;
 use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file, open_file};
 use file_information::{ get_file_information, format_file_data };

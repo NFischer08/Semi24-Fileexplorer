@@ -1,6 +1,10 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-mod manager;
+pub mod manager;
+pub mod file_information;
+pub mod database_operations;
+pub mod context_actions;
+
 
 use std::path::PathBuf;
 use manager::{manager_create_database, manager_check_database};
