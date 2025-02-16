@@ -205,6 +205,7 @@ pub fn check_database(
         }
         tx.commit()?;
     }
+    println!("Check Database completed");
 
     Ok(())
 }
