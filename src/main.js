@@ -6,7 +6,7 @@ let resultText;
 async function loadFilesAndFolders() {
   const filepath = document.getElementById('file-path-input').value; // Aktuellen Pfad auslesen
   const fileListElement = document.getElementById('fileList');
-  document.getElementById('fileTable').rows[0].cells[1].style.display = 'none'; // display File Path
+  //document.getElementById('fileTable').rows[0].cells[1].style.display = 'none'; // display File Path
   const errorMessageElement = document.getElementById('error-message');
   fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
   errorMessageElement.classList.add('hidden');
@@ -49,7 +49,7 @@ async function display_search_results() {
   const search_path = document.getElementById('file-path-input').value;
   const fileListElement = document.getElementById('fileList');
   //document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(4)').textContent = "File Path"; // rename column
-  document.getElementById('fileTable').rows[0].cells[1].style.display = ''; // display File Path
+  //document.getElementById('fileTable').rows[0].cells[1].style.display = ''; // display File Path
   const errorMessageElement = document.getElementById('error-message');
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
 
@@ -58,6 +58,7 @@ async function display_search_results() {
     fileListElement.innerHTML = ''; // delete previous results
     entries.forEach(entry => { // display every result (already sorted by importance)
       const row = document.createElement('tr');
+      const filePathRow = document.createElement('tr');
       row.dataset.filepath = entry.path // store the filepath of the search result, so rust later knows where it is
 
       // create new row
@@ -81,6 +82,10 @@ async function display_search_results() {
       row.appendChild(fileTypeCell);
       row.appendChild(fileSizeCell);
       fileListElement.appendChild(row);
+
+      filePathCell.colSpan = 4; // span across all columns
+      filePathRow.appendChild(filePathCell);
+      fileListElement.appendChild(filePathRow);
     });
 
   } catch (error) {
@@ -102,7 +107,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 document.getElementById('search-button').addEventListener('click', async () => {
-  await display_search_results();
+  if (document.getElementById('search-term-input').value.trim()) {
+    await display_search_results();
+  }
 })
 
 //Einstellungskästchen
