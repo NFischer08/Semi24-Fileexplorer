@@ -4,7 +4,7 @@ let filePathInputEl;
 let resultText;
 
 async function loadFilesAndFolders() {
-  const filepath = document.getElementById('file-path-input').value; // Aktuellen Pfad auslesen
+  let filepath = document.getElementById('file-path-input').value; // Aktuellen Pfad auslesen
   const fileListElement = document.getElementById('fileList');
   //document.getElementById('fileTable').rows[0].cells[1].style.display = 'none'; // display File Path
   const errorMessageElement = document.getElementById('error-message');
@@ -13,7 +13,9 @@ async function loadFilesAndFolders() {
 
   try {
     const entries = await invoke('format_file_data', { path: filepath });
-
+    if (filepath === "/") {
+      filepath = "";
+    }
     entries.forEach(entry => {
       const row = document.createElement('tr');
       row.dataset.filepath = filepath + "/" + entry.name;
@@ -36,11 +38,16 @@ async function loadFilesAndFolders() {
     });
 
   } catch (error) {
+    if (error[0] === "/") {
+      document.getElementById('file-path-input').value = error;
+      await loadFilesAndFolders();
+    } else {
     console.error('Error:', error);
 
     // Fehlermeldung unter der Tabelle anzeigen
     errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
     errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
+    }
   }
 }
 
@@ -59,6 +66,7 @@ async function display_search_results() {
     entries.forEach(entry => { // display every result (already sorted by importance)
       const row = document.createElement('tr');
       const filePathRow = document.createElement('tr');
+      filePathRow.dataset.filepath = entry.path // store the filepath of the search result, so rust later knows where it is
       row.dataset.filepath = entry.path // store the filepath of the search result, so rust later knows where it is
 
       // create new row
@@ -138,6 +146,9 @@ document.getElementById('fileTable').addEventListener('dblclick', async (event) 
   const target = event.target.closest('tr');
   if (target) {
     selectedFile = target.dataset.filepath
+    if (selectedFile === undefined) { // prevents the user from clicking at the table head
+      return;
+    }
     console.log(`Opening file: ${selectedFile}`);
     document.getElementById('file-path-input').value = selectedFile;
     await loadFilesAndFolders();

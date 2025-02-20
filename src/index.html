@@ -24,7 +24,7 @@
   <div class="content">
     <div class="row">
       <div class="file-path-container">
-        <label for="file-path-input"></label><input type="text" id="file-path-input" class="file-path-input" value="/" placeholder="Enter a file path...">
+        <label for="file-path-input"></label><input type="text" id="file-path-input" class="file-path-input" value="/" placeholder="E nter a file path...">
         <button type="button" id="go-to-file-path-button" class="file-path-button">Go To</button>
       </div>
 
@@ -48,19 +48,20 @@
       </div>
     </div>
 
-    <table id="fileTable">
-      <thead>
-      <tr>
-        <th>Filename</th>
-        <!--<th>File Path</th>-->
-        <th>Last Modified</th>
-        <th>File Type</th>
-        <th>Size</th>
-      </tr>
-      </thead>
-      <tbody id="fileList"></tbody>
-    </table>
-    <div id="error-message" class="hidden"></div>
+    <div class="table-container">
+      <table id="fileTable">
+        <thead>
+        <tr>
+          <th scope="col">Filename</th>
+          <th scope="col">Last Modified</th>
+          <th scope="col">File Type</th>
+          <th scope="col">Size</th>
+        </tr>
+        </thead>
+        <tbody id="fileList"></tbody>
+      </table>
+    </div>
+    <div id="error-message" aria-live="polite" class="hidden"></div>
 
   <!-- Context Menu-->
     <div id="context-menu">
