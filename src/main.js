@@ -6,10 +6,11 @@ let resultText;
 async function loadFilesAndFolders() {
   let filepath = document.getElementById('file-path-input').value; // Aktuellen Pfad auslesen
   const fileListElement = document.getElementById('fileList');
-  //document.getElementById('fileTable').rows[0].cells[1].style.display = 'none'; // display File Path
+  document.getElementById('fileTable').rows[0].cells[1].style.display = 'none'; // display File Path
   const errorMessageElement = document.getElementById('error-message');
   fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
   errorMessageElement.classList.add('hidden');
+  document.getElementById('fileTable').classList.remove('search')
 
   try {
     const entries = await invoke('format_file_data', { path: filepath });
@@ -42,11 +43,11 @@ async function loadFilesAndFolders() {
       document.getElementById('file-path-input').value = error;
       await loadFilesAndFolders();
     } else {
-    console.error('Error:', error);
+      console.error('Error:', error);
 
-    // Fehlermeldung unter der Tabelle anzeigen
-    errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
-    errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
+      // Fehlermeldung unter der Tabelle anzeigen
+      errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
+      errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
     }
   }
 }
@@ -56,9 +57,10 @@ async function display_search_results() {
   const search_path = document.getElementById('file-path-input').value;
   const fileListElement = document.getElementById('fileList');
   //document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(4)').textContent = "File Path"; // rename column
-  //document.getElementById('fileTable').rows[0].cells[1].style.display = ''; // display File Path
+  document.getElementById('fileTable').rows[0].cells[1].style.display = ''; // display File Path
   const errorMessageElement = document.getElementById('error-message');
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
+  document.getElementById('fileTable').classList.add('search')
 
   try {
     const entries = await invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path }); // get the search results (structs with all the information)
@@ -91,9 +93,9 @@ async function display_search_results() {
       row.appendChild(fileSizeCell);
       fileListElement.appendChild(row);
 
-      filePathCell.colSpan = 4; // span across all columns
-      filePathRow.appendChild(filePathCell);
-      fileListElement.appendChild(filePathRow);
+      //filePathCell.colSpan = 4; // span across all columns
+      //filePathRow.appendChild(filePathCell);
+      //fileListElement.appendChild(filePathRow);
     });
 
   } catch (error) {

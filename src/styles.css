@@ -110,10 +110,37 @@ h1 {
   background-color: #1f1f1f;
 }
 
-#fileTable td:nth-child(1){}
-#fileTable td:nth-child(2){}
-#fileTable td:nth-child(3){}
-#fileTable td:nth-child(4){}
+/* style when displaying search results */
+#fileTable.search td:nth-child(1) {
+  width: 15%;
+}
+#fileTable.search td:nth-child(2) {
+  width: auto;
+}
+#fileTable.search td:nth-child(3) {
+  width: 20%;
+}
+#fileTable.search td:nth-child(4) {
+  width: 10%;
+}
+#fileTable.search td:nth-child(5) {
+  width: 15%;
+}
+
+/* style when normaly displaying files*/
+#fileTable td:nth-child(1) {
+  width: auto;
+}
+#fileTable td:nth-child(2) {
+  width: 27%;
+  max-width: 80px; /* doesn't work for some reason */
+}
+#fileTable td:nth-child(3) {
+  width: 20%;
+}
+#fileTable td:nth-child(4) {
+  width: 20%;
+}
 
 
 td.error {
