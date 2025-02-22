@@ -221,71 +221,62 @@ pub fn search_database(
 ) -> Result<Vec<DirEntry>> {
     let start_time = Instant::now();
 
+    // Add Levenshtein function to the connection
+    add_levenshtein_function(conn)?;
+    println!("Time to add Levenshtein function: {:?}", start_time.elapsed());
+
+    let path_conversion_time = Instant::now();
     // Convert searchpath to a string
     let search_path_str = if cfg!(windows) && search_path.to_str().unwrap_or("") == "/" {
         String::new()
     } else {
         search_path.to_str().unwrap_or("").to_string()
     };
+    println!("Time to convert search path: {:?}", path_conversion_time.elapsed());
 
-    let search_file_type = search_file_type.replace(" " ,"");
+    let search_file_type = search_file_type.replace(" ", "");
 
-    // Modify the SQL query to filter by path/
-    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE file_path LIKE ?1 AND (CASE WHEN ?2 = '' THEN 1 ELSE (',' || ?2 || ',') LIKE ('%,' || file_type || ',%') END)")?;
+    // Modify the SQL query to use Levenshtein distance
+    let mut stmt = conn.prepare("
+        SELECT file_name, file_path, file_type, levenshtein_distance(file_name, ?3) as distance
+        FROM files
+        WHERE file_path LIKE ?1
+        AND (CASE WHEN ?2 = '' THEN 1 ELSE (',' || ?2 || ',') LIKE ('%,' || file_type || ',%') END)
+        AND levenshtein_distance(file_name, ?3) >= ?4
+        ORDER BY distance DESC
+    ")?;
 
+    let query_execution_time = Instant::now();
     let rows = stmt.query_map(
         params![
-        format!("{}%", search_path_str),
-        search_file_type
-    ],
+            format!("{}%", search_path_str),
+            search_file_type,
+            search_term,
+            similarity_threshold
+        ],
         |row| Ok((
             row.get::<_, String>(0)?,
             row.get::<_, String>(1)?,
-            row.get::<_, Option<String>>(2)?
+            row.get::<_, Option<String>>(2)?,
+            row.get::<_, f64>(3)?
         ))
     )?;
+    println!("Time to execute SQL query: {:?}", query_execution_time.elapsed());
 
-    println!("Rows {}", start_time.elapsed().as_millis());
+    let collected_rows_time = Instant::now();
 
-    let (tx, rx) = channel();
+    let collected_rows: Vec<_> = rows.collect::<Result<_, _>>()?;
 
-    println!("Channel {}", start_time.elapsed().as_millis());
+    println!("Collected rows Length: {:?} took {:?}", collected_rows.len(), collected_rows_time.elapsed());
 
-    let file_data: Vec<(String, String, Option<String>)> = rows
-        .collect::<Result<Vec<_>, _>>()?
-        .par_iter()
-        .map(|(a, b, c)| (a.clone(), b.clone(), c.clone()))
-        .collect();
+    let results_conversion_time = Instant::now();
 
-    println!("file_data {}", start_time.elapsed().as_millis());
+    println!();
 
-    thread_pool.install(|| {
-        file_data.into_par_iter().for_each(|(file_name, file_path, file_type)| {
-            let tx = tx.clone();
-            let search_term = search_term.to_owned();
-            let name_to_compare = if file_type.as_deref() == Some("directory") {
-                &file_name
-            } else {
-                &file_name.split('.').next().unwrap_or(&file_name).to_string()
-            };
-            let similarity = normalized_levenshtein(&name_to_compare, &search_term);
-            if similarity >= similarity_threshold {
-                tx.send((file_path, similarity)).unwrap();
-            }
-        });
-    });
-    drop(tx);
-
-    println!("Threadpool {}", start_time.elapsed().as_millis());
-
-    let mut results: Vec<(String, f64)> = rx.iter().map(|(s, f)| (s.to_string(), f)).collect();
-    results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-
-    println!("Sorting {}", start_time.elapsed().as_millis());
-
-    let return_entries: Vec<DirEntry> = results.into_iter()
-        .filter_map(|(s, _)| {
-            let path = Path::new(&s);
+    let results = collected_rows
+        .into_iter()
+        .filter_map(|(_, path, _, _)| {
+            let path = PathBuf::from(path);
             fs::read_dir(path.parent().unwrap_or(Path::new(".")))
                 .ok()
                 .and_then(|mut dir| dir.find(|e| e.as_ref().map(|d| d.path() == path).unwrap_or(false)))
@@ -293,14 +284,30 @@ pub fn search_database(
         })
         .collect();
 
-    let duration = start_time.elapsed();
-    println!("Parallel search completed in {:.2?}", duration);
+    println!("Time to convert results to DirEntry objects: {:?}", results_conversion_time.elapsed());
 
-    Ok(return_entries)
+    println!("Total search time: {:?}", start_time.elapsed());
+
+    Ok(results)
 }
 
 fn convert_to_forward_slashes(path: &PathBuf) -> String {
     path.to_str()
         .map(|s| s.replace('\\', "/"))
         .unwrap_or_else(|| String::new())
+}
+
+fn add_levenshtein_function(conn: &PooledConnection<SqliteConnectionManager>) -> Result<()> {
+    conn.create_scalar_function(
+        "levenshtein_distance",
+        2,
+        FunctionFlags::SQLITE_UTF8 | FunctionFlags::SQLITE_DETERMINISTIC,
+        |ctx| {
+            let s1 = ctx.get::<String>(0)?;
+            let s2 = ctx.get::<String>(1)?;
+            let distance = normalized_levenshtein(&s1, &s2);
+            Ok(distance)
+        }
+    )?;
+    Ok(())
 }
