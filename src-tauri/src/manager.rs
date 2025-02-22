@@ -102,8 +102,9 @@ pub fn manager_create_database(
     Ok(())
 }
 
+// searchfiletype is the Filetype Ending without the Dot, for Directorys it must be dir
 #[command]
-pub fn manager_basic_search(searchterm: &str, searchpath: &str) -> Result<Vec<SearchResult>, String> {
+pub fn manager_basic_search(searchterm: &str, searchpath: &str, searchfiletype: &str) -> Result<Vec<SearchResult>, String> {
     let pooled_connection = match manager_make_pooled_connection() {
         Ok(pooled_connection) => pooled_connection,
         Err(e) => return Err(e.to_string())
@@ -119,7 +120,7 @@ pub fn manager_basic_search(searchterm: &str, searchpath: &str) -> Result<Vec<Se
 
     println!("{}", searchpath);
 
-    let return_paths = match search_database(&pooled_connection, searchterm, similarity_threshold, &thread_pool, search_path) {
+    let return_paths = match search_database(&pooled_connection, searchterm, similarity_threshold, &thread_pool, search_path, searchfiletype) {
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string())
     };  // Hier kann das Frontend abgreifen

@@ -80,7 +80,7 @@ pub fn create_database(
                             file_name: entry.file_name().to_string_lossy().into_owned(),
                             file_path: path_slashes,
                             file_type: if path.is_dir() {
-                                Some("directory".to_string())
+                                Some("dir".to_string())
                             } else {
                                 path.extension().and_then(|s| s.to_str()).map(String::from)
                             },
@@ -226,21 +226,25 @@ pub fn search_database(
     search_term: &str,
     similarity_threshold: f64,
     thread_pool: &rayon::ThreadPool,
-    searchpath: PathBuf
+    search_path: PathBuf,
+    search_file_type: &str
 ) -> Result<Vec<DirEntry>> {
     let start_time = Instant::now();
 
     // Convert searchpath to a string
-    let search_path_str = searchpath.to_str().unwrap_or("");
+    let search_path_str = search_path.to_str().unwrap_or("");
 
     // Modify the SQL query to filter by path
-    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE file_path LIKE ?")?;
-    let rows = stmt.query_map(&[&format!("{}%", search_path_str)], |row| Ok((
-        row.get::<_, String>(0)?,
-        row.get::<_, String>(1)?,
-        row.get::<_, Option<String>>(2)?
-    )))?;
+    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE file_path LIKE ?1 AND file_type LIKE ?2")?;
 
+    let rows = stmt.query_map(
+        params![format!("{}%", search_path_str), format!("{}%", search_file_type)],
+        |row| Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, Option<String>>(2)?
+        ))
+    )?;
     let (tx, rx) = channel();
     let file_data: Vec<(String, String, Option<String>)> = rows.collect::<Result<Vec<_>>>()?;
     thread_pool.install(|| {
