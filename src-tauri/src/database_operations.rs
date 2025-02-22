@@ -229,12 +229,12 @@ pub fn search_database(
     let search_file_type = search_file_type.replace(" " ,"");
 
     // Modify the SQL query to filter by path/
-    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE file_path LIKE ?1 AND instr(?2 || ',', file_type || ',') > 0")?;
+    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE file_path LIKE ?1 AND (CASE WHEN ?2 = '' THEN 1 ELSE (',' || ?2 || ',') LIKE ('%,' || file_type || ',%') END)")?;
 
     let rows = stmt.query_map(
         params![
         format!("{}%", search_path_str),
-        format!("{},", search_file_type)  // Add a trailing comma
+        search_file_type
     ],
         |row| Ok((
             row.get::<_, String>(0)?,
