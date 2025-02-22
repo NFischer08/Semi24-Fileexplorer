@@ -11,6 +11,7 @@ use manager::{manager_create_database, manager_check_database};
 use std::thread;
 use std::time::Duration;
 use windows::Win32::Storage::FileSystem::GetLogicalDrives;
+use rayon::prelude::*;
 
 fn get_all_drives() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
@@ -53,11 +54,12 @@ fn main() {
 
     let thread_creating_database = thread::spawn(move || {
         thread::sleep(Duration::from_millis(750));
-        for drive in drives {
+        drives.into_par_iter().for_each(|drive| {
             manager_create_database(drive).unwrap();
-            manager_check_database().unwrap();
-        }
+        });
+        manager_check_database().unwrap();
     });
+
     file_explorer_lib::run();
     thread_creating_database.join().unwrap();
 }

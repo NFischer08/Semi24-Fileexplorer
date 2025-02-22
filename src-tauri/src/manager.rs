@@ -93,7 +93,6 @@ pub fn manager_create_database(
         .unwrap();
 
 
-
     match create_database(pooled_connection, database_scan_start, &allowed_file_extensions, &thread_pool){
         Ok(_) => {},
         Err(e) => return Err(e.to_string())

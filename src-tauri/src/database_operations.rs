@@ -20,10 +20,10 @@ pub fn initialize_database_and_extensions(
 
     connection.execute(
         "CREATE TABLE IF NOT EXISTS files (
-        id   INTEGER PRIMARY KEY,
-        file_name TEXT NOT NULL,
-        file_path TEXT NOT NULL,
-        file_type  BLOB
+            id   INTEGER PRIMARY KEY,
+            file_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            file_type TEXT NOT NULL
     )",
         (),
     )?;
@@ -60,14 +60,11 @@ pub fn create_database(
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
 ) -> Result<(), String> {
-    println!("Starting create_database function");
-    println!("Scanning directory: {}", path.display());
-
+    println!("Starting create_database function of Path {}", path.display());
 
     let start_time = Instant::now();
     let files_vec: Vec<Files> = thread_pool.install(|| {
         WalkDir::new(&path)
-            .parallelism(jwalk::Parallelism::RayonNewPool(num_cpus::get()))
             .into_iter()
             .par_bridge()
             .filter_map(|entry_result| {
@@ -92,8 +89,7 @@ pub fn create_database(
             })
             .collect()
     });
-    println!("Directory scan completed in {:?}", start_time.elapsed());
-    println!("Number of files to insert: {}", files_vec.len());
+    println!("Directory scan completed in {:?} of Path {}", start_time.elapsed(), path.display());
 
     let mut conn = conn;
     let tx = match conn.transaction() {
@@ -101,8 +97,7 @@ pub fn create_database(
         Err(e) => return Err(e.to_string())
     };
     {
-        println!("Starting to fetch existing files");
-        let fetch_start = Instant::now();
+        println!("Starting to fetch existing files of Path {}", path.display());
         let mut existing_files = HashSet::new();
         let mut stmt = match tx.prepare_cached("SELECT file_name, file_path FROM files") {
             Ok(stmt) => stmt,
@@ -120,10 +115,7 @@ pub fn create_database(
                 existing_files.insert((name, path));
             }
         }
-        println!("Fetched {} existing files in {:?}", existing_files.len(), fetch_start.elapsed());
 
-        println!("Starting file insertion");
-        let insert_start = Instant::now();
         let mut insert_stmt = match tx.prepare_cached("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)") {
             Ok(stmt) => stmt,
             Err(e) => return Err(e.to_string())
@@ -148,18 +140,14 @@ pub fn create_database(
                 // Progress reporting can be added here if needed
             }
         }
-        println!("File insertion completed in {:?}", insert_start.elapsed());
-        println!("Total files inserted: {}", inserted_count);
+        println!("Total files inserted: {} of Path {}", inserted_count, path.display());
     }
-    println!("Committing transaction");
-    let commit_start = Instant::now();
     match tx.commit() {
         Ok(_) => {},
         Err(e) => return Err(e.to_string())
     };
-    println!("Transaction committed in {:?}", commit_start.elapsed());
 
-    println!("create_database function completed in {:?}", start_time.elapsed());
+    println!("create_database function completed in {:?} of Path {}", start_time.elapsed(), path.display());
     Ok(())
 }
 
