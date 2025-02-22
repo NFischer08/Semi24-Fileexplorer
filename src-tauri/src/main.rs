@@ -9,7 +9,6 @@ pub mod context_actions;
 use std::path::PathBuf;
 use manager::{manager_create_database, manager_check_database};
 use std::thread;
-use std::time::Duration;
 use rayon::prelude::*;
 
 fn get_all_drives() -> Vec<PathBuf> {
@@ -51,8 +50,7 @@ fn main() {
     let drives = get_all_drives();
     println!("Available drives: {:?}", drives);
 
-    let thread_creating_database = thread::spawn(move || {
-        thread::sleep(Duration::from_millis(750));
+    thread::spawn(move || {
         drives.into_par_iter().for_each(|drive| {
             manager_create_database(drive).unwrap();
         });
@@ -60,5 +58,5 @@ fn main() {
     });
 
     file_explorer_lib::run();
-    thread_creating_database.join().unwrap();
+
 }

@@ -7,7 +7,7 @@ use once_cell::sync::Lazy;
 use crate::database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
 use crate::file_information::{get_file_information, FileType, FileEntry};
 
-#[derive(Debug, serde::Serialize)] // TODO: braucht man diese Zeile?
+#[derive(serde::Serialize)]
 pub struct SearchResult {
     name: String,
     path: String,

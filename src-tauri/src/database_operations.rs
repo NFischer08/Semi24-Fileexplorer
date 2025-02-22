@@ -3,8 +3,10 @@ use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use rusqlite::{params, Result};
-use std::{collections::HashSet, fs::{self, DirEntry}, path::{Path, PathBuf}, sync::mpsc::channel, time::Instant};
+use std::{collections::HashSet, fs::{self, DirEntry}, path::{Path, PathBuf}, sync::mpsc::channel, time::Instant,};
+use std::cmp::Ordering;
 use strsim::normalized_levenshtein;
+use rusqlite::functions::FunctionFlags;
 
 #[derive(Debug)]
 struct Files {
@@ -243,8 +245,20 @@ pub fn search_database(
         ))
     )?;
 
+    println!("Rows {}", start_time.elapsed().as_millis());
+
     let (tx, rx) = channel();
-    let file_data: Vec<(String, String, Option<String>)> = rows.collect::<Result<Vec<_>>>()?;
+
+    println!("Channel {}", start_time.elapsed().as_millis());
+
+    let file_data: Vec<(String, String, Option<String>)> = rows
+        .collect::<Result<Vec<_>, _>>()?
+        .par_iter()
+        .map(|(a, b, c)| (a.clone(), b.clone(), c.clone()))
+        .collect();
+
+    println!("file_data {}", start_time.elapsed().as_millis());
+
     thread_pool.install(|| {
         file_data.into_par_iter().for_each(|(file_name, file_path, file_type)| {
             let tx = tx.clone();
@@ -262,8 +276,12 @@ pub fn search_database(
     });
     drop(tx);
 
-    let mut results: Vec<(String, f64)> = rx.iter().collect();
+    println!("Threadpool {}", start_time.elapsed().as_millis());
+
+    let mut results: Vec<(String, f64)> = rx.iter().map(|(s, f)| (s.to_string(), f)).collect();
     results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    println!("Sorting {}", start_time.elapsed().as_millis());
 
     let return_entries: Vec<DirEntry> = results.into_iter()
         .filter_map(|(s, _)| {
@@ -280,7 +298,6 @@ pub fn search_database(
 
     Ok(return_entries)
 }
-
 
 fn convert_to_forward_slashes(path: &PathBuf) -> String {
     path.to_str()
