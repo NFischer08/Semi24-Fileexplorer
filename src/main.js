@@ -53,18 +53,20 @@ async function loadFilesAndFolders() {
 }
 
 async function display_search_results() {
+  //const start = performance.now();
+  //console.log('Searching...');
   const search_term = document.getElementById('search-term-input').value; // read the search term
   const search_path = document.getElementById('file-path-input').value;
   const fileListElement = document.getElementById('fileList');
   //document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(4)').textContent = "File Path"; // rename column
-  document.getElementById('fileTable').rows[0].cells[1].style.display = ''; // display File Path
   const errorMessageElement = document.getElementById('error-message');
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
-  document.getElementById('fileTable').classList.add('search')
 
   try {
     const entries = await invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path }); // get the search results (structs with all the information)
     fileListElement.innerHTML = ''; // delete previous results
+    document.getElementById('fileTable').rows[0].cells[1].style.display = ''; // display File Path
+    document.getElementById('fileTable').classList.add('search')
     entries.forEach(entry => { // display every result (already sorted by importance)
       const row = document.createElement('tr');
       const filePathRow = document.createElement('tr');
@@ -105,8 +107,10 @@ async function display_search_results() {
     errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
     errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
   }
+  //const end = performance.now();
+  //const timeTaken = end - start;
+  //console.log(`Time taken: ${timeTaken} ms`);
 }
-
 
 document.getElementById('go-to-file-path-button').addEventListener('click', async () => {
   await loadFilesAndFolders();
