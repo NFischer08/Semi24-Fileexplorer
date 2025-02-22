@@ -35,13 +35,14 @@ once_cell = "1.20.2"
 tauri-build = { version = "2", features = [] }
 embed-manifest = "1"
 
+[dependencies.windows]
+version = "0.51.1"  # Use the latest version available
+features = [
+    "Win32_Storage_FileSystem",
+    "Win32_Foundation"
+]
+
 [features]
 mobile = []
 
-[dependencies.windows]
-version = "0.51.1"  # or your current version
-features = [
-    "Win32_Foundation",
-    "Win32_Storage_FileSystem"
-]
 

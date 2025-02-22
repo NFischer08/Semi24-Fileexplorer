@@ -95,13 +95,7 @@ pub fn manager_create_database(
         Err(e) => return Err(e.to_string())
     };
 
-    let thread_pool = ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get())
-        .build()
-        .unwrap();
-
-
-    match create_database(pooled_connection, database_scan_start, &allowed_file_extensions, &thread_pool){
+    match create_database(pooled_connection, database_scan_start, &allowed_file_extensions, &THREAD_POOL) {
         Ok(_) => {},
         Err(e) => return Err(e.to_string())
     };
@@ -121,8 +115,6 @@ pub fn manager_basic_search(searchterm: &str, searchpath: &str, searchfiletype: 
 
     let search_path = PathBuf::from(searchpath);
 
-    println!("{}", searchpath);
-
     let return_paths = match search_database(&pooled_connection, searchterm, similarity_threshold, &THREAD_POOL, search_path, searchfiletype) {
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string())
@@ -135,12 +127,8 @@ pub fn manager_check_database() -> Result<(), Box<dyn std::error::Error>> {
     let pooled_connection= manager_make_pooled_connection()?;
 
     let allowed_file_extensions= initialize_database_and_extensions(&pooled_connection)?;
-    let thread_pool = ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get())
-        .build()
-        .unwrap();
 
-    check_database(pooled_connection, &allowed_file_extensions, &thread_pool)?;
+    check_database(pooled_connection, &allowed_file_extensions, &THREAD_POOL)?;
 
     Ok(())
 }
