@@ -56,7 +56,14 @@ async function display_search_results() {
   const search_term = document.getElementById('search-term-input').value; // read the search term
   const search_path = document.getElementById('file-path-input').value;
   const fileListElement = document.getElementById('fileList');
-  const filetypes = document.getElementById('setting-filetype').value;
+
+  const selectedSettings = [];
+  for (const checkbox of document.querySelectorAll('input[type="checkbox"]:checked')) {
+    selectedSettings.push(checkbox.value); // add the value of the checked checkboxes to the array
+  }
+
+  const filetypes = selectedSettings.join(',') + document.getElementById('setting-filetype').value; // Join the selected values into a string
+  console.log(filetypes);
 
   //document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(4)').textContent = "File Path"; // rename column
   const errorMessageElement = document.getElementById('error-message');
@@ -115,7 +122,11 @@ document.getElementById('go-to-file-path-button').addEventListener('click', asyn
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
+  console.log('DOM fully loaded and parsed');
+  await display_fav_settings();
+  console.log('Fav Settings loaded');
   await loadFilesAndFolders();
+  console.log('Files and Folders loaded');
 });
 
 document.getElementById('search-button').addEventListener('click', async () => {
@@ -143,6 +154,27 @@ window.addEventListener('click', (event) => {
     settingsModal.classList.add('hidden');
   }
 });
+
+async function display_fav_settings() {
+  const settings = await invoke('get_fav_extensions');
+
+  const form = document.getElementById('settings-form');
+  for (const [key, value] of Object.entries(settings)) {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.id = key;
+    console.log(value);
+    checkbox.value = value;
+
+    const label = document.createElement('label');
+    label.htmlFor = key;
+    label.appendChild(document.createTextNode(key));
+
+    form.appendChild(checkbox);
+    form.appendChild(label);
+    form.appendChild(document.createElement('br'));
+  }
+}
 
 // double click to open file / folder
 document.getElementById('fileTable').addEventListener('dblclick', async (event) => {
@@ -356,7 +388,7 @@ function removePinnedDirectory(index) {
   loadPinnedDirectories();
 } */
 
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", () => { // TODO: keine Ahnung was das macht
   filePathInputEl = document.querySelector("#file-path");
   resultText = document.querySelector("#result-files");
   document.querySelector("#file-form").addEventListener("submit", (e) => {
