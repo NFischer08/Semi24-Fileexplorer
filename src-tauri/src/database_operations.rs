@@ -154,13 +154,13 @@ pub fn create_database(
 pub fn check_database(
     mut conn: PooledConnection<SqliteConnectionManager>,
     allowed_file_extensions: &HashSet<String>,
-    pool: &rayon::ThreadPool,
+    thread_pool: &rayon::ThreadPool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let bad_paths: Vec<String> = {
         let mut stmt = conn.prepare_cached("SELECT file_path FROM files")?;
         let rows: Vec<Result<String, _>> = stmt.query_map([], |row| row.get::<_, String>(0))?.collect();
 
-        pool.install(|| {
+        thread_pool.install(|| {
             rows.into_par_iter()
                 .filter_map(|path_result| {
                     path_result.ok().and_then(|path| {
@@ -220,19 +220,29 @@ pub fn search_database(
     let start_time = Instant::now();
 
     // Convert searchpath to a string
-    let search_path_str = search_path.to_str().unwrap_or("");
+    let search_path_str = if cfg!(windows) && search_path.to_str().unwrap_or("") == "/" {
+        String::new()
+    } else {
+        search_path.to_str().unwrap_or("").to_string()
+    };
 
-    // Modify the SQL query to filter by path
-    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE file_path LIKE ?1 AND file_type LIKE ?2")?;
+    let search_file_type = search_file_type.replace(" " ,"");
+
+    // Modify the SQL query to filter by path/
+    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE file_path LIKE ?1 AND instr(?2 || ',', file_type || ',') > 0")?;
 
     let rows = stmt.query_map(
-        params![format!("{}%", search_path_str), format!("{}%", search_file_type)],
+        params![
+        format!("{}%", search_path_str),
+        format!("{},", search_file_type)  // Add a trailing comma
+    ],
         |row| Ok((
             row.get::<_, String>(0)?,
             row.get::<_, String>(1)?,
             row.get::<_, Option<String>>(2)?
         ))
     )?;
+
     let (tx, rx) = channel();
     let file_data: Vec<(String, String, Option<String>)> = rows.collect::<Result<Vec<_>>>()?;
     thread_pool.install(|| {
