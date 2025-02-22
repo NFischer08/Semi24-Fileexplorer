@@ -1,8 +1,9 @@
-use rayon::ThreadPoolBuilder;
+use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{ path::PathBuf, fs::DirEntry };
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use tauri::command;
+use once_cell::sync::Lazy;
 use crate::database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
 use crate::file_information::{get_file_information, FileType, FileEntry};
 
@@ -14,6 +15,13 @@ pub struct SearchResult {
     file_type: String,
     size: String
 }
+
+static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
+    ThreadPoolBuilder::new()
+        .num_threads(num_cpus::get())
+        .build()
+        .unwrap()
+});
 
 impl SearchResult {
     fn format(file_entry: FileEntry, path: DirEntry) -> SearchResult {
@@ -108,26 +116,21 @@ pub fn manager_basic_search(searchterm: &str, searchpath: &str, searchfiletype: 
         Ok(pooled_connection) => pooled_connection,
         Err(e) => return Err(e.to_string())
     };
+
     let similarity_threshold = 0.7;
 
     let search_path = PathBuf::from(searchpath);
 
-    let thread_pool = ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get())
-        .build()
-        .unwrap();
-
     println!("{}", searchpath);
 
-    let return_paths = match search_database(&pooled_connection, searchterm, similarity_threshold, &thread_pool, search_path, searchfiletype) {
+    let return_paths = match search_database(&pooled_connection, searchterm, similarity_threshold, &THREAD_POOL, search_path, searchfiletype) {
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string())
-    };  // Hier kann das Frontend abgreifen
+    };
 
     let search_result = build_struct(return_paths);
     Ok(search_result)
 }
-
 pub fn manager_check_database() -> Result<(), Box<dyn std::error::Error>> {
     let pooled_connection= manager_make_pooled_connection()?;
 
