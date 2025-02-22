@@ -10,7 +10,6 @@ use std::path::PathBuf;
 use manager::{manager_create_database, manager_check_database};
 use std::thread;
 use std::time::Duration;
-use windows::Win32::Storage::FileSystem::GetLogicalDrives;
 use rayon::prelude::*;
 
 fn get_all_drives() -> Vec<PathBuf> {

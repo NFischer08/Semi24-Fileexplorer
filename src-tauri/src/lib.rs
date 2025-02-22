@@ -5,10 +5,8 @@ pub mod database_operations;
 pub mod manager;
 
 use manager::manager_basic_search;
-use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file, open_file};
-use file_information::{ get_file_information, format_file_data };
-use database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
-use chrono::{DateTime, Local};
+use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file};
+use file_information::{format_file_data };
 
 
 #[cfg_attr(feature = "mobile", tauri::mobile_entry_point)]
