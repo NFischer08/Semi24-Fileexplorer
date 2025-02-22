@@ -58,12 +58,14 @@ async function display_search_results() {
   const search_term = document.getElementById('search-term-input').value; // read the search term
   const search_path = document.getElementById('file-path-input').value;
   const fileListElement = document.getElementById('fileList');
+  const filetypes = document.getElementById('setting-filetype').value;
+
   //document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(4)').textContent = "File Path"; // rename column
   const errorMessageElement = document.getElementById('error-message');
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
 
   try {
-    const entries = await invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path }); // get the search results (structs with all the information)
+    const entries = await invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path, searchfiletype: filetypes }); // get the search results (structs with all the information)
     fileListElement.innerHTML = ''; // delete previous results
     document.getElementById('fileTable').rows[0].cells[1].style.display = ''; // display File Path
     document.getElementById('fileTable').classList.add('search')

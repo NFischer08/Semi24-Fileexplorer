@@ -20,10 +20,10 @@ pub fn initialize_database_and_extensions(
 
     connection.execute(
         "CREATE TABLE IF NOT EXISTS files (
-        id   INTEGER PRIMARY KEY,
-        file_name TEXT NOT NULL,
-        file_path TEXT NOT NULL,
-        file_type  BLOB
+            id   INTEGER PRIMARY KEY,
+            file_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            file_type TEXT NOT NULL
     )",
         (),
     )?;
@@ -60,14 +60,11 @@ pub fn create_database(
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
 ) -> Result<(), String> {
-    println!("Starting create_database function");
-    println!("Scanning directory: {}", path.display());
-
+    println!("Starting create_database function of Path {}", path.display());
 
     let start_time = Instant::now();
     let files_vec: Vec<Files> = thread_pool.install(|| {
         WalkDir::new(&path)
-            .parallelism(jwalk::Parallelism::RayonNewPool(num_cpus::get()))
             .into_iter()
             .par_bridge()
             .filter_map(|entry_result| {
@@ -80,7 +77,7 @@ pub fn create_database(
                             file_name: entry.file_name().to_string_lossy().into_owned(),
                             file_path: path_slashes,
                             file_type: if path.is_dir() {
-                                Some("directory".to_string())
+                                Some("dir".to_string())
                             } else {
                                 path.extension().and_then(|s| s.to_str()).map(String::from)
                             },
@@ -92,8 +89,7 @@ pub fn create_database(
             })
             .collect()
     });
-    println!("Directory scan completed in {:?}", start_time.elapsed());
-    println!("Number of files to insert: {}", files_vec.len());
+    println!("Directory scan completed in {:?} of Path {}", start_time.elapsed(), path.display());
 
     let mut conn = conn;
     let tx = match conn.transaction() {
@@ -101,8 +97,7 @@ pub fn create_database(
         Err(e) => return Err(e.to_string())
     };
     {
-        println!("Starting to fetch existing files");
-        let fetch_start = Instant::now();
+        println!("Starting to fetch existing files of Path {}", path.display());
         let mut existing_files = HashSet::new();
         let mut stmt = match tx.prepare_cached("SELECT file_name, file_path FROM files") {
             Ok(stmt) => stmt,
@@ -120,10 +115,7 @@ pub fn create_database(
                 existing_files.insert((name, path));
             }
         }
-        println!("Fetched {} existing files in {:?}", existing_files.len(), fetch_start.elapsed());
 
-        println!("Starting file insertion");
-        let insert_start = Instant::now();
         let mut insert_stmt = match tx.prepare_cached("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)") {
             Ok(stmt) => stmt,
             Err(e) => return Err(e.to_string())
@@ -148,31 +140,27 @@ pub fn create_database(
                 // Progress reporting can be added here if needed
             }
         }
-        println!("File insertion completed in {:?}", insert_start.elapsed());
-        println!("Total files inserted: {}", inserted_count);
+        println!("Total files inserted: {} of Path {}", inserted_count, path.display());
     }
-    println!("Committing transaction");
-    let commit_start = Instant::now();
     match tx.commit() {
         Ok(_) => {},
         Err(e) => return Err(e.to_string())
     };
-    println!("Transaction committed in {:?}", commit_start.elapsed());
 
-    println!("create_database function completed in {:?}", start_time.elapsed());
+    println!("create_database function completed in {:?} of Path {}", start_time.elapsed(), path.display());
     Ok(())
 }
 
 pub fn check_database(
     mut conn: PooledConnection<SqliteConnectionManager>,
     allowed_file_extensions: &HashSet<String>,
-    pool: &rayon::ThreadPool,
+    thread_pool: &rayon::ThreadPool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let bad_paths: Vec<String> = {
         let mut stmt = conn.prepare_cached("SELECT file_path FROM files")?;
         let rows: Vec<Result<String, _>> = stmt.query_map([], |row| row.get::<_, String>(0))?.collect();
 
-        pool.install(|| {
+        thread_pool.install(|| {
             rows.into_par_iter()
                 .filter_map(|path_result| {
                     path_result.ok().and_then(|path| {
@@ -226,20 +214,34 @@ pub fn search_database(
     search_term: &str,
     similarity_threshold: f64,
     thread_pool: &rayon::ThreadPool,
-    searchpath: PathBuf
+    search_path: PathBuf,
+    search_file_type: &str
 ) -> Result<Vec<DirEntry>> {
     let start_time = Instant::now();
 
     // Convert searchpath to a string
-    let search_path_str = searchpath.to_str().unwrap_or("");
+    let search_path_str = if cfg!(windows) && search_path.to_str().unwrap_or("") == "/" {
+        String::new()
+    } else {
+        search_path.to_str().unwrap_or("").to_string()
+    };
 
-    // Modify the SQL query to filter by path
-    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE file_path LIKE ?")?;
-    let rows = stmt.query_map(&[&format!("{}%", search_path_str)], |row| Ok((
-        row.get::<_, String>(0)?,
-        row.get::<_, String>(1)?,
-        row.get::<_, Option<String>>(2)?
-    )))?;
+    let search_file_type = search_file_type.replace(" " ,"");
+
+    // Modify the SQL query to filter by path/
+    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE file_path LIKE ?1 AND (CASE WHEN ?2 = '' THEN 1 ELSE (',' || ?2 || ',') LIKE ('%,' || file_type || ',%') END)")?;
+
+    let rows = stmt.query_map(
+        params![
+        format!("{}%", search_path_str),
+        search_file_type
+    ],
+        |row| Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, Option<String>>(2)?
+        ))
+    )?;
 
     let (tx, rx) = channel();
     let file_data: Vec<(String, String, Option<String>)> = rows.collect::<Result<Vec<_>>>()?;
