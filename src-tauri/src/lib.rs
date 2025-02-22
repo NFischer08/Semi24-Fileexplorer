@@ -9,7 +9,6 @@ use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, r
 use file_information::{format_file_data };
 
 
-#[cfg_attr(feature = "mobile", tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
