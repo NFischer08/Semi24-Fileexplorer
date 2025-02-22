@@ -251,11 +251,11 @@ pub fn search_database(
 
     println!("Channel {}", start_time.elapsed().as_millis());
 
+
     let file_data: Vec<(String, String, Option<String>)> = rows
-        .collect::<Result<Vec<_>, _>>()?
-        .par_iter()
-        .map(|(a, b, c)| (a.clone(), b.clone(), c.clone()))
-        .collect();
+        .collect::<Result<Vec<_>, _>>()?;
+
+    println!("File data len: {}", file_data.len());
 
     println!("file_data {}", start_time.elapsed().as_millis());
 
@@ -266,7 +266,7 @@ pub fn search_database(
             let name_to_compare = if file_type.as_deref() == Some("directory") {
                 &file_name
             } else {
-                &file_name.split('.').next().unwrap_or(&file_name).to_string()
+                file_name.split('.').next().unwrap_or(&file_name)
             };
             let similarity = normalized_levenshtein(&name_to_compare, &search_term);
             if similarity >= similarity_threshold {
@@ -279,7 +279,10 @@ pub fn search_database(
     println!("Threadpool {}", start_time.elapsed().as_millis());
 
     let mut results: Vec<(String, f64)> = rx.iter().map(|(s, f)| (s.to_string(), f)).collect();
-    results.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+
+    println!("results {}", start_time.elapsed().as_millis());
+
+    results.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
 
     println!("Sorting {}", start_time.elapsed().as_millis());
 
