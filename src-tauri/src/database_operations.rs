@@ -3,10 +3,9 @@ use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use rusqlite::{params, Result};
-use std::{collections::HashSet, fs::{self, DirEntry}, path::{Path, PathBuf}, sync::mpsc::channel, time::Instant,};
+use std::{collections::HashSet, fs::{self, DirEntry}, path::{Path, PathBuf}, time::Instant,};
 use std::cmp::Ordering;
 use strsim::normalized_levenshtein;
-use rusqlite::functions::FunctionFlags;
 
 #[derive(Debug)]
 struct Files {
@@ -99,7 +98,6 @@ pub fn create_database(
         Err(e) => return Err(e.to_string())
     };
     {
-        println!("Starting to fetch existing files of Path {}", path.display());
         let mut existing_files = HashSet::new();
         let mut stmt = match tx.prepare_cached("SELECT file_name, file_path FROM files") {
             Ok(stmt) => stmt,
@@ -228,12 +226,16 @@ pub fn search_database(
         search_path.to_str().unwrap_or("").to_string()
     };
 
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_file_name ON files(file_name)", [])?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON files(file_path)", [])?;
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_file_type ON files(file_type)", [])?;
+
     let search_file_type = search_file_type.replace(" " ,"");
 
     // Modify the SQL query to filter by path/
-    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE file_path LIKE ?1 AND (CASE WHEN ?2 = '' THEN 1 ELSE (',' || ?2 || ',') LIKE ('%,' || file_type || ',%') END)")?;
+    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE  file_path LIKE ?1 AND (CASE WHEN ?2 = '' THEN 1 ELSE (',' || ?2 || ',') LIKE ('%,' || file_type || ',%') END)")?;
 
-    let rows = stmt.query_map(
+    let query_result = stmt.query_map(
         params![
         format!("{}%", search_path_str),
         search_file_type
@@ -243,48 +245,39 @@ pub fn search_database(
             row.get::<_, String>(1)?,
             row.get::<_, Option<String>>(2)?
         ))
-    )?;
+    ).expect("Could not execute query");
 
-    println!("Rows {}", start_time.elapsed().as_millis());
+    println!("query Results {}", start_time.elapsed().as_millis());
 
-    let (tx, rx) = channel();
+    let file_data: Vec<(String, String, Option<String>)> = query_result
+        .collect::<Result<Vec<_>, _>>()
+        .expect("Failed to collect results");
 
-    println!("Channel {}", start_time.elapsed().as_millis());
+    println!("file_data took: {}, {} ", start_time.elapsed().as_millis(), file_data.len());
 
 
-    let file_data: Vec<(String, String, Option<String>)> = rows
-        .collect::<Result<Vec<_>, _>>()?;
-
-    println!("File data len: {}", file_data.len());
-
-    println!("file_data {}", start_time.elapsed().as_millis());
-
-    thread_pool.install(|| {
-        file_data.into_par_iter().for_each(|(file_name, file_path, file_type)| {
-            let tx = tx.clone();
-            let search_term = search_term.to_owned();
-            let name_to_compare = if file_type.as_deref() == Some("directory") {
-                &file_name
-            } else {
-                file_name.split('.').next().unwrap_or(&file_name)
-            };
-            let similarity = normalized_levenshtein(&name_to_compare, &search_term);
-            if similarity >= similarity_threshold {
-                tx.send((file_path, similarity)).unwrap();
-            }
-        });
+    // Now use the thread pool to process the results in parallel
+    let mut results: Vec<(String, f64)> = thread_pool.install(|| {
+        file_data.par_iter()
+            .filter_map(|(file_name, file_path, file_type)| {
+                let name_to_compare = if file_type.as_deref() == Some("directory") {
+                    file_name
+                } else {
+                    file_name.split('.').next().unwrap_or(file_name)
+                };
+                let similarity = normalized_levenshtein(name_to_compare, &search_term);
+                if similarity >= similarity_threshold {
+                    Some((file_path.clone(), similarity))
+                } else {
+                    None
+                }
+            })
+            .collect()
     });
-    drop(tx);
 
-    println!("Threadpool {}", start_time.elapsed().as_millis());
+    println!("results took: {}", start_time.elapsed().as_millis());
 
-    let mut results: Vec<(String, f64)> = rx.iter().map(|(s, f)| (s.to_string(), f)).collect();
-
-    println!("results {}", start_time.elapsed().as_millis());
-
-    results.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-
-    println!("Sorting {}", start_time.elapsed().as_millis());
+    results.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
 
     let return_entries: Vec<DirEntry> = results.into_iter()
         .filter_map(|(s, _)| {
@@ -295,6 +288,8 @@ pub fn search_database(
                 .and_then(|e| e.ok())
         })
         .collect();
+
+    println!("return entries took: {}", start_time.elapsed().as_millis());
 
     let duration = start_time.elapsed();
     println!("Parallel search completed in {:.2?}", duration);
