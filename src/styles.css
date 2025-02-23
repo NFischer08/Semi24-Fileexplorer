@@ -298,11 +298,38 @@ button:active {
 .settings-button:hover {
   color: #ffffff;
 }
+
+/*#settings-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+#settings-form label {
+  display: flex;
+  align-items: center;
+}*/
+
+#settings-form input[type="checkbox"] {
+  float: left;
+}
+
+#settings-form label {
+  float: left;
+  margin-left: 10px;
+}
+
 .search-container {
   position: relative;
   display: flex; /* Flexbox zur Ausrichtung von Suchfeld und Buttons */
   align-items: center; /* Vertikale Zentrierung der Inhalte */
 }
+#setting-filetype {
+  width: auto;
+  outline: none;
+  border: none;
+}
+
 /* Modal-Stil */
 .modal {
   display: flex;

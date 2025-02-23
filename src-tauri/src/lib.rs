@@ -6,10 +6,8 @@ pub mod manager;
 pub mod global_stuff;
 
 use manager::manager_basic_search;
-use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file, open_file};
-use file_information::{ get_file_information, format_file_data };
-use database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
-use chrono::{DateTime, Local};
+use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file};
+use file_information::format_file_data;
 use global_stuff::get_fav_extensions;
 
 
