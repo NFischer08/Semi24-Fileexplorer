@@ -7,7 +7,7 @@ use once_cell::sync::Lazy;
 use crate::database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
 use crate::file_information::{get_file_information, FileType, FileEntry};
 
-#[derive(Debug, serde::Serialize)] // TODO: braucht man diese Zeile?
+#[derive(serde::Serialize)]
 pub struct SearchResult {
     name: String,
     path: String,
@@ -65,7 +65,7 @@ impl SearchResult {
 }
 
 fn build_struct(paths: Vec<DirEntry>) -> Vec<SearchResult> {
-    paths.into_iter()
+        paths.into_iter()
         .map(|path| { SearchResult::format(get_file_information(&path), path) }
         )
         .collect()
@@ -95,7 +95,12 @@ pub fn manager_create_database(
         Err(e) => return Err(e.to_string())
     };
 
-    match create_database(pooled_connection, database_scan_start, &allowed_file_extensions, &THREAD_POOL) {
+    let thread_pool = ThreadPoolBuilder::new()
+        .num_threads(num_cpus::get())
+        .build()
+        .unwrap();
+
+    match create_database(pooled_connection, database_scan_start, &allowed_file_extensions, &thread_pool) {
         Ok(_) => {},
         Err(e) => return Err(e.to_string())
     };
