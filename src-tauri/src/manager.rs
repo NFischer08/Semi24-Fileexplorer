@@ -56,7 +56,7 @@ impl SearchResult {
 
         SearchResult {
             name: file_entry.name,
-            path: path.path().to_string_lossy().into_owned(),
+            path: path.path().to_string_lossy().replace("\\", "/"),  // replace backslashes with slashes since DirEntry loves \ on Windows
             last_modified: file_entry.last_modified.format("%d.%m.%Y %H:%M Uhr").to_string(),
             file_type,
             size

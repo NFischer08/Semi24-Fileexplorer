@@ -63,8 +63,9 @@ async function display_search_results() {
   for (const checkbox of document.querySelectorAll('input[type="checkbox"]:checked')) {
     selectedSettings.push(checkbox.value); // add the value of the checked checkboxes to the array
   }
+  selectedSettings.push("");
 
-  const filetypes = selectedSettings.join(',') + "," + document.getElementById('setting-filetype').value; // Join the selected values into a string
+  const filetypes = selectedSettings.join(',') + document.getElementById('setting-filetype').value; // Join the selected values into a string
   console.log(filetypes);
 
   //document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(4)').textContent = "File Path"; // rename column
@@ -126,11 +127,8 @@ document.getElementById('go-to-file-path-button').addEventListener('click', asyn
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-  console.log('DOM fully loaded and parsed');
   await display_fav_settings();
-  console.log('Fav Settings loaded');
   await loadFilesAndFolders();
-  console.log('Files and Folders loaded');
 });
 
 document.getElementById('search-button').addEventListener('click', async () => {
