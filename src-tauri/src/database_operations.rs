@@ -9,6 +9,10 @@ use std::fmt::format;
 use std::sync::mpsc;
 use rayon::iter::split;
 use strsim::normalized_levenshtein;
+use fastembed::{TextEmbedding, InitOptions, EmbeddingModel};
+use rusqlite::functions::SqlFnOutput;
+use bytemuck::{cast, cast_slice};
+use tauri::Pixel;
 
 #[derive(Debug)]
 struct Files {
@@ -27,7 +31,8 @@ pub fn initialize_database_and_extensions(
             id   INTEGER PRIMARY KEY,
             file_name TEXT NOT NULL,
             file_path TEXT NOT NULL,
-            file_type TEXT NOT NULL
+            file_type TEXT NOT NULL,
+            name_embeddings BLOB NOT NULL
     )",
         (),
     )?;
@@ -95,6 +100,8 @@ pub fn create_database(
     });
     println!("Directory scan completed in {:?} of Path {}", start_time.elapsed(), path.display());
 
+
+
     let tx = match pooled_connection.transaction() {
         Ok(tx) => tx,
         Err(e) => return Err(e.to_string())
@@ -118,19 +125,33 @@ pub fn create_database(
             }
         }
 
-        let mut insert_stmt = match tx.prepare_cached("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)") {
+        let mut insert_stmt = match tx.prepare_cached("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)") {
             Ok(stmt) => stmt,
             Err(e) => return Err(e.to_string())
         };
-        let batch_size = 100000;
+
+        let model = TextEmbedding::try_new(
+            InitOptions::new(EmbeddingModel::MultilingualE5Small).with_show_download_progress(true),
+        ).expect("Could not create TextEmbedding");
+
+        let batch_size = 10000;
         let mut inserted_count = 0;
         for (i, chunk) in files_vec.chunks(batch_size).enumerate() {
             for file in chunk {
-                if !existing_files.contains(&(file.file_name.to_string(), file.file_path.to_string())) {
+                if !existing_files.contains(&(file.file_name.clone(), file.file_path.clone())) {
+                    let file_name_without_ext = file.file_name.split_once('.').map(|(before, _)| before.to_string()).unwrap_or(file.file_name.clone());
+                    let mut name_vec = Vec::new();
+                    let file_name_finished = "query: ".to_string() + &file_name_without_ext;
+                        name_vec.push(file_name_finished);
+                    let name_embedding = model.embed(name_vec, None).expect("embed failed");
+                    let slice_f32 = name_embedding[0].as_slice();
+                    let name_vec_embedded:&[u8] = cast_slice(slice_f32);
+
                     match insert_stmt.execute(params![
                         file.file_name,
                         file.file_path,
-                        file.file_type.as_deref().map::<&str, _>(|s| s.as_ref())
+                        file.file_type.as_deref().map::<&str, _>(|s| s.as_ref()),
+                        name_vec_embedded
                     ]) {
                         Ok(_) => (),
                         Err(e) => return Err(e.to_string())
@@ -249,7 +270,7 @@ pub fn search_database(
 
         let conn = connection_pool.get().expect("get connection pool");
 
-        let mut stmt = conn.prepare("SELECT file_path FROM files WHERE  file_path LIKE ?1 AND (CASE WHEN ?2 = '' THEN 1 ELSE (',' || ?2 || ',') LIKE ('%,' || file_type || ',%') END)").map_err(|e| {
+        let mut stmt = conn.prepare("SELECT file_path, name_embeddings FROM files WHERE  file_path LIKE ?1 AND (CASE WHEN ?2 = '' THEN 1 ELSE (',' || ?2 || ',') LIKE ('%,' || file_type || ',%') END)").map_err(|e| {
             eprintln!("Failed to prepare statement: {:?}", e);
             e
         })?;
@@ -259,9 +280,10 @@ pub fn search_database(
         format!("{}%", search_path_str),
         search_file_type
     ],
-            |row| Ok(
+            |row| Ok((
                 row.get::<_, String>(0)?,
-            )
+                row.get::<_, Vec<u8>>(1)?
+            ))
         )?;
 
         let mut batch = Vec::with_capacity(BATCH_SIZE);
@@ -288,18 +310,40 @@ pub fn search_database(
         Ok(())
     });
 
+    let model = TextEmbedding::try_new(
+        InitOptions::new(EmbeddingModel::MultilingualE5Small).with_show_download_progress(true),
+    ).expect("Could not create TextEmbedding");
+
+    let mut vec_search_term = Vec::new();
+
+    vec_search_term.push("query: ".to_string() + search_term);
+    let search_vec_embedding = model.embed(vec_search_term, None).expect("Could not create TextEmbedding")[0].clone();
+
     let mut results: Vec<(String, f64)> = thread_pool.install(|| {
         rx.into_iter()
             .flat_map(|vec_of_paths| vec_of_paths)
             .par_bridge()  // Convert to parallel iterator
-            .filter_map(|file_path| {
-                let file_name = Path::new(&file_path).file_name()?.to_str()?;
-                let similarity = normalized_levenshtein(file_name, &search_term);
-                if similarity >= similarity_threshold {
-                    Some((file_path, similarity))
+            .filter_map(|row| {
+                let embedding = row.1;
+                let embedding_f32 :Vec<f32> = cast_slice(&embedding).to_vec();
+                let similarity = cosine_similarity(&embedding_f32, &search_vec_embedding);
+                if similarity > 0.8 {
+                    println!("similarity = {}, file_name: {}", similarity, row.0);
+                    Some((row.0, similarity.cast()))
                 } else {
                     None
                 }
+                /*
+                }
+                let file_name = Path::new(&row.0).file_name()?.to_str()?;
+                let similarity = normalized_levenshtein(file_name, &search_term);
+                if similarity >= similarity_threshold {
+                    Some((row.0, similarity))
+                } else {
+                    None
+                }
+
+                 */
             })
             .collect()
     });
@@ -332,4 +376,20 @@ fn convert_to_forward_slashes(path: &PathBuf) -> String {
     path.to_str()
         .map(|s| s.replace('\\', "/"))
         .unwrap_or_else(|| String::new())
+}
+
+fn cosine_similarity(
+    search_embedding: &Vec<f32>,
+    candidate_embedding: &Vec<f32>) -> f32 {
+    let mut a2: f32 = 0.0;
+    let mut b2: f32 = 0.0;
+    let mut ab: f32 = 0.0;
+
+    for (a ,b) in search_embedding.iter().zip(candidate_embedding.iter()) {
+        a2 +=a *a;
+        b2 += b * b;
+        ab += a*b;
+    }
+    let result = ab/a2.sqrt()/b2.sqrt();
+    result
 }

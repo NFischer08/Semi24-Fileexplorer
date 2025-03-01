@@ -84,6 +84,8 @@ pub fn manager_create_database(
     let connection_pool = match manager_make_pooled_connection() {
         Ok(connection_pool) => connection_pool,
         Err(e) => return Err(e.to_string())
+
+
     };
 
     let allowed_file_extensions= match initialize_database_and_extensions(&connection_pool.get().unwrap()) {
@@ -95,6 +97,12 @@ pub fn manager_create_database(
         .num_threads(num_cpus::get())
         .build()
         .unwrap();
+
+    let pooled_connection = connection_pool.get().unwrap();
+
+    pooled_connection.pragma_update(None, "journal_mode", "WAL").expect("journal_mode failed");
+    pooled_connection.pragma_update(None, "synchronous", "NORMAL").expect("synchronous failed");
+    pooled_connection.pragma_update(None, "wal_autocheckpoint", "1000").expect("wal_autocheckpoint failed");
 
     match create_database(connection_pool.get().unwrap(), database_scan_start, &allowed_file_extensions, &thread_pool) {
         Ok(_) => {},
