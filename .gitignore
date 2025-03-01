@@ -3,3 +3,4 @@
 /files.sqlite3-shm
 /files.sqlite3-wal
 /.fastembed_cache
+/.fastembed_cache/models--lightonai--modernbert-embed-large/
