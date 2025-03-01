@@ -2,9 +2,14 @@ const { invoke } = window.__TAURI__.core;
 
 let filePathInputEl;
 let resultText;
+let filePathHistory = ["/"];
 
 async function loadFilesAndFolders() {
   let filepath = document.getElementById('file-path-input').value; // Aktuellen Pfad auslesen
+  if (filePathHistory[filePathHistory.length] !== filepath) {
+    filePathHistory.push(filepath);  // Pfad in die History eintragen
+    console.log(filePathHistory);
+  }
   const fileListElement = document.getElementById('fileList');
   document.getElementById('fileTable').rows[0].cells[1].style.display = 'none'; // display File Path
   const errorMessageElement = document.getElementById('error-message');
@@ -215,6 +220,19 @@ document.getElementById('toggle-sidebar-button').addEventListener('click', () =>
   document.getElementById('sidebar').style.display = 'none';
 });
 
+// forward and backward buttons
+document.getElementById('back-button').addEventListener('click', async () => {
+  try {
+    const len = filePathHistory.length;
+    if (len < 2) {
+      return;
+    }
+    document.getElementById('file-path-input').value = filePathHistory[len - 2];
+    filePathHistory.pop();
+    filePathHistory.pop();
+    await loadFilesAndFolders();
+  } catch (error) {}
+});
 
 // context Menu
 const contextMenu = document.getElementById('context-menu');
