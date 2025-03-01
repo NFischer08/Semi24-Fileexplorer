@@ -1,6 +1,6 @@
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{ path::PathBuf, fs::DirEntry };
-use r2d2::{Pool, PooledConnection};
+use r2d2::{Pool};
 use r2d2_sqlite::SqliteConnectionManager;
 use tauri::command;
 use once_cell::sync::Lazy;
@@ -71,26 +71,22 @@ fn build_struct(paths: Vec<DirEntry>) -> Vec<SearchResult> {
         .collect()
 }
 
-fn manager_make_pooled_connection() -> Result<PooledConnection<SqliteConnectionManager>, Box<dyn std::error::Error>> {
+fn manager_make_pooled_connection() -> Result<Pool<SqliteConnectionManager>, Box<dyn std::error::Error>> {
     let manager = SqliteConnectionManager::file("files.sqlite3");
     let connection_pool = Pool::new(manager)?;
-    let pooled_connection = connection_pool.get()?;
-    pooled_connection.pragma_update(None, "journal_mode", "WAL")?;
-    pooled_connection.pragma_update(None, "synchronous", "NORMAL")?;
-    pooled_connection.pragma_update(None, "wal_autocheckpoint", "1000")?;
-    Ok(pooled_connection)
+    Ok(connection_pool)
 }
 
 pub fn manager_create_database(
     database_scan_start: PathBuf,
 )  -> Result<(), String>
 {
-    let pooled_connection = match manager_make_pooled_connection() {
-        Ok(pooled_connection) => pooled_connection,
+    let connection_pool = match manager_make_pooled_connection() {
+        Ok(connection_pool) => connection_pool,
         Err(e) => return Err(e.to_string())
     };
 
-    let allowed_file_extensions= match initialize_database_and_extensions(&pooled_connection) {
+    let allowed_file_extensions= match initialize_database_and_extensions(&connection_pool.get().unwrap()) {
         Ok(allowed_file_extensions) => allowed_file_extensions,
         Err(e) => return Err(e.to_string())
     };
@@ -100,7 +96,7 @@ pub fn manager_create_database(
         .build()
         .unwrap();
 
-    match create_database(pooled_connection, database_scan_start, &allowed_file_extensions, &thread_pool) {
+    match create_database(connection_pool.get().unwrap(), database_scan_start, &allowed_file_extensions, &thread_pool) {
         Ok(_) => {},
         Err(e) => return Err(e.to_string())
     };
@@ -111,8 +107,8 @@ pub fn manager_create_database(
 // searchfiletype is the Filetype Ending without the Dot, for Directorys it must be dir
 #[command]
 pub fn manager_basic_search(searchterm: &str, searchpath: &str, searchfiletype: &str) -> Result<Vec<SearchResult>, String> {
-    let pooled_connection = match manager_make_pooled_connection() {
-        Ok(pooled_connection) => pooled_connection,
+    let connection_pool = match manager_make_pooled_connection() {
+        Ok(connection_pool) => connection_pool,
         Err(e) => return Err(e.to_string())
     };
 
@@ -120,7 +116,7 @@ pub fn manager_basic_search(searchterm: &str, searchpath: &str, searchfiletype: 
 
     let search_path = PathBuf::from(searchpath);
 
-    let return_paths = match search_database(&pooled_connection, searchterm, similarity_threshold, &THREAD_POOL, search_path, searchfiletype) {
+    let return_paths = match search_database(connection_pool, searchterm, similarity_threshold, &THREAD_POOL, search_path, searchfiletype) {
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string())
     };
@@ -129,11 +125,11 @@ pub fn manager_basic_search(searchterm: &str, searchpath: &str, searchfiletype: 
     Ok(search_result)
 }
 pub fn manager_check_database() -> Result<(), Box<dyn std::error::Error>> {
-    let pooled_connection= manager_make_pooled_connection()?;
+    let connection_pool= manager_make_pooled_connection()?;
 
-    let allowed_file_extensions= initialize_database_and_extensions(&pooled_connection)?;
+    let allowed_file_extensions= initialize_database_and_extensions(&connection_pool.get().unwrap())?;
 
-    check_database(pooled_connection, &allowed_file_extensions, &THREAD_POOL)?;
+    check_database(connection_pool.get().unwrap(), &allowed_file_extensions, &THREAD_POOL)?;
 
     Ok(())
 }
