@@ -36,7 +36,7 @@ tauri-build = { version = "2", features = [] }
 embed-manifest = "1"
 
 [dependencies.windows]
-version = "0.51.1"  # Use the latest version available
+version = "0.60.0"  # Use the latest version available
 features = [
     "Win32_Storage_FileSystem",
     "Win32_Foundation"

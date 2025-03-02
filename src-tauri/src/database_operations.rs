@@ -1,10 +1,13 @@
 use jwalk::WalkDir;
-use r2d2::PooledConnection;
+use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
-use rusqlite::{params, Result};
+use rusqlite::{params, MappedRows, Result, Row};
 use std::{collections::HashSet, fs::{self, DirEntry}, path::{Path, PathBuf}, time::Instant,};
 use std::cmp::Ordering;
+use std::fmt::format;
+use std::sync::mpsc;
+use rayon::iter::split;
 use strsim::normalized_levenshtein;
 
 #[derive(Debug)]
@@ -16,10 +19,10 @@ struct Files {
 }
 
 pub fn initialize_database_and_extensions(
-    connection: &PooledConnection<SqliteConnectionManager>,
+    pooled_connection: &PooledConnection<SqliteConnectionManager>,
 ) -> Result<HashSet<String>, Box<dyn std::error::Error>> {
 
-    connection.execute(
+    pooled_connection.execute(
         "CREATE TABLE IF NOT EXISTS files (
             id   INTEGER PRIMARY KEY,
             file_name TEXT NOT NULL,
@@ -29,7 +32,7 @@ pub fn initialize_database_and_extensions(
         (),
     )?;
 
-    connection.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)", [])?;
+    pooled_connection.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)", [])?;
 
     // Get allowed file extensions
     let allowed_file_extensions: HashSet<String> = [
@@ -56,7 +59,7 @@ pub fn initialize_database_and_extensions(
 
 
 pub fn create_database(
-    conn: PooledConnection<SqliteConnectionManager>,
+    mut pooled_connection: PooledConnection<SqliteConnectionManager>,
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
@@ -92,8 +95,7 @@ pub fn create_database(
     });
     println!("Directory scan completed in {:?} of Path {}", start_time.elapsed(), path.display());
 
-    let mut conn = conn;
-    let tx = match conn.transaction() {
+    let tx = match pooled_connection.transaction() {
         Ok(tx) => tx,
         Err(e) => return Err(e.to_string())
     };
@@ -210,13 +212,17 @@ fn should_ignore_path(path: &Path) -> bool {
 }
 
 pub fn search_database(
-    conn: &PooledConnection<SqliteConnectionManager>,
+    connection_pool: Pool<SqliteConnectionManager>,
     search_term: &str,
     similarity_threshold: f64,
     thread_pool: &rayon::ThreadPool,
     search_path: PathBuf,
     search_file_type: &str
 ) -> Result<Vec<DirEntry>> {
+
+    let conn = connection_pool.get().expect("get connection pool");
+    const BATCH_SIZE: usize = 1000; // Adjust this value as needed
+
     let start_time = Instant::now();
 
     // Convert searchpath to a string
@@ -226,54 +232,79 @@ pub fn search_database(
         search_path.to_str().unwrap_or("").to_string()
     };
 
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_file_name ON files(file_name)", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON files(file_path)", [])?;
     conn.execute("CREATE INDEX IF NOT EXISTS idx_file_type ON files(file_type)", [])?;
 
     let search_file_type = search_file_type.replace(" " ,"");
 
-    // Modify the SQL query to filter by path/
-    let mut stmt = conn.prepare("SELECT file_name, file_path, file_type FROM files WHERE  file_path LIKE ?1 AND (CASE WHEN ?2 = '' THEN 1 ELSE (',' || ?2 || ',') LIKE ('%,' || file_type || ',%') END)")?;
+    println!("query Results {}", start_time.elapsed().as_millis());
 
-    let query_result = stmt.query_map(
-        params![
+    /*
+    println!("search_path_str: '{}'", search_path_str);
+    println!("search_file_type: '{}'", search_file_type);
+     */
+
+    let (tx, rx) = mpsc::channel();
+    let query_thread = std::thread::spawn(move || {
+
+        let conn = connection_pool.get().expect("get connection pool");
+
+        let mut stmt = conn.prepare("SELECT file_path FROM files WHERE  file_path LIKE ?1 AND (CASE WHEN ?2 = '' THEN 1 ELSE (',' || ?2 || ',') LIKE ('%,' || file_type || ',%') END)").map_err(|e| {
+            eprintln!("Failed to prepare statement: {:?}", e);
+            e
+        })?;
+
+        let query_result = stmt.query_map(
+            params![
         format!("{}%", search_path_str),
         search_file_type
     ],
-        |row| Ok((
-            row.get::<_, String>(0)?,
-            row.get::<_, String>(1)?,
-            row.get::<_, Option<String>>(2)?
-        ))
-    ).expect("Could not execute query");
+            |row| Ok(
+                row.get::<_, String>(0)?,
+            )
+        )?;
 
-    println!("query Results {}", start_time.elapsed().as_millis());
+        let mut batch = Vec::with_capacity(BATCH_SIZE);
+        for result in query_result {
+            match result {
+                Ok(file_path) => {
+                    batch.push(file_path);
+                    if batch.len() >= BATCH_SIZE {
+                        tx.send(batch).expect("Failed to send batch");
+                        batch = Vec::with_capacity(BATCH_SIZE);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Error in query result: {:?}", e);
+                    return Err(e);
+                }
+            }
+        }
 
-    let file_data: Vec<(String, String, Option<String>)> = query_result
-        .collect::<Result<Vec<_>, _>>()
-        .expect("Failed to collect results");
+        // Send any remaining items
+        if !batch.is_empty() {
+            tx.send(batch).expect("Failed to send final batch");
+        }
+        Ok(())
+    });
 
-    println!("file_data took: {}, {} ", start_time.elapsed().as_millis(), file_data.len());
-
-
-    // Now use the thread pool to process the results in parallel
     let mut results: Vec<(String, f64)> = thread_pool.install(|| {
-        file_data.par_iter()
-            .filter_map(|(file_name, file_path, file_type)| {
-                let name_to_compare = if file_type.as_deref() == Some("directory") {
-                    file_name
-                } else {
-                    file_name.split('.').next().unwrap_or(file_name)
-                };
-                let similarity = normalized_levenshtein(name_to_compare, &search_term);
+        rx.into_iter()
+            .flat_map(|vec_of_paths| vec_of_paths)
+            .par_bridge()  // Convert to parallel iterator
+            .filter_map(|file_path| {
+                let file_name = Path::new(&file_path).file_name()?.to_str()?;
+                let similarity = normalized_levenshtein(file_name, &search_term);
                 if similarity >= similarity_threshold {
-                    Some((file_path.clone(), similarity))
+                    Some((file_path, similarity))
                 } else {
                     None
                 }
             })
             .collect()
     });
+
+    query_thread.join().expect("Query thread panicked")?;
 
     println!("results took: {}", start_time.elapsed().as_millis());
 
