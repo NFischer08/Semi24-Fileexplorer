@@ -339,7 +339,7 @@ button:active {
   background-color: #333; /* Darker background color */
   border: 1px solid #555; /* Small border */
   border-radius: 40%; /* Make it a circle */
-  margin: 0 3px; /* Center the button */
+  margin: 4px 5px; /* Center the button */
   vertical-align: middle;
 }
 
