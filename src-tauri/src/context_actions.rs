@@ -6,7 +6,7 @@ use tauri::command;
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
     let clean_path: PathBuf = clean_path(filepath);
-    let mode: u8 = 1;
+    let mode: u8 = 2;
     match mode {
          1 => copy_from_file(clean_path),
          2 => copy_from_path(clean_path),
@@ -85,7 +85,7 @@ fn copy_from_path(path: PathBuf) -> Result<String, String> { // Copying path to 
 #[command]
 pub fn paste(destination: String) -> Result<String, String> {
     let dest_path: PathBuf = clean_path(destination);
-    let mode: u8 = 1;
+    let mode: u8 = 2;
     match mode {
         1 => paste_from_file(dest_path),
         2 => paste_from_path(dest_path),

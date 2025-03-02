@@ -293,9 +293,10 @@ pub fn search_database(
             .flat_map(|vec_of_paths| vec_of_paths)
             .par_bridge()  // Convert to parallel iterator
             .filter_map(|file_path| {
-                let file_name = Path::new(&file_path).file_name()?.to_str()?;
+                let file_name = Path::new(&file_path).file_stem()?.to_str()?;
                 let similarity = normalized_levenshtein(file_name, &search_term);
                 if similarity >= similarity_threshold {
+                    println!("{}", file_path);
                     Some((file_path, similarity))
                 } else {
                     None

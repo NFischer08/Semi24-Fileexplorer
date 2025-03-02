@@ -65,7 +65,7 @@ h1 {
 
 .table-container {
   width: 100%;
-  height: calc(100vh - 20px); /* Adjust for the margin-top */
+  height: 90vh; /* Adjust for the margin-top */
   overflow: auto;
 }
 

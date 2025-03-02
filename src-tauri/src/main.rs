@@ -47,7 +47,7 @@ fn get_all_drives() -> Vec<PathBuf> {
 }
 
 fn main() {
-    let drives = get_all_drives();
+    let mut drives = get_all_drives();
     println!("Available drives: {:?}", drives);
 
     thread::spawn(move || {
