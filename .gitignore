@@ -2,3 +2,5 @@
 /files.sqlite3
 /files.sqlite3-shm
 /files.sqlite3-wal
+files.sqlite3-wal
+cargo.lock
