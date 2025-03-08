@@ -96,6 +96,12 @@ pub fn manager_create_database(
         .build()
         .unwrap();
 
+    let pooled_connection = connection_pool.get().unwrap();
+
+    pooled_connection.pragma_update(None, "journal_mode", "WAL").expect("journal_mode failed");
+    pooled_connection.pragma_update(None, "synchronous", "NORMAL").expect("synchronous failed");
+    pooled_connection.pragma_update(None, "wal_autocheckpoint", "1000").expect("wal_autocheckpoint failed");
+
     match create_database(connection_pool.get().unwrap(), database_scan_start, &allowed_file_extensions, &thread_pool) {
         Ok(_) => {},
         Err(e) => return Err(e.to_string())
