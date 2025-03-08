@@ -49,7 +49,7 @@ fn get_all_drives() -> Vec<PathBuf> {
 fn main() {
     let mut drives = get_all_drives();
     drives.clear();
-    drives.push(PathBuf::from(r"C:\Users\maxmu\desktop"));
+    drives.push(PathBuf::from(r"C:\Users\maxmu\Downloads"));
     println!("Available drives: {:?}", drives);
 
     thread::spawn(move || {

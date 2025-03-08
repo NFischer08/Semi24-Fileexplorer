@@ -104,7 +104,7 @@ pub fn manager_create_database(
     pooled_connection.pragma_update(None, "synchronous", "NORMAL").expect("synchronous failed");
     pooled_connection.pragma_update(None, "wal_autocheckpoint", "1000").expect("wal_autocheckpoint failed");
 
-    match create_database(connection_pool.get().unwrap(), database_scan_start, &allowed_file_extensions, &thread_pool) {
+    match create_database(connection_pool, database_scan_start, &allowed_file_extensions, &thread_pool) {
         Ok(_) => {},
         Err(e) => return Err(e.to_string())
     };
