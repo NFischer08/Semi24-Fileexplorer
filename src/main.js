@@ -68,9 +68,9 @@ async function display_search_results() {
   for (const checkbox of document.querySelectorAll('input[type="checkbox"]:checked')) {
     selectedSettings.push(checkbox.value); // add the value of the checked checkboxes to the array
   }
-  selectedSettings.push("");
+  selectedSettings.push(document.getElementById('setting-filetype').value);
 
-  const filetypes = selectedSettings.join(',') + document.getElementById('setting-filetype').value; // Join the selected values into a string
+  const filetypes = selectedSettings.join(','); // Join the selected values into a string
   console.log(filetypes);
 
   //document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(4)').textContent = "File Path"; // rename column
