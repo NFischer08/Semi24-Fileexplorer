@@ -1,3 +1,4 @@
+use std::sync::Mutex;
 use std::sync::Arc;
 use jwalk::WalkDir;
 use r2d2::{Pool, PooledConnection};
@@ -10,6 +11,7 @@ use std::fmt::format;
 use std::fs::File;
 use std::ptr::copy;
 use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
 use rayon::iter::split;
 use strsim::normalized_levenshtein;
 use fastembed::{TextEmbedding, InitOptions, EmbeddingModel};
@@ -68,106 +70,99 @@ pub fn initialize_database_and_extensions(
 
 
 pub fn create_database(
-    mut connection_pool: Pool<SqliteConnectionManager>,
+    connection_pool: Pool<SqliteConnectionManager>,
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
 ) -> Result<(), String> {
-    const BATCH_SIZE: usize = 100;
+    const BATCH_SIZE: usize = 1000;
 
     println!("Starting create_database function of Path {}", path.display());
-
     let start_time = Instant::now();
 
-    let (tx, rx) = mpsc::channel();
+    let (tx , rx) = mpsc::channel::<Vec<Files>>();
+    let rx = Arc::new(Mutex::new(rx));
 
     println!("Threadpool {}", start_time.elapsed().as_millis());
 
-        thread_pool.install(|| {
-            let tx = Arc::new(tx); // Wrap the sender in an Arc
-
-            let mut batch: Vec<Files> = Vec::new();
-
-            WalkDir::new(&path).follow_links(false)
-                .into_iter()
-                .par_bridge()
-                .for_each_with(Vec::with_capacity(BATCH_SIZE), |batch, entry_result| {
-                    if let Ok(entry) = entry_result {
-                        let path = entry.path();
-                        if !should_ignore_path(&path) && (path.is_dir() || is_allowed_file(&path, allowed_file_extensions)) {
-                            let path_slashes = convert_to_forward_slashes(&path);
-                            let file = Files {
-                                id: 0,
-                                file_name: entry.file_name().to_string_lossy().into_owned(),
-                                file_path: path_slashes,
-                                file_type: if path.is_dir() {
-                                    Some("dir".to_string())
-                                } else {
-                                    path.extension().and_then(|s| s.to_str()).map(String::from)
-                                },
-                            };
-                            batch.push(file);
-                            if batch.len() >= BATCH_SIZE {
-                                let tx_clone = Arc::clone(&tx);
-                                tx_clone.send(batch.clone()).unwrap_or_else(|_| println!("Failed to send batch"));
-                                batch.clear();
-                            }
-                        }
-                    }
-                });
-
-            if !batch.is_empty() {
-                let tx_clone = Arc::clone(&tx);
-                tx_clone.send(batch.clone()).unwrap_or_else(|_| println!("Failed to send final batch"));
-            }
-            drop(tx);
-        });
-    println!("Directory scan completed in {:?} of Path {}", start_time.elapsed(), path.display());
-
-
+    let model_thread = std::thread::spawn(|| {
         let model_time = Instant::now();
         let model = TextEmbedding::try_new(
             InitOptions::new(EmbeddingModel::MultilingualE5Small)
                 .with_show_download_progress(true)
         ).expect("Could not create TextEmbedding");
-
-
         println!("Model took {}", model_time.elapsed().as_millis());
+        model
+    });
 
-    let mut existing_files = HashSet::new();
+    let existing_files_thread = std::thread::spawn({
+        let connection_pool = connection_pool.clone();
+        move || {
+            let existing_files_time = Instant::now();
+            let mut existing_files = HashSet::new();
+            let connection = connection_pool.get().unwrap();
+            let mut stmt = connection.prepare_cached("SELECT file_name, file_path FROM files").unwrap();
+            let rows = stmt.query_map([], |row| {
+                Ok((row.get::<_, String>(0).expect("Problem with row_get"), row.get::<_, String>(1).expect("Rows failed")))
+            }).unwrap();
 
-    let connection = connection_pool.get().unwrap();
-
-    let mut stmt = match connection.prepare_cached("SELECT file_name, file_path FROM files") {
-        Ok(stmt) => stmt,
-        Err(e) => return Err(e.to_string())
-    };
-    let rows = match stmt.query_map([], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1).expect("Could not parse row")))
-    }) {
-        Ok(rows) => rows,
-        Err(e) => return Err(e.to_string())
-    };
-
-    for row in rows {
-        if let Ok((name, path)) = row {
-            existing_files.insert((name, path));
+            for row in rows {
+                if let Ok((name, path)) = row {
+                    existing_files.insert((name, path));
+                }
+            }
+            println!("existing_files finished in {}ms", existing_files_time.elapsed().as_millis());
+            existing_files
         }
-    }
+    });
 
-    let _ = thread_pool.install(move || -> Result<(), String> {
-        println!("Threadpool starting");
-        let conn = connection_pool.get().expect("Could not get connection from pool");
-        conn.execute_batch("PRAGMA journal_mode = WAL").expect("Could not execute");
+    let model = model_thread.join().unwrap();
+    let existing_files = existing_files_thread.join().unwrap();
 
-        let mut insert_stmt = conn.prepare("
-        INSERT INTO files (file_name, file_path, file_type, name_embeddings)
-        VALUES (?, ?, ?, ?)
-    ").map_err(|e| e.to_string()).expect("Could not insert file");
+    let conn = connection_pool.get().expect("Could not get connection from pool");
+    conn.execute_batch("PRAGMA journal_mode = WAL").expect("Could not execute");
 
-        for batch in rx {
-            println!("Batch received {}", batch.len());
-            for file in batch {
+
+    thread_pool.install(|| {
+        let tx = Arc::new(tx);
+        let mut batch: Vec<Files> = Vec::with_capacity(BATCH_SIZE);
+        WalkDir::new(&path).follow_links(false)
+            .into_iter()
+            .par_bridge()
+            .for_each_with(Vec::with_capacity(BATCH_SIZE), |batch, entry_result| {
+                if let Ok(entry) = entry_result {
+                    let path = entry.path();
+                    if !should_ignore_path(&path) && (path.is_dir() || is_allowed_file(&path, &allowed_file_extensions)) {
+                        let path_slashes = convert_to_forward_slashes(&path);
+                        let file = Files {
+                            id: 0,
+                            file_name: entry.file_name().to_string_lossy().into_owned(),
+                            file_path: path_slashes,
+                            file_type: if path.is_dir() {
+                                Some("dir".to_string())
+                            } else {
+                                path.extension().and_then(|s| s.to_str()).map(String::from)
+                            },
+                        };
+                        batch.push(file);
+                        if batch.len() >= BATCH_SIZE {
+                            tx.send(std::mem::take(batch)).unwrap_or_else(|_| println!("Failed to send batch"));
+                        }
+                    }
+                }
+            });
+
+        if !batch.is_empty() {
+            let tx_clone:Arc<Sender<Vec<Files>>> = Arc::clone(&tx);
+            tx_clone.send(batch.clone()).unwrap_or_else(|_| println!("Failed to send final batch"));
+        }
+    });
+
+    let rx = Arc::clone(&rx);
+    while let Ok(batch) = rx.lock().unwrap().recv() {
+        println!("{:?}", batch.len());
+        thread_pool.install(|| {
+            batch.par_iter().for_each(|file| {
                 if !existing_files.contains(&(file.file_name.clone(), file.file_path.clone())) {
                     let file_name_without_ext = file.file_name.split_once('.').map(|(before, _)| before.to_string()).unwrap_or(file.file_name.clone());
                     let mut name_vec = Vec::new();
@@ -177,6 +172,8 @@ pub fn create_database(
                     let slice_f32 = name_embedding[0].as_slice();
                     let name_vec_embedded: Vec<u8> = unsafe { std::mem::transmute(slice_f32.to_vec()) };
 
+                    let connection = connection_pool.get().unwrap();
+                    let mut insert_stmt = connection.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)").expect("Failed to prepare insertion file");
                     insert_stmt.execute(params![
                     file.file_name,
                     file.file_path,
@@ -184,17 +181,14 @@ pub fn create_database(
                     name_vec_embedded
                 ]).expect("Could not insert file");
                 }
-            }
-            connection_pool.get().unwrap().transaction().expect("Transaction failed").commit().expect("Commit transaction failed");
-        }
-        Ok(())
-    });
+            });
+        });
 
-    println!("Path {}, time taken {}", path.display(), start_time.elapsed().as_millis());
-    println!("create_database function completed in {:?} of Path {}", start_time.elapsed(), path.display());
-    Ok(())
+        connection_pool.get().unwrap().transaction().unwrap().commit().unwrap();
     }
-
+    println!("{}", start_time.elapsed().as_millis());
+    Ok(())
+}
 
 pub fn check_database(
     mut conn: PooledConnection<SqliteConnectionManager>,
@@ -282,11 +276,6 @@ pub fn search_database(
 
     println!("query Results {}", start_time.elapsed().as_millis());
 
-    /*
-    println!("search_path_str: '{}'", search_path_str);
-    println!("search_file_type: '{}'", search_file_type);
-     */
-
     let (tx, rx) = mpsc::channel();
     let query_thread = std::thread::spawn(move || {
 
@@ -355,17 +344,6 @@ pub fn search_database(
                 } else {
                     None
                 }
-                /*
-                }
-                let file_name = Path::new(&row.0).file_name()?.to_str()?;
-                let similarity = normalized_levenshtein(file_name, &search_term);
-                if similarity >= similarity_threshold {
-                    Some((row.0, similarity))
-                } else {
-                    None
-                }
-
-                 */
             })
             .collect()
     });
