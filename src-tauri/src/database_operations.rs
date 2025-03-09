@@ -11,7 +11,6 @@ use std::fmt::format;
 use std::fs::File;
 use std::ptr::copy;
 use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
 use rayon::iter::split;
 use strsim::normalized_levenshtein;
 use fastembed::{TextEmbedding, InitOptions, EmbeddingModel};
@@ -19,6 +18,7 @@ use rusqlite::functions::SqlFnOutput;
 use bytemuck::{cast, cast_slice};
 use rayon::ThreadPool;
 use tauri::Pixel;
+use crossbeam::channel;
 
 #[derive(Debug, Clone)]
 struct Files {
@@ -75,12 +75,12 @@ pub fn create_database(
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
 ) -> Result<(), String> {
-    const BATCH_SIZE: usize = 1000;
+    const BATCH_SIZE: usize = 250;
 
     println!("Starting create_database function of Path {}", path.display());
     let start_time = Instant::now();
 
-    let (tx , rx) = mpsc::channel::<Vec<Files>>();
+    let (tx , rx) = channel::unbounded();
     let rx = Arc::new(Mutex::new(rx));
 
     println!("Threadpool {}", start_time.elapsed().as_millis());
@@ -122,14 +122,13 @@ pub fn create_database(
     let conn = connection_pool.get().expect("Could not get connection from pool");
     conn.execute_batch("PRAGMA journal_mode = WAL").expect("Could not execute");
 
-
-    thread_pool.install(|| {
+    let allowed_file_extensions = allowed_file_extensions.clone();
+    let file_walking_thread = std::thread::spawn(move || {
         let tx = Arc::new(tx);
         let mut batch: Vec<Files> = Vec::with_capacity(BATCH_SIZE);
         WalkDir::new(&path).follow_links(false)
             .into_iter()
-            .par_bridge()
-            .for_each_with(Vec::with_capacity(BATCH_SIZE), |batch, entry_result| {
+            .for_each(|entry_result| {
                 if let Ok(entry) = entry_result {
                     let path = entry.path();
                     if !should_ignore_path(&path) && (path.is_dir() || is_allowed_file(&path, &allowed_file_extensions)) {
@@ -146,46 +145,77 @@ pub fn create_database(
                         };
                         batch.push(file);
                         if batch.len() >= BATCH_SIZE {
-                            tx.send(std::mem::take(batch)).unwrap_or_else(|_| println!("Failed to send batch"));
+                            tx.send(std::mem::take(&mut batch)).unwrap_or_else(|_| println!("Failed to send batch"));
+                            println!("BATCH SEND");
                         }
                     }
                 }
             });
 
         if !batch.is_empty() {
-            let tx_clone:Arc<Sender<Vec<Files>>> = Arc::clone(&tx);
-            tx_clone.send(batch.clone()).unwrap_or_else(|_| println!("Failed to send final batch"));
+            tx.send(batch).unwrap_or_else(|_| println!("Failed to send final batch"));
         }
     });
 
     let rx = Arc::clone(&rx);
     while let Ok(batch) = rx.lock().unwrap().recv() {
-        println!("{:?}", batch.len());
+        println!("Batch received, Length: {:?}", batch.len());
         thread_pool.install(|| {
-            batch.par_iter().for_each(|file| {
-                if !existing_files.contains(&(file.file_name.clone(), file.file_path.clone())) {
-                    let file_name_without_ext = file.file_name.split_once('.').map(|(before, _)| before.to_string()).unwrap_or(file.file_name.clone());
-                    let mut name_vec = Vec::new();
-                    let file_name_finished = "query: ".to_string() + &file_name_without_ext;
-                    name_vec.push(file_name_finished);
-                    let name_embedding = model.embed(name_vec, None).expect("Could not embed file");
-                    let slice_f32 = name_embedding[0].as_slice();
-                    let name_vec_embedded: Vec<u8> = unsafe { std::mem::transmute(slice_f32.to_vec()) };
+            // Prepare batch data
+            let batch_data: Vec<_> = batch
+                .par_iter()
+                .filter_map(|file| {
+                    if !existing_files.contains(&(file.file_name.clone(), file.file_path.clone())) {
+                        let file_name_without_ext = file.file_name
+                            .split_once('.')
+                            .map(|(before, _)| before.to_string())
+                            .unwrap_or(file.file_name.clone());
+                        let file_name_finished = format!("query: {}", file_name_without_ext);
+                        Some((file.clone(), file_name_finished))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
 
-                    let connection = connection_pool.get().unwrap();
-                    let mut insert_stmt = connection.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)").expect("Failed to prepare insertion file");
-                    insert_stmt.execute(params![
-                    file.file_name,
-                    file.file_path,
-                    file.file_type.as_deref().map::<&str, _>(|s| s.as_ref()),
-                    name_vec_embedded
-                ]).expect("Could not insert file");
+            if !batch_data.is_empty() {
+                let vec_embed_time = Instant::now();
+
+                // Prepare names for batch embedding
+                let names_to_embed: Vec<String> = batch_data.iter().map(|(_, name)| name.clone()).collect();
+
+                // Perform batch embedding
+                let vec_pure_embed_time = Instant::now();
+                let name_embeddings = model.embed(names_to_embed, Some(BATCH_SIZE)).expect("Could not embed files");
+                println!("Pure embedding took {} ms", vec_pure_embed_time.elapsed().as_millis());
+
+                // Process embeddings and insert into database
+                let mut connection = connection_pool.get().unwrap();
+                let transaction = connection.transaction().unwrap();
+                {
+                    let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)").expect("Failed to prepare insertion file");
+
+                    for ((file, _), embedding) in batch_data.iter().zip(name_embeddings.iter()) {
+                        let slice_f32 = embedding.as_slice();
+                        let name_vec_embedded: Vec<u8> = unsafe { std::mem::transmute(slice_f32.to_vec()) };
+
+                        insert_stmt.execute(params![
+                        file.file_name,
+                        file.file_path,
+                        file.file_type.as_deref().map::<&str, _>(|s| s.as_ref()),
+                        name_vec_embedded
+                    ]).expect("Could not insert file");
+                    }
                 }
-            });
-        });
+                transaction.commit().unwrap();
 
-        connection_pool.get().unwrap().transaction().unwrap().commit().unwrap();
+                println!("Vec embed took {} ms", vec_embed_time.elapsed().as_millis());
+            }
+        });
     }
+
+    file_walking_thread.join().unwrap();
+
     println!("{}", start_time.elapsed().as_millis());
     Ok(())
 }
