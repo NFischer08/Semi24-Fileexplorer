@@ -1,4 +1,5 @@
 use std::{fs::{self, DirEntry}, path::PathBuf, time::SystemTime};
+use std::time::UNIX_EPOCH;
 use chrono::{DateTime, Local, TimeZone};
 use tauri::command;
 use crate::context_actions::open_file;
@@ -116,12 +117,24 @@ pub fn get_file_information(entry: &DirEntry) -> FileEntry {
         }
     }; // Convert the last modified time to a readable format
     // Convert SystemTime to DateTime<Local>
-    let last_modified = modified_time.duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| Local.timestamp_opt(d.as_secs() as i64, d.subsec_nanos())
-            .single()
-            .unwrap_or_else(Local::now)
-        )        // Fallback to current time if there's an error
-        .unwrap(); // TODO => keine Ahnung was das macht!
+    let last_modified = match modified_time.duration_since(UNIX_EPOCH) {
+        Ok(duration) => {
+            // Convert the duration to a local DateTime
+            Local
+                .timestamp_opt(duration.as_secs() as i64, duration.subsec_nanos())
+                .single()
+                .unwrap_or_else(|| {
+                    // Fallback to current time if the timestamp is invalid
+                    eprintln!("Warning: Invalid timestamp, falling back to current time");
+                    Local::now()
+                })
+        }
+        Err(_) => {
+            // Fallback to current time if the modified_time is before the Unix epoch
+            eprintln!("Warning: Modified time is before Unix epoch, falling back to current time");
+            Local::now()
+        }
+    };
 
     // append the important information to the Vector with the FileEntries
     FileEntry {

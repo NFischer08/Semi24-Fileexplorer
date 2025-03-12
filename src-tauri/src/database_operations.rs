@@ -146,7 +146,6 @@ pub fn create_database(
                         batch.push(file);
                         if batch.len() >= BATCH_SIZE {
                             tx.send(std::mem::take(&mut batch)).unwrap_or_else(|_| println!("Failed to send batch"));
-                            println!("BATCH SEND");
                         }
                     }
                 }
@@ -159,7 +158,6 @@ pub fn create_database(
 
     let rx = Arc::clone(&rx);
     while let Ok(batch) = rx.lock().unwrap().recv() {
-        println!("Batch received, Length: {:?}", batch.len());
         thread_pool.install(|| {
             // Prepare batch data
             let batch_data: Vec<_> = batch
@@ -368,8 +366,8 @@ pub fn search_database(
                 let embedding = row.1;
                 let embedding_f32 :Vec<f32> = cast_slice(&embedding).to_vec();
                 let similarity = cosine_similarity(&embedding_f32, &search_vec_embedding);
-                if similarity > 0.8 {
-                    println!("similarity = {}, file_name: {}", similarity, row.0);
+                println!("similarity = {}, file_name: {}", similarity, row.0);
+                if similarity > 0.85 {
                     Some((row.0, similarity.cast()))
                 } else {
                     None
