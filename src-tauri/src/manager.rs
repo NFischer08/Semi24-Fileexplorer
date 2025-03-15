@@ -121,7 +121,7 @@ pub fn manager_basic_search(searchterm: &str, searchpath: &str, searchfiletype: 
         Err(e) => return Err(e.to_string())
     };
 
-    let similarity_threshold = 0.7;
+    let similarity_threshold :f32 = 0.7;
 
     let search_path = PathBuf::from(searchpath);
 

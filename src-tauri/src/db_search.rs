@@ -25,7 +25,7 @@ use crate::db_util::cosine_similarity;
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
     search_term: &str,
-    similarity_threshold: f64,
+    similarity_threshold: f32,
     thread_pool: &rayon::ThreadPool,
     search_path: PathBuf,
     search_file_type: &str
@@ -111,9 +111,9 @@ pub fn search_database(
             .filter_map(|row| {
                 let embedding = row.1;
                 let embedding_f32 :Vec<f32> = cast_slice(&embedding).to_vec();
-                let similarity = cosine_similarity(&embedding_f32, &search_vec_embedding);
+                let similarity :f32 = cosine_similarity(&embedding_f32, &search_vec_embedding);
                 println!("similarity = {}, file_name: {}", similarity, row.0);
-                if similarity > 0.85 {
+                if similarity > similarity_threshold {
                     Some((row.0, similarity.cast()))
                 } else {
                     None
