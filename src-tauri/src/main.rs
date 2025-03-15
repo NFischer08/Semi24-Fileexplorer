@@ -2,12 +2,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 pub mod manager;
 pub mod file_information;
-pub mod database_operations;
 pub mod context_actions;
-
+pub mod db_create;
+pub mod db_util;
+pub mod db_search;
 
 use std::path::PathBuf;
-use manager::{manager_create_database, manager_check_database};
+use manager::manager_create_database;
 use std::thread;
 use rayon::prelude::*;
 
@@ -49,14 +50,13 @@ fn get_all_drives() -> Vec<PathBuf> {
 fn main() {
     let mut drives = get_all_drives();
     drives.clear();
-    drives.push(PathBuf::from(r"/home/magnus/"));
+    drives.push(PathBuf::from(r"C:\Users\maxmu"));
     println!("Available drives: {:?}", drives);
 
     thread::spawn(move || {
         drives.into_par_iter().for_each(|drive| {
             manager_create_database(drive).unwrap();
         });
-        manager_check_database().unwrap();
     });
 
     file_explorer_lib::run();

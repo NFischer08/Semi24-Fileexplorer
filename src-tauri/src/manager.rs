@@ -4,8 +4,10 @@ use r2d2::{Pool};
 use r2d2_sqlite::SqliteConnectionManager;
 use tauri::command;
 use once_cell::sync::Lazy;
-use crate::database_operations::{check_database, create_database, initialize_database_and_extensions, search_database};
 use crate::file_information::{get_file_information, FileType, FileEntry};
+use crate::db_create::create_database;
+use crate::db_search::search_database;
+use crate::db_util::{get_allowed_file_extensions, initialize_database};
 
 #[derive(serde::Serialize)]
 pub struct SearchResult {
@@ -73,7 +75,7 @@ fn build_struct(paths: Vec<DirEntry>) -> Vec<SearchResult> {
 
 fn manager_make_pooled_connection() -> Result<Pool<SqliteConnectionManager>, Box<dyn std::error::Error>> {
     let manager = SqliteConnectionManager::file("files.sqlite3");
-    let connection_pool = Pool::new(manager)?;
+    let connection_pool = Pool::new(manager).expect("Failed to create pool.");
     Ok(connection_pool)
 }
 
@@ -88,10 +90,9 @@ pub fn manager_create_database(
 
     };
 
-    let allowed_file_extensions= match initialize_database_and_extensions(&connection_pool.get().unwrap()) {
-        Ok(allowed_file_extensions) => allowed_file_extensions,
-        Err(e) => return Err(e.to_string())
-    };
+    initialize_database(&connection_pool.get().expect("Initializing failed: "));
+
+    let allowed_file_extensions = get_allowed_file_extensions();
 
     let thread_pool = ThreadPoolBuilder::new()
         .num_threads(num_cpus::get())
@@ -131,13 +132,4 @@ pub fn manager_basic_search(searchterm: &str, searchpath: &str, searchfiletype: 
 
     let search_result = build_struct(return_paths);
     Ok(search_result)
-}
-pub fn manager_check_database() -> Result<(), Box<dyn std::error::Error>> {
-    let connection_pool= manager_make_pooled_connection()?;
-
-    let allowed_file_extensions= initialize_database_and_extensions(&connection_pool.get().unwrap())?;
-
-    check_database(connection_pool.get().unwrap(), &allowed_file_extensions, &THREAD_POOL)?;
-
-    Ok(())
 }
