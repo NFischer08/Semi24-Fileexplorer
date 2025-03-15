@@ -1,29 +1,31 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
-pub mod manager;
-pub mod file_information;
 pub mod context_actions;
 pub mod db_create;
-pub mod db_util;
 pub mod db_search;
+pub mod db_util;
+pub mod file_information;
+pub mod manager;
 
-use std::path::PathBuf;
 use manager::manager_create_database;
-use std::thread;
 use rayon::prelude::*;
+use std::path::PathBuf;
+use std::thread;
 
 fn get_all_drives() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
     {
         use windows::Win32::Storage::FileSystem::GetLogicalDrives;
         let drives = unsafe { GetLogicalDrives() };
-        (0..26).filter_map(|i| {
-            if (drives & (1 << i)) != 0 {
-                Some(PathBuf::from(format!("{}:\\", (b'A' + i) as char)))
-            } else {
-                None
-            }
-        }).collect()
+        (0..26)
+            .filter_map(|i| {
+                if (drives & (1 << i)) != 0 {
+                    Some(PathBuf::from(format!("{}:\\", (b'A' + i) as char)))
+                } else {
+                    None
+                }
+            })
+            .collect()
     }
 
     #[cfg(target_os = "linux")]
@@ -52,7 +54,6 @@ fn main() {
     drives.clear();
     drives.push(PathBuf::from(r"C:\Users\maxmu"));
     println!("Available drives: {:?}", drives);
-
     thread::spawn(move || {
         drives.into_par_iter().for_each(|drive| {
             manager_create_database(drive).unwrap();
@@ -60,5 +61,4 @@ fn main() {
     });
 
     file_explorer_lib::run();
-
 }

@@ -1,8 +1,11 @@
-use std::{fs::{self, DirEntry}, path::PathBuf, time::SystemTime};
-use std::time::UNIX_EPOCH;
-use chrono::{DateTime, Local, TimeZone};
-use tauri::command;
 use crate::context_actions::open_file;
+use chrono::{DateTime, Local, TimeZone};
+use std::time::UNIX_EPOCH;
+use std::{
+    fs::{self, DirEntry},
+    path::PathBuf,
+};
+use tauri::command;
 
 #[derive(Debug)]
 pub(crate) enum FileType {
@@ -16,7 +19,7 @@ pub struct FileEntry {
     pub(crate) name: String,
     pub(crate) last_modified: DateTime<Local>,
     pub(crate) file_type: FileType,
-    pub(crate) size_in_kb: u64
+    pub(crate) size_in_kb: u64,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -24,9 +27,8 @@ pub struct FileDataFormatted {
     name: String,
     last_modified: String,
     file_type: String,
-    size: String
+    size: String,
 }
-
 
 fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
     let path = PathBuf::from(path);
@@ -44,9 +46,9 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
                 } else {
                     Err(String::from("The specified path is not a directory."))
                 }
-            },
-            Err(e) => Err(e)
-        }
+            }
+            Err(e) => Err(e),
+        };
     }
 
     // Check if the path is a directory
@@ -61,9 +63,7 @@ fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
         Ok(dir_entries) => {
             for entry in dir_entries {
                 match entry {
-                    Ok(entry) => {
-                        entries.push(get_file_information(&entry))
-                    }
+                    Ok(entry) => entries.push(get_file_information(&entry)),
                     Err(e) => return Err(e.to_string()),
                 }
             }
@@ -81,14 +81,15 @@ pub fn get_file_information(entry: &DirEntry) -> FileEntry {
     // get the metadata of the file
     let metadata = match entry.metadata() {
         Ok(metadata) => metadata,
-        Err(_) => { // if an Error occurs while catching metadata, the name gets return and the other values are set to the standard
+        Err(_) => {
+            // if an Error occurs while catching metadata, the name gets return and the other values are set to the standard
             return FileEntry {
                 name: file_name,
                 file_type: FileType::None,
                 last_modified: Local::now(),
-                size_in_kb: 0
-            }
-        },
+                size_in_kb: 0,
+            };
+        }
     };
 
     // get the filetype of file
@@ -97,7 +98,7 @@ pub fn get_file_information(entry: &DirEntry) -> FileEntry {
     } else {
         match entry.path().extension() {
             Some(ext) => FileType::File(ext.to_string_lossy().into_owned()), // ... type actual file (-> extension as String) or ...
-            None => FileType::None // ... no file extension at all
+            None => FileType::None, // ... no file extension at all
         }
     };
 
@@ -107,16 +108,17 @@ pub fn get_file_information(entry: &DirEntry) -> FileEntry {
     // get the last modified time of the file
     let modified_time = match metadata.modified() {
         Ok(time) => time,
-        Err(_) => { // if it's unable to read the modified time it returns all information currently known
+        Err(_) => {
+            // if it's unable to read the modified time it returns all information currently known
             return FileEntry {
                 name: file_name,
                 last_modified: Local::now(), // last_modified is set to the current time
                 file_type,
-                size_in_kb: size
-            }
+                size_in_kb: size,
+            };
         }
     }; // Convert the last modified time to a readable format
-    // Convert SystemTime to DateTime<Local>
+       // Convert SystemTime to DateTime<Local>
     let last_modified = match modified_time.duration_since(UNIX_EPOCH) {
         Ok(duration) => {
             // Convert the duration to a local DateTime
@@ -141,7 +143,7 @@ pub fn get_file_information(entry: &DirEntry) -> FileEntry {
         name: file_name,
         last_modified,
         file_type,
-        size_in_kb: size
+        size_in_kb: size,
     }
 }
 
@@ -155,16 +157,13 @@ pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
 
             for file in files {
                 let (file_type, is_dir) = match file.file_type {
-                    FileType::Directory => {
-                        ("Directory".to_string(), true)
-                    },
+                    FileType::Directory => ("Directory".to_string(), true),
                     FileType::File(extension) => (extension, false),
-                    FileType::None => ("File".to_string(), false)
+                    FileType::None => ("File".to_string(), false),
                 };
                 let size: String = if is_dir {
                     "--".to_string()
-                }
-                else {
+                } else {
                     let size_kb_f: f64 = file.size_in_kb as f64;
                     let (size, unit) = if file.size_in_kb < 1000 {
                         (size_kb_f, "KB")
@@ -187,11 +186,11 @@ pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
                     name: file.name,
                     last_modified: file.last_modified.format("%d.%m.%Y %H:%M Uhr").to_string(),
                     file_type,
-                    size
+                    size,
                 })
             }
             Ok(formatted_files)
         }
-        Err(error) => Err(error)
+        Err(error) => Err(error),
     }
 }
