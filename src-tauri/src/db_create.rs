@@ -1,5 +1,5 @@
 use crossbeam::channel;
-use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
+use fastembed::{TextEmbedding};
 use jwalk::WalkDir;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -16,6 +16,7 @@ pub fn create_database(
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
+    model : &TextEmbedding
 ) -> Result<(), String> {
     const BATCH_SIZE: usize = 250;
 
@@ -29,16 +30,6 @@ pub fn create_database(
     let rx = Arc::new(Mutex::new(rx));
 
     println!("Threadpool {}", start_time.elapsed().as_millis());
-
-    let model_thread = std::thread::spawn(|| {
-        let model_time = Instant::now();
-        let model = TextEmbedding::try_new(
-            InitOptions::new(EmbeddingModel::MultilingualE5Small).with_show_download_progress(true),
-        )
-        .expect("Could not create TextEmbedding");
-        println!("Model took {}", model_time.elapsed().as_millis());
-        model
-    });
 
     let existing_files_thread = std::thread::spawn({
         let connection_pool = connection_pool.clone();
@@ -71,7 +62,6 @@ pub fn create_database(
         }
     });
 
-    let model = model_thread.join().unwrap();
     let existing_files = existing_files_thread.join().unwrap();
 
     let conn = connection_pool

@@ -22,6 +22,7 @@ use std::{
     path::{Path, PathBuf},
     time::Instant,
 };
+use std::collections::HashMap;
 use strsim::normalized_levenshtein;
 use tauri::Pixel;
 
@@ -31,9 +32,10 @@ pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
     search_term: &str,
     similarity_threshold: f32,
-    thread_pool: &rayon::ThreadPool,
+    thread_pool: &ThreadPool,
     search_path: PathBuf,
     search_file_type: &str,
+    model: &TextEmbedding
 ) -> Result<Vec<DirEntry>> {
     let pooled_connection = connection_pool.get().expect("get connection pool");
     const BATCH_SIZE: usize = 1000; // Adjust this value as needed
@@ -109,11 +111,6 @@ pub fn search_database(
         Ok(())
     });
 
-    let model = TextEmbedding::try_new(
-        InitOptions::new(EmbeddingModel::MultilingualE5Small).with_show_download_progress(true),
-    )
-    .expect("Could not create TextEmbedding");
-
     let mut vec_search_term = Vec::new();
 
     vec_search_term.push("query: ".to_string() + search_term);
@@ -130,7 +127,6 @@ pub fn search_database(
                 let embedding = row.1;
                 let embedding_f32: Vec<f32> = cast_slice(&embedding).to_vec();
                 let similarity: f32 = cosine_similarity(&embedding_f32, &search_vec_embedding);
-                println!("similarity = {}, file_name: {}", similarity, row.0);
                 if similarity > similarity_threshold {
                     Some((row.0, similarity.cast()))
                 } else {
@@ -140,6 +136,8 @@ pub fn search_database(
             .collect()
     });
 
+    println!("Results Length{}", results.len());
+
     query_thread
         .join()
         .expect("Query thread panicked")
@@ -147,25 +145,30 @@ pub fn search_database(
 
     println!("results took: {}", start_time.elapsed().as_millis());
 
+    let sort_time = Instant::now();
     results.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
+    println!("Sorting time: {:?}", sort_time.elapsed().as_millis());
 
+    let return_time = Instant::now();
     let return_entries: Vec<DirEntry> = results
         .into_iter()
         .filter_map(|(s, _)| {
             let path = Path::new(&s);
-            fs::read_dir(path.parent().unwrap_or(Path::new(".")))
-                .ok()
-                .and_then(|mut dir| {
-                    dir.find(|e| e.as_ref().map(|d| d.path() == path).unwrap_or(false))
-                })
-                .and_then(|e| e.ok())
+            if let Some(parent) = path.parent() {
+                if let Ok(dir) = fs::read_dir(parent) {
+                    // Use find_map to directly return the matching entry
+                    return dir.filter_map(Result::ok).find(|entry| entry.path() == path);
+                }
+            }
+
+            None
         })
         .collect();
+    println!("Return time: {:?}", return_time.elapsed().as_millis());
 
     println!("return entries took: {}", start_time.elapsed().as_millis());
 
-    let duration = start_time.elapsed();
-    println!("Parallel search completed in {:.2?}", duration);
+    println!("search took: {:?}", start_time.elapsed().as_millis());
 
     Ok(return_entries)
 }

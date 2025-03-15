@@ -7,6 +7,7 @@ use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{fs::DirEntry, path::PathBuf};
+use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use tauri::command;
 
 #[derive(serde::Serialize)]
@@ -20,10 +21,18 @@ pub struct SearchResult {
 
 static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
     ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get())
+        .num_threads(num_cpus::get()/2)
         .build()
         .unwrap()
 });
+static MODEL: Lazy<TextEmbedding> = Lazy::new(|| {
+    TextEmbedding::try_new(
+        InitOptions::new(EmbeddingModel::MultilingualE5Small)
+            .with_show_download_progress(true),
+    )
+        .expect("Could not create TextEmbedding")
+});
+
 
 impl SearchResult {
     fn format(file_entry: FileEntry, path: DirEntry) -> SearchResult {
@@ -112,6 +121,7 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
         database_scan_start,
         &allowed_file_extensions,
         &thread_pool,
+        &MODEL
     ) {
         Ok(_) => {}
         Err(e) => return Err(e.to_string()),
@@ -132,7 +142,7 @@ pub fn manager_basic_search(
         Err(e) => return Err(e.to_string()),
     };
 
-    let similarity_threshold: f32 = 0.7;
+    let similarity_threshold: f32 = 0.9;
 
     let search_path = PathBuf::from(searchpath);
 
@@ -143,6 +153,7 @@ pub fn manager_basic_search(
         &THREAD_POOL,
         search_path,
         searchfiletype,
+        &MODEL
     ) {
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string()),
