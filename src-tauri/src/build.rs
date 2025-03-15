@@ -9,12 +9,13 @@ fn main() {
             println!("cargo:warning=Using Tauri config at: {}", config_path);
         }
         Err(_) => {
-            println!("cargo:warning=No TAURI_CONF environment variable set, using default location.");
+            println!(
+                "cargo:warning=No TAURI_CONF environment variable set, using default location."
+            );
         }
     }
     if cfg!(windows) {
-        embed_manifest_file("build.exe.manifest")
-            .expect("unable to embed manifest file");
+        embed_manifest_file("build.exe.manifest").expect("unable to embed manifest file");
         println!("cargo:rerun-if-changed=sample.exe.manifest");
     }
 }
