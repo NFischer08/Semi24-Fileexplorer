@@ -1,0 +1,279 @@
+/*Standardaussehen*/
+:root {
+    font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 400;
+    color: #f6f6f6;
+    background-color: #2f2f2f;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-text-size-adjust: 100%;
+}
+
+/*alles bleibt an seinem Platz*/
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+}
+/*da ist alles drin*/
+.container {
+    margin: 0;
+    padding: 1%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    text-align: center;
+    max-height: 100%;
+}
+
+/*Pfad und Suchbox*/
+.row {
+    display: flex;
+    justify-content: center;
+    gap: -1px; /* Abstand zwischen den Spalten Suche und Pfad */
+}
+
+/*schiebt Dinge weg, die nicht angezeigt werden sollen*/
+.table-container {
+    width: 100%;
+    height: 90vh; /* Adjust for the margin-top */
+    overflow: auto;
+}
+
+#fileTable {
+    width: 100%;
+    margin-top: 20px;
+    flex-flow: row nowrap;
+    border-collapse: collapse;
+}
+
+#fileTable td {
+    padding: 8px 12px;
+    border-right: 1px solid #ccc;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 0;
+}
+
+#fileTable th {
+    position: sticky;
+    top: 0;
+    padding: 8px 12px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    background-color: #0f0f0f;
+}
+
+#fileTable th:last-child, #fileTable td:last-child {
+    border-right: none;
+    text-align: left;
+}
+
+#fileTable thead {
+    background-color: #0f0f0f;
+}
+
+#fileTable thead th {
+    border-bottom: 2px solid #fff;
+}
+
+#fileTable tbody tr:nth-child(even) {
+    background-color: #1f1f1f;
+}
+
+/* style when displaying search results */
+#fileTable.search td:nth-child(1) {
+    width: 15%;
+}
+#fileTable.search td:nth-child(2) {
+    width: auto;
+}
+#fileTable.search td:nth-child(3) {
+    width: 20%;
+}
+#fileTable.search td:nth-child(4) {
+    width: 10%;
+}
+#fileTable.search td:nth-child(5) {
+    width: 15%;
+}
+
+/* style when normaly displaying files*/
+#fileTable td:nth-child(1) {
+    width: auto;
+}
+#fileTable td:nth-child(2) {
+    width: 27%;
+    max-width: 80px; /* doesn't work for some reason */
+}
+#fileTable td:nth-child(3) {
+    width: 20%;
+}
+#fileTable td:nth-child(4) {
+    width: 20%;
+}
+
+td.error {
+    text-align: center; /* Horizontal zentrieren */
+    vertical-align: middle; /* Vertikal zentrieren */
+    color: red; /* Optional: rote Schriftfarbe */
+    font-weight: bold; /* Optional: kräftige Schrift */
+    height: 50%; /* Mindesthöhe der Zelle für optische Anpassung */
+} /* Alte Fehlermeldung */
+
+.hidden {
+    display: none; /* Fehlerzone ist nicht sichtbar */
+}
+
+/* Fehlermeldung anzeigen */
+#error-message {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #ff001b;
+    border-radius: 5px;
+    font-size: 16px;
+    text-align: left;
+}
+/*kann möglicherweise gelöscht werden*/
+.inputs-container {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    /* padding-top: 10vh; /* Abstand nach oben */
+    gap: 20px
+}
+
+/*Eingabefelder werden aufgeteilt*/
+.search-container,
+.file-path-container {
+    position: relative;
+    display: flex; /* inline-block*/
+    align-items: center;
+    width: 100%; /* Optional: Breite des Suchbereichs */
+    max-width: 400px; /* Optional: maximale Breite der Suchbox */
+}
+
+/*Layout Inputfelder(Pfad,Suche)*/
+.search-input,
+.file-path-input {
+    width: 100%;
+    padding: 10px 40px 10px 12px; /* Abstand für das Lupensymbol berücksichtigen */
+    border: 1px solid #ccc; /* Leichter Rand */
+    border-radius: 20px; /* Runde Ecken */
+    font-size: 16px;
+    box-sizing: border-box; /* Verhindert Layout-Verschiebungen */
+    outline: none;
+    float: left;
+}
+/*macht rechten Rand von Pfad gerade*/
+.file-path-input{
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+/*macht linken Rand von Suche gerade*/
+.search-input{
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+    border-left: none;
+}
+/*fügt Inputfelder zusammen*/
+.search-button,
+.file-path-button,
+.settings-button {
+    position: absolute;
+    right: 10px; /* Abstand vom rechten Rand */
+    top: 50%;
+    transform: translateY(-50%);
+    background-color: transparent; /* Transparenter Hintergrund */
+    border: none; /* Keine Randlinien */
+    cursor: pointer;
+    font-size: 18px; /* Größe des Icons */
+    padding: 5px; /* Leichter Innenabstand */
+    color: #555; /* Farbe des Icons */
+    float: left;
+}
+/*trennt Such- und Einstellungsbutton*/
+.search-button {
+    right: 45px;
+}
+/*macht Goto Button weiß, wenn man drüber geht*/
+.search-button:hover,
+.file-path-button:hover {
+    color: #ffffff;
+}
+/*macht Pfadfeld 60% groß*/
+.file-path-container{
+    flex: 1; /* Beide Elemente nehmen denselben Platz ein */
+    max-width: 60%;
+    margin-right: 0;
+}
+/*macht Suchfeld 40% groß*/
+.search-container {
+    margin-right: 0;
+    margin-left: auto;
+    flex: 1; /* Beide Elemente nehmen denselben Platz ein */
+    max-width: 40%;
+}
+/*macht Hintergrund von Such- und Pfadfeld schwarz*/
+input,
+button {
+    color: #ffffff;
+    background-color: #0f0f0f98;
+}
+@media (max-width: 450px) {
+    .container {
+        flex-direction: column; /* Items untereinander anordnen */
+        align-items: stretch; /* Items füllen die volle Breite */
+    }
+
+    .file-path-container,
+    .search-container {
+        max-width: 100%; /* Volle Breite für Mobile */
+        margin-right: 0; /* Kein Seitenabstand */
+        margin-bottom: 0; /* Abstand zwischen den Containern für Mobile */
+    }
+
+    .file-path-input{
+        border-top-right-radius: 20px;
+        border-bottom-left-radius: 0;
+    }
+
+    .search-input{
+        border-top-right-radius: 0;
+        border-bottom-left-radius: 20px;
+        border-left: 1px solid #ccc;
+        border-top: none;
+    }
+
+    .row {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0; /* Abstand zwischen den Spalten */
+    }
+}
+/*mit Lukas noch machen*/
+#nav-container {
+
+}
+/* Navigation Buttons (forward and backwards) */
+.nav-button {
+    justify-content: center;
+    align-items: center;
+    width: 30px; /* Adjust the size as needed */
+    height: 30px; /* Adjust the size as needed */
+    background-color: #333; /* Darker background color */
+    border: 1px solid #555; /* Small border */
+    border-radius: 40%; /* Make it a circle */
+    margin: 4px 5px; /* Center the button */
+    vertical-align: middle;
+}
