@@ -1,4 +1,13 @@
-use notify::{ self, recommended_watcher, Event, RecursiveMode, Watcher, EventKind::{ Create, Modify, Remove }, event::ModifyKind::Name };
+use notify::{
+    self,
+    event::{
+        ModifyKind::Name,
+        RenameMode::{From, To},
+    },
+    recommended_watcher, Event, EventKind,
+    EventKind::{Create, Modify, Remove},
+    RecursiveMode, Watcher,
+};
 use std::{collections::HashSet, path::PathBuf, sync::mpsc::channel};
 
 pub fn start_file_watcher(path: PathBuf, allowed_extensions: HashSet<String>) {
@@ -24,8 +33,6 @@ pub fn start_file_watcher(path: PathBuf, allowed_extensions: HashSet<String>) {
     }
 
     println!("Watching for changes in {:?}", path);
-    let mut mode: bool = true; // later used to determine if the file needs to be inserted or deleted when modified
-
     // Loop to receive events from the channel
     for res in rx {
         match res {
@@ -33,32 +40,48 @@ pub fn start_file_watcher(path: PathBuf, allowed_extensions: HashSet<String>) {
                 // usually only one path is returned (for-loop for safety)
                 for file_path in &event.paths {
                     // check if the path is from interest
-                    if file_path.is_dir() || // TODO: Directories cause problems => scuffed when renaming, etc. => other handling needed?
-                        file_path.extension() // unpack extension and check if it is in the allowed extensions
-                            .map(|ext| allowed_extensions.contains(&ext.to_string_lossy().to_string()))
-                            .unwrap_or(false) {
+                    if file_path.is_dir() {
+                        // go to parent folder and read every File / Dir in it (recursive)
+                        match event.kind {
+                            EventKind::Any => {}
+                            EventKind::Access(_) => {}
+                            Create(_) => {
+                                println!("Create dir {:?}", file_path);
+                            }
+                            Modify(modifiii) => match modifiii {
+                                Name(path) => println!("Renamed dir {:?}, {:?}", file_path, path),
+                                _ => {}
+                            },
+                            Remove(_) => {
+                                println!("Delete dir {:?}", file_path);
+                            }
+                            EventKind::Other => {}
+                        }
+                    } else if
+                    //file_path.is_dir() || // TODO: Directories cause problems => scuffed when renaming, etc. => other handling needed?
+                    file_path
+                        .extension() // unpack extension and check if it is in the allowed extensions
+                        .map(|ext| allowed_extensions.contains(&ext.to_string_lossy().to_string()))
+                        .unwrap_or(false)
+                    {
                         // get actual event kind and handle it
                         match event.kind {
                             Create(_) => {
                                 println!("INSERT {:?}", file_path);
-                            },
+                            }
                             Remove(_) => {
                                 println!("DELETE {:?}", file_path);
-                            },
+                            }
                             Modify(modify) => match modify {
-                                Name(_) => {
-                                    // TODO: Implement file modification handling
-                                    // => 2 MODIFY events are triggered for each file modification
-                                    // => First Path needs to be removed from the database, second Path needs to be added
-                                    println!("Modify {:?}", file_path);
-                                    // sol attempt !!DOES NOT WORK for folders!!
-                                    if mode {
-                                        println!("DELETE {:?}", file_path);
-                                    } else {
-                                        println!("INSERT {:?}", file_path);
+                                // only renaming is interesting
+                                Name(mode) => {
+                                    // From gives old path, To gives new path
+                                    match mode {
+                                        From => println!("DELETE {:?}", file_path),
+                                        To => println!("INSERT {:?}", file_path),
+                                        _ => {} // proper implementing need if it isnt a normal case
                                     }
-                                    mode = !mode;
-                                },
+                                }
                                 _ => {}
                             },
                             _ => {}
