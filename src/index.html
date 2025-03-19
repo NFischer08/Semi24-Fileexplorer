@@ -22,23 +22,24 @@
   </div>
 
   <div class="content">
-    <div class="row">
+    <div class="row1">
       <div class="nav-container">
         <button id="back-button" class="nav-button"><</button>
         <button id="forward-button" class="nav-button" disabled>></button>
       </div>
+      <div class="row2">
 
-      <div class="file-path-container">
-        <label for="file-path-input"></label><input type="text" id="file-path-input" class="file-path-input" value="/" placeholder="Enter a file path...">
-        <button type="button" id="go-to-file-path-button" class="file-path-button">Go To</button>
+        <div class="file-path-container">
+          <label for="file-path-input"></label><input type="text" id="file-path-input" class="file-path-input" value="/" placeholder="Enter a file path...">
+          <button type="button" id="go-to-file-path-button" class="file-path-button">Go To</button>
+        </div>
+
+        <div class="search-container">
+          <label for="search-term-input"></label><input type="text" id="search-term-input" class="search-input" placeholder="Search...">
+          <button type="button" id="search-button" class="search-button">🔍</button>
+          <button type="button" id="settings-button" class="settings-button">⚙️</button>
+        </div>
       </div>
-
-      <div class="search-container">
-        <label for="search-term-input"></label><input type="text" id="search-term-input" class="search-input" placeholder="Search...">
-        <button type="button" id="search-button" class="search-button">🔍</button>
-        <button type="button" id="settings-button" class="settings-button">⚙️</button>
-      </div>
-
       <!-- Dialog/MODAL-Fenster -->
       <div id="settings-modal" class="modal hidden">
         <div class="modal-content">
