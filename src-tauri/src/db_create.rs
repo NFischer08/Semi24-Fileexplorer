@@ -8,7 +8,8 @@ use rusqlite::{params, Result};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::{collections::HashSet, path::PathBuf, time::Instant};
-
+use once_cell::sync::Lazy;
+use tch::{CModule, Tensor};
 use crate::db_util::{convert_to_forward_slashes, is_allowed_file, should_ignore_path, Files};
 
 pub fn create_database(
@@ -16,8 +17,9 @@ pub fn create_database(
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
-    model : &TextEmbedding
+    model : &Lazy<TextEmbedding, fn() -> TextEmbedding>
 ) -> Result<(), String> {
+
     const BATCH_SIZE: usize = 250;
 
     println!(

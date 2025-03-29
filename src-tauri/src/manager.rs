@@ -10,6 +10,9 @@ use std::{fs::DirEntry, path::PathBuf};
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use tauri::command;
 use std::time::Instant;
+use tch::{CModule, Tensor};
+use std::collections::HashMap;
+use std::fs;
 
 #[derive(serde::Serialize)]
 pub struct SearchResult {
@@ -36,6 +39,12 @@ pub static MODEL: Lazy<TextEmbedding> = Lazy::new(|| {
     model
 });
 
+pub static PYMODEL: Lazy<CModule> = Lazy::new(|| {
+    println!("Initializing model...");
+    let model_path = "neural_network/skipgram_model.pt"; // Replace with the actual path to your .pt file
+    let model = CModule::load(model_path).expect("Could not load the TorchScript model");
+    model
+});
 
 impl SearchResult {
     fn format(file_entry: FileEntry, path: DirEntry) -> SearchResult {
@@ -175,4 +184,19 @@ pub fn manager_basic_search(
     println!("Manager Search took: {}", manager_search_time.elapsed().as_millis());
     
     Ok(search_result)
+}
+
+pub fn manager_tokenize(input: &str, vocab: &HashMap<String, usize>) -> Tensor {
+    // Split input into words and map them to indices using the vocabulary
+    let token_indices: Vec<i64> = input
+        .split_whitespace()
+        .map(|word| *vocab.get(word).unwrap_or(&0) as i64) // Default to 0 if word is not in vocab
+        .collect();
+
+    // Convert token indices into a tensor
+    Tensor::from_slice(&token_indices).unsqueeze(0) // Add batch dimension
+}
+pub fn manager_load_vocab(file_path: &str) -> HashMap<String, usize> {
+    let vocab_json = fs::read_to_string(file_path).expect("Failed to read vocab file");
+    serde_json::from_str(&vocab_json).expect("Failed to parse vocab file")
 }
