@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use once_cell::sync::Lazy;
 use tch::{CModule, Tensor, Kind};
 use tch::nn::Module;
-use crate::db_util::{convert_to_forward_slashes, is_allowed_file, should_ignore_path, Files, tokenize_file_name, EmbeddingModel};
+use crate::db_util::{convert_to_forward_slashes, is_allowed_file, should_ignore_path, Files, tokenize_file_name, EmbeddingModel, load_vocab, tokens_to_indices};
 
 pub fn create_database(
     connection_pool: Pool<SqliteConnectionManager>,
@@ -136,10 +136,12 @@ pub fn create_database(
                 .collect();
 
             if !batch_data.is_empty() {
+
                 let file_name = &batch_data[0].1;
                 let tokens = tokenize_file_name(file_name);
-                println!("{:?}", tokens); // Output: ["example", "file", "txt"]
-                }
+                let tokens_indices = tokens_to_indices(tokens, &load_vocab("src-tauri/src/neural_network/vocab.json"));
+                println!("{:?}", tokens_indices);
+        }
 
                 /*
 

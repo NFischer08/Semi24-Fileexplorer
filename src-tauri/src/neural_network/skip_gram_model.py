@@ -1,8 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from collections import Counter
 from itertools import chain
+import json
+import re
 
 # Define SkipGram Model
 class SkipGramModel(nn.Module):
@@ -16,13 +17,27 @@ class SkipGramModel(nn.Module):
         return self.output(embed)
 
 # Read file names from a .txt file
-file_path = "deu_wikipedia_2021_10K/deu_wikipedia_2021_10K-sentences.txt"  # Path to your .txt file
+file_path = "eng-simple_wikipedia_2021_10K/eng-simple_wikipedia_2021_10K-sentences.txt"
 
 with open(file_path, "r", encoding="utf-8") as f:
     file_names = [line.strip() for line in f.readlines()]  # Strip whitespace and newlines
 
-tokens = list(chain.from_iterable([name.split('_') for name in file_names]))
+# Optimized tokenization: process sentences line by line and split at "_", "-", or spaces
+tokens = []
+for name in file_names:
+    tokens.extend(re.split(r'[_\-\s]+', name))  # Extend the token list directly to avoid intermediate lists
+
+# Create vocabulary mapping each unique word to a unique index
 vocab = {word: idx for idx, word in enumerate(set(tokens))}
+
+# Export vocabulary as a JSON file
+vocab_file_path = "vocab.json"
+with open(vocab_file_path, "w", encoding="utf-8") as vocab_file:
+    json.dump(vocab, vocab_file, ensure_ascii=False, indent=4)  # Save vocab as JSON
+
+print(f"Vocabulary exported to {vocab_file_path}")
+
+# Prepare training data (pairs of target and context word indices) in batches to reduce memory usage
 data = [(vocab[tokens[i]], vocab[tokens[i + 1]]) for i in range(len(tokens) - 1)]
 
 # Training
@@ -32,19 +47,27 @@ model = SkipGramModel(vocab_size, embedding_dim)
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
-for epoch in range(10):  # Training loop
+batch_size = 1024  # Process data in batches to reduce memory usage
+
+for epoch in range(3):  # Training loop
+    print("Training started")
     total_loss = 0
-    for target, context in data:
-        target_tensor = torch.tensor([target], dtype=torch.long)
-        context_tensor = torch.tensor([context], dtype=torch.long)
+
+    # Process data in batches
+    for i in range(0, len(data), batch_size):
+        batch_data = data[i:i + batch_size]  # Get a batch of data
+
+        targets = torch.tensor([pair[0] for pair in batch_data], dtype=torch.long)
+        contexts = torch.tensor([pair[1] for pair in batch_data], dtype=torch.long)
 
         optimizer.zero_grad()
-        output = model(target_tensor)
-        loss = criterion(output, context_tensor)
+        output = model(targets)
+        loss = criterion(output, contexts)
         loss.backward()
         optimizer.step()
 
         total_loss += loss.item()
+
     print(f"Epoch {epoch}, Loss: {total_loss}")
 
 torch.save(model, "skipgram_model.pt")

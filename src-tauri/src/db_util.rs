@@ -165,6 +165,18 @@ pub fn tokenize_file_name(file_name: &str) -> Vec<String> {
         .collect()
 }
 
+
+pub fn load_vocab(path: &str) -> HashMap<String, usize> {
+    let vocab_json = fs::read_to_string(path).expect("Failed to read vocab file");
+    serde_json::from_str(&vocab_json).expect("Failed to parse vocab JSON")
+}
+pub fn tokens_to_indices(tokens: Vec<String>, vocab: &HashMap<String, usize>) -> Vec<usize> {
+    tokens
+        .iter()
+        .map(|token| *vocab.get(token).unwrap_or(&0)) // Default to index 0 for unknown tokens
+        .collect()
+}
+
 impl EmbeddingModel {
     pub fn new(model_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
         // Load the embeddings from the saved PyTorch model
