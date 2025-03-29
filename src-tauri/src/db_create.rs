@@ -7,9 +7,11 @@ use rayon::prelude::*;
 use rusqlite::{params, Result};
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::{collections::HashSet, path::PathBuf, time::Instant};
+use std::{collections::HashSet, fs, path::PathBuf, time::Instant};
+use std::collections::HashMap;
 use once_cell::sync::Lazy;
-use tch::{CModule, Tensor};
+use tch::{CModule, Tensor, Kind};
+use tch::nn::Module;
 use crate::db_util::{convert_to_forward_slashes, is_allowed_file, should_ignore_path, Files};
 
 pub fn create_database(
@@ -17,7 +19,8 @@ pub fn create_database(
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
-    model : &Lazy<TextEmbedding, fn() -> TextEmbedding>
+    model: &Lazy<TextEmbedding>,
+    pymodel : &Lazy<CModule, fn() -> CModule>
 ) -> Result<(), String> {
 
     const BATCH_SIZE: usize = 250;
@@ -123,7 +126,8 @@ pub fn create_database(
                             .split_once('.')
                             .map(|(before, _)| before.to_string())
                             .unwrap_or(file.file_name.clone());
-                        let file_name_finished = format!("query: {}", file_name_without_ext);
+                        //Needed for Fastembed let file_name_finished = format!("query: {}", file_name_without_ext);
+                        let file_name_finished = file_name_without_ext;
                         Some((file.clone(), file_name_finished))
                     } else {
                         None
@@ -136,6 +140,109 @@ pub fn create_database(
 
                 // Prepare names for batch embedding
                 let names_to_embed: Vec<String> = batch_data.iter().map(|(_, name)| name.clone()).collect();
+
+                let tokenized_names: Vec<Vec<&str>> = names_to_embed
+                    .iter()
+                    .map(|name| name.split_whitespace().collect())
+                    .collect();
+
+                let padded_tokenized_names: Vec<Vec<&str>> = tokenized_names
+                    .iter()
+                    .map(|tokens| {
+                        let mut padded = tokens.clone(); // Clone the current vector
+                        padded.resize(10, ""); // Resize to 10, padding with empty strings
+                        padded
+                    })
+                    .collect();
+
+                let vocab_path = "src-tauri/src/neural_network/vocab.json";
+                let vocab: HashMap<String, i64> = serde_json::from_str(&fs::read_to_string(vocab_path).unwrap())
+                    .expect("Failed to load vocabulary");
+
+                let indexed_names: Vec<Vec<i64>> = padded_tokenized_names
+                    .iter()
+                    .map(|tokens| {
+                        tokens
+                            .iter()
+                            .map(|token| *vocab.get(*token).unwrap_or(&0)) // Default to 0 for unknown tokens
+                            .collect()
+                    })
+                    .collect();
+
+                let tensors: Vec<Tensor> = indexed_names
+                    .iter()
+                    .map(|indices| Tensor::from_slice(indices).to_kind(Kind::Int64))
+                    .collect();
+
+                for (i, tensor) in tensors.iter().enumerate() {
+                    println!("Tensor {} shape: {:?}", i, tensor.size());
+                }
+
+                let batch_tensor = Tensor::stack(&tensors, 0); // Stack along dimension 0
+
+                let pairs_file = fs::read_to_string("src-tauri/src/neural_network/skipgram_pairs.json").expect("Failed to read file");
+                let data: Vec<(i64, i64)> = serde_json::from_str(&pairs_file).expect("Failed to parse JSON");
+
+                let center_word_indices: Vec<i64> = data.iter().map(|(center, _)| *center).collect();
+                let context_word_indices: Vec<i64> = data.iter().map(|(_, context)| *context).collect();
+
+                let center_tensor = Tensor::from_slice(&center_word_indices);
+                let context_tensor = Tensor::from_slice(&context_word_indices);
+
+                //let embeddings = pymodel.forward(&center_tensor, &context_tensor);
+
+                //let embeddings = pymodel.forward(&batch_tensor);
+
+                let embeddings = pymodel
+                    .forward_ts(&[center_tensor, context_tensor])
+                    .expect("Failed to execute forward pass");
+
+                let aggregated_embeddings: Tensor = embeddings.sum_dim_intlist([0].as_ref(), true, Kind::Float);
+
+                let embedding_vecs: Vec<Vec<f32>> = aggregated_embeddings
+                    .split(1, 0) // Split along batch dimension
+                    .iter()
+                    .map(|tensor| {
+                        let vec: Vec<f32> = tensor.try_into().expect("Failed to convert tensor to Vec<f32>");
+                        vec
+                    })
+                    .collect();
+
+
+                let embedding_vecs_u8: Vec<Vec<u8>> = embedding_vecs
+                    .iter()
+                    .map(|inner_vec| {
+                        inner_vec
+                            .iter()
+                            .map(|&value| {
+                                // Clamp the value to the range of u8 and convert
+                                value.round().clamp(0.0, 255.0) as u8
+                            })
+                            .collect()
+                    })
+                    .collect();
+
+                let mut connection = connection_pool.get().unwrap();
+                let transaction = connection.transaction().unwrap();
+                {
+                    let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)").expect("Failed to prepare insertion file");
+
+                    for ((file, _), embedding) in batch_data.iter().zip(embedding_vecs_u8.iter())
+                    {
+                        insert_stmt.execute(params![
+                        file.file_name,
+                        file.file_path,
+                        file.file_type.as_deref().map::<&str, _>(|s| s.as_ref()),
+                        embedding
+                    ]).expect("Failed to insert embedding");
+                    }
+                }
+                transaction.commit().unwrap();
+
+                /*
+
+                println!("names_to_embed {}", names_to_embed.join("\n"));
+
 
                 // Perform batch embedding
                 let name_embeddings = model.embed(names_to_embed, Some(BATCH_SIZE)).expect("Could not embed files");
@@ -163,6 +270,8 @@ pub fn create_database(
                 transaction.commit().unwrap();
 
                 println!("Vec embed took {} ms", vec_embed_time.elapsed().as_millis());
+
+                 */
             }
         });
     }

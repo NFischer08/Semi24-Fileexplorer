@@ -6,6 +6,7 @@ import re
 from collections import Counter
 from tqdm import tqdm
 import json
+import csv
 
 # --- Step 1: Preprocessing the Corpus ---
 class Corpus:
@@ -51,6 +52,10 @@ class SkipGramDataset(Dataset):
             for context_idx in context_indices:
                 self.data.append((center_idx, context_idx))
 
+        # Save the dataset pairs to a JSON file
+        with open("skipgram_pairs.json", "w") as f:
+            json.dump(self.data, f)
+
     def __len__(self):
         return len(self.data)
 
@@ -86,6 +91,14 @@ def train_skipgram_model(corpus_file, embedding_dim=100, window_size=5, batch_si
                               word_to_idx=corpus.word_to_idx,
                               window_size=window_size)
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
+
+    # Save dataset pairs to a CSV file
+    with open("skipgram_pairs.csv", "w", newline="") as csvfile:
+        writer = csv.writer(csvfile)
+        writer.writerow(["center_word_idx", "context_word_idx"])  # Header row
+        for center_words, context_words in dataloader:
+            for center_word, context_word in zip(center_words.tolist(), context_words.tolist()):
+                writer.writerow([center_word, context_word])
 
     # Initialize model and optimizer
     model = SkipGramModel(vocab_size=len(corpus.vocab), embedding_dim=embedding_dim)
@@ -148,7 +161,7 @@ def train_skipgram_model(corpus_file, embedding_dim=100, window_size=5, batch_si
 
 # --- Step 5: Run Training ---
 if __name__ == "__main__":
-    corpus_file_path = "deu_wikipedia_2021_100K/deu_wikipedia_2021_100K-sentences.txt"
+    corpus_file_path = "deu_wikipedia_2021_10K/deu_wikipedia_2021_10K-sentences.txt"
 
     trained_model = train_skipgram_model(
         corpus_file=corpus_file_path,
