@@ -26,7 +26,7 @@ pub fn start_file_watcher(path: PathBuf, allowed_extensions: HashSet<String>) {
     // Start watching the specified path and return if an error occurs
     match watcher.watch(&path, RecursiveMode::Recursive) {
         Ok(_) => {}
-        Err(e) => {
+        Err(e) => { // TODO: bei OS Error nicht direkt returnen
             println!("Error watching path: {:?}", e);
             return;
         }
@@ -43,8 +43,8 @@ pub fn start_file_watcher(path: PathBuf, allowed_extensions: HashSet<String>) {
                     if file_path.is_dir() {
                         // go to parent folder and read every File / Dir in it (recursive)
                         match event.kind {
-                            EventKind::Any => {}
-                            EventKind::Access(_) => {}
+                            EventKind::Any => {println!("Any dir")}
+                            EventKind::Access(kind) => {println!("Accessed dir {:?}", kind)}
                             Create(_) => {
                                 println!("Create dir {:?}", file_path);
                             }
@@ -52,10 +52,10 @@ pub fn start_file_watcher(path: PathBuf, allowed_extensions: HashSet<String>) {
                                 Name(path) => println!("Renamed dir {:?}, {:?}", file_path, path),
                                 _ => {}
                             },
-                            Remove(_) => {
-                                println!("Delete dir {:?}", file_path);
+                            Remove(x) => {
+                                println!("Delete dir {:?} KIND: {:?}", file_path, x);
                             }
-                            EventKind::Other => {}
+                            EventKind::Other => {println!("Other dir")}
                         }
                     } else if
                     //file_path.is_dir() || // TODO: Directories cause problems => scuffed when renaming, etc. => other handling needed?
