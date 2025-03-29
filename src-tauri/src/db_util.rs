@@ -7,6 +7,9 @@ use std::{
     fs::{self},
     path::{Path, PathBuf},
 };
+use std::collections::HashMap;
+use std::ffi::CString;
+use tch::Tensor;
 
 #[derive(Debug, Clone)]
 pub struct Files {
@@ -14,6 +17,10 @@ pub struct Files {
     pub(crate) file_name: String,
     pub(crate) file_path: String,
     pub(crate) file_type: Option<String>,
+}
+
+pub struct EmbeddingModel {
+    pub embeddings: Tensor,
 }
 
 pub fn convert_to_forward_slashes(path: &PathBuf) -> String {
@@ -147,4 +154,29 @@ pub fn get_allowed_file_extensions() -> HashSet<String> {
     .iter()
     .map(|&s| String::from(s))
     .collect()
+}
+
+pub fn tokenize_file_name(file_name: &str) -> Vec<String> {
+    // Split file name into tokens based on underscores and other delimiters
+    file_name
+        .split(|c: char| c == '_' || c == ' ' || c == '-')
+        .map(|s| s.to_lowercase())
+        .filter(|s| !s.is_empty()) // Remove empty tokens
+        .collect()
+}
+
+impl EmbeddingModel {
+    pub fn new(model_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        // Load the embeddings from the saved PyTorch model
+        let embeddings = Tensor::load(model_path)?;
+        Ok(Self { embeddings })
+    }
+
+    pub fn get_embedding(&self, token_index: i64) -> Result<Tensor, Box<dyn std::error::Error>> {
+        // Retrieve the embedding for a specific token index
+        if token_index >= self.embeddings.size()[0] {
+            return Err("Token index out of bounds".into());
+        }
+        Ok(self.embeddings.get(token_index))
+    }
 }
