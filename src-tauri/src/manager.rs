@@ -9,6 +9,7 @@ use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{fs::DirEntry, path::PathBuf};
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use tauri::command;
+use std::time::Instant;
 
 #[derive(serde::Serialize)]
 pub struct SearchResult {
@@ -19,18 +20,20 @@ pub struct SearchResult {
     size: String,
 }
 
-static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
+pub static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
     ThreadPoolBuilder::new()
         .num_threads(num_cpus::get()/2)
         .build()
         .unwrap()
 });
-static MODEL: Lazy<TextEmbedding> = Lazy::new(|| {
-    TextEmbedding::try_new(
+pub static MODEL: Lazy<TextEmbedding> = Lazy::new(|| {
+    println!("Initializing TextEmbedding model...");
+    let model = TextEmbedding::try_new(
         InitOptions::new(EmbeddingModel::MultilingualE5Small)
             .with_show_download_progress(true),
     )
-        .expect("Could not create TextEmbedding")
+        .expect("Could not create TextEmbedding");
+    model
 });
 
 
@@ -90,7 +93,7 @@ fn manager_make_pooled_connection(
 }
 
 pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), String> {
-    let connection_pool = match manager_make_pooled_connection() {
+        let connection_pool = match manager_make_pooled_connection() {
         Ok(connection_pool) => connection_pool,
         Err(e) => return Err(e.to_string()),
     };
@@ -137,28 +140,39 @@ pub fn manager_basic_search(
     searchpath: &str,
     searchfiletype: &str,
 ) -> Result<Vec<SearchResult>, String> {
+    println!("manager basic search");
+
+    let manager_search_time = Instant::now();
+    
     let connection_pool = match manager_make_pooled_connection() {
         Ok(connection_pool) => connection_pool,
         Err(e) => return Err(e.to_string()),
     };
 
-    let similarity_threshold: f32 = 0.9;
+    let number_results = 20;
+
 
     let search_path = PathBuf::from(searchpath);
+    println!("Manager before FN took: {}", manager_search_time.elapsed().as_millis());
+
 
     let return_paths = match search_database(
         connection_pool,
         searchterm,
-        similarity_threshold,
         &THREAD_POOL,
         search_path,
         searchfiletype,
-        &MODEL
+        &MODEL,
+        number_results
     ) {
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string()),
     };
+    println!("Manager Return Paths took: {}", manager_search_time.elapsed().as_millis());
+
 
     let search_result = build_struct(return_paths);
+    println!("Manager Search took: {}", manager_search_time.elapsed().as_millis());
+    
     Ok(search_result)
 }

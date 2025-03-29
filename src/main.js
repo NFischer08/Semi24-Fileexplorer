@@ -134,6 +134,8 @@ document.getElementById('go-to-file-path-button').addEventListener('click', asyn
 document.addEventListener('DOMContentLoaded', async () => {
   await display_fav_settings();
   await loadFilesAndFolders();
+  await display_search_results();
+  await loadFilesAndFolders();
 });
 
 document.getElementById('search-button').addEventListener('click', async () => {

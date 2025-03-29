@@ -146,7 +146,9 @@ pub fn create_database(
 
                     for ((file, _), embedding) in batch_data.iter().zip(name_embeddings.iter()) {
                         let slice_f32 = embedding.as_slice();
-                        let name_vec_embedded: Vec<u8> = unsafe { std::mem::transmute(slice_f32.to_vec()) };
+                        let name_vec_embedded: Vec<u8> = slice_f32.to_vec().into_iter()
+                            .flat_map(|f| f.to_le_bytes())
+                            .collect();
 
                         insert_stmt.execute(params![
                         file.file_name,

@@ -1,41 +1,28 @@
-use bytemuck::{cast, cast_slice};
-use crossbeam::channel;
-use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
-use jwalk::WalkDir;
-use r2d2::{Pool, PooledConnection};
+use bytemuck::{cast_slice};
+use fastembed::{TextEmbedding};
+use r2d2::{Pool};
 use r2d2_sqlite::SqliteConnectionManager;
-use rayon::iter::split;
 use rayon::prelude::*;
 use rayon::ThreadPool;
-use rusqlite::functions::SqlFnOutput;
-use rusqlite::{params, MappedRows, Result, Row};
+use rusqlite::{params, Result};
 use std::cmp::Ordering;
-use std::fmt::format;
-use std::fs::File;
-use std::ptr::copy;
 use std::sync::mpsc;
-use std::sync::Arc;
-use std::sync::Mutex;
 use std::{
-    collections::HashSet,
     fs::{self, DirEntry},
     path::{Path, PathBuf},
     time::Instant,
 };
-use std::collections::HashMap;
-use strsim::normalized_levenshtein;
-use tauri::Pixel;
 
 use crate::db_util::cosine_similarity;
 
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
     search_term: &str,
-    similarity_threshold: f32,
     thread_pool: &ThreadPool,
     search_path: PathBuf,
     search_file_type: &str,
-    model: &TextEmbedding
+    model: &TextEmbedding,
+    num_results: usize,
 ) -> Result<Vec<DirEntry>> {
     let pooled_connection = connection_pool.get().expect("get connection pool");
     const BATCH_SIZE: usize = 1000; // Adjust this value as needed
@@ -125,18 +112,14 @@ pub fn search_database(
             .par_bridge() // Convert to parallel iterator
             .filter_map(|row| {
                 let embedding = row.1;
-                let embedding_f32: Vec<f32> = cast_slice(&embedding).to_vec();
+                let embedding_f32 = cast_slice(&embedding).to_vec();
                 let similarity: f32 = cosine_similarity(&embedding_f32, &search_vec_embedding);
-                if similarity > similarity_threshold {
-                    Some((row.0, similarity.cast()))
-                } else {
-                    None
-                }
+                Some((row.0, similarity as _))
             })
             .collect()
     });
-
-    println!("Results Length{}", results.len());
+    
+    println!("Results Length {}", results.len());
 
     query_thread
         .join()
@@ -149,6 +132,10 @@ pub fn search_database(
     results.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
     println!("Sorting time: {:?}", sort_time.elapsed().as_millis());
 
+    results.truncate(num_results);
+
+    println!("Results Length {}", results.len());
+    
     let return_time = Instant::now();
     let return_entries: Vec<DirEntry> = results
         .into_iter()
