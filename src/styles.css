@@ -280,18 +280,6 @@ button {
 .sidebar{
     display: None
 }
-.modal {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0, 0, 0, 0.5); /* Transparenter schwarzer Hintergrund */
-    z-index: 9999;
-}
 
 .modal.hidden {
     display: none; /* Verstecke das Modal */
@@ -423,8 +411,9 @@ button {
   z-index: 9999;
 }
 
+/* Modal standardmäßig verstecken */
 .modal.hidden {
-  display: none; /* Verstecke das Modal */
+  display: none;
 }
 
 .modal-content {
@@ -435,6 +424,7 @@ button {
   max-width: 300px;
   width: 80%;
 }
+
 /* Schließ-Button */
 .close-button {
   position: absolute;
@@ -444,6 +434,7 @@ button {
   font-weight: bold;
   cursor: pointer;
 }
+
 /* Schließ-Button wird rot beim Hovern */
 .close-button:hover {
   color: red;
