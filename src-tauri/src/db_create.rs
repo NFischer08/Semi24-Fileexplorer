@@ -136,26 +136,51 @@ pub fn create_database(
                 .collect();
 
             if !batch_data.is_empty() {
-
                 let mut connection = connection_pool.get().unwrap();
                 let transaction = connection.transaction().unwrap();
                 {
                     let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)").expect("Failed to prepare insertion file");
-                }
-                for file_data in &batch_data {
-                    let file_name = &file_data.1;
-                    print!("names_to_embed {} | ", file_name);
-                    let tokens = tokenize_file_name(file_name);
-                    print!("Tokens: {:?} | ", &tokens); // Print tokens before mapping to indices
-                    let tokens_indices = tokens_to_indices(tokens, &load_vocab("src-tauri/src/neural_network/vocab.json"));
-                    let tokens_indices_i64: Vec<i64> = tokens_indices.iter().map(|&x| x as i64).collect(); // Convert usize to i64
-                    print!("Token Indices: {:?} | ", tokens_indices); // Print mapped indices
-                    let input_tensor = Tensor::from_slice(&tokens_indices_i64).to_kind(Kind::Int64);
-                    let embeddings = pymodel.method_ts("get_embedding", &[input_tensor])
-                        .expect("Failed to get embeddings");
-                    println!("Embeddings: {:?} ", embeddings);
+                    let mut batch_embeddings_vec_u8: Vec<Vec<u8>> = vec![];
+                    let batch_embeddings_vec_u8 = Mutex::new(batch_embeddings_vec_u8); // Wrap in Mutex
 
+                    let vocab = load_vocab("src-tauri/src/neural_network/vocab.json");
+                    batch_data.par_iter().for_each(|file_data| {
+                        let file_name = &file_data.1;
+                        let tokens = tokenize_file_name(file_name);
+                        let token_indices = tokens_to_indices(tokens, &vocab);
+                        let tokens_indices_i64: Vec<i64> = token_indices.iter().map(|&x| x as i64).collect(); // Convert usize to i64
+                        let input_tensor = Tensor::from_slice(&tokens_indices_i64)
+                            .to_kind(Kind::Int64)
+                            .unsqueeze(0); // Add batch dimension
+                        let embeddings = pymodel.method_ts("get_embedding", &[input_tensor])
+                            .expect("Failed to get embeddings");
+                        let numel = embeddings.numel();
+                        let mut embeddings_vec_f32 = vec![0.0f32; numel];
+                        embeddings.copy_data(&mut embeddings_vec_f32, numel);
+
+                        let embeddings_vec_u8: Vec<u8> = embeddings_vec_f32.to_vec().into_iter()
+                            .flat_map(|f| f.to_le_bytes())
+                            .collect();
+
+                        batch_embeddings_vec_u8.lock().unwrap().push(embeddings_vec_u8);
+                    });
+
+                    let batch_embeddings_vec_u8_guard = batch_embeddings_vec_u8.lock().unwrap(); // Acquire lock
+                    for (c, file_data) in batch_data.iter().enumerate() {
+                        let file = &file_data.0;
+                        if c < batch_embeddings_vec_u8_guard.len() {
+                            let vec = &batch_embeddings_vec_u8_guard[c]; // Access element safely
+
+                            insert_stmt.execute(params![
+                        file.file_name,
+                        file.file_path,
+                        file.file_type.as_deref().map::<&str, _>(|s| s.as_ref()),
+                        vec
+                    ]).expect("Could not insert file");
+                        }
+                    }
                 }
+                transaction.commit().unwrap();
             }
                 /*
 

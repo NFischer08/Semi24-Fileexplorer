@@ -9,7 +9,6 @@ from tqdm import tqdm  # Import tqdm for progress tracking
 
 # Check GPU availability and set device
 print(torch.cuda.is_available())
-print(torch.cuda.get_device_name(0))  # Prints the name of the GPU
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Define SkipGram Model
@@ -59,9 +58,9 @@ model = SkipGramModel(vocab_size, embedding_dim).to(device)  # Move model to GPU
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
-batch_size = 512  # Process data in batches to reduce memory usage
+batch_size = 1028  # Process data in batches to reduce memory usage
 
-for epoch in range(3):  # Training loop
+for epoch in range(1):  # Training loop
     print(f"Epoch {epoch + 1} started")
     total_loss = 0
 
