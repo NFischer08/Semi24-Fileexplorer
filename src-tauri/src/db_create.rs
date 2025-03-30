@@ -136,18 +136,27 @@ pub fn create_database(
                 .collect();
 
             if !batch_data.is_empty() {
-                let file_name = &batch_data[0].1;
-                let tokens = tokenize_file_name(file_name);
-                print!("Tokens: {:?}", &tokens); // Print tokens before mapping to indices
-                let tokens_indices = tokens_to_indices(tokens, &load_vocab("src-tauri/src/neural_network/vocab.json"));
-                let tokens_indices_i64: Vec<i64> = tokens_indices.iter().map(|&x| x as i64).collect(); // Convert usize to i64
-                print!("Token Indices: {:?}", tokens_indices); // Print mapped indices
-                let input_tensor = Tensor::from_slice(&tokens_indices_i64).to_kind(Kind::Int64);
-                let embeddings = pymodel.method_ts("get_embedding", &[input_tensor])
-                    .expect("Failed to get embeddings");
-                println!("Embeddings: {:?}", embeddings);
-            }
 
+                let mut connection = connection_pool.get().unwrap();
+                let transaction = connection.transaction().unwrap();
+                {
+                    let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)").expect("Failed to prepare insertion file");
+                }
+                for file_data in &batch_data {
+                    let file_name = &file_data.1;
+                    print!("names_to_embed {} | ", file_name);
+                    let tokens = tokenize_file_name(file_name);
+                    print!("Tokens: {:?} | ", &tokens); // Print tokens before mapping to indices
+                    let tokens_indices = tokens_to_indices(tokens, &load_vocab("src-tauri/src/neural_network/vocab.json"));
+                    let tokens_indices_i64: Vec<i64> = tokens_indices.iter().map(|&x| x as i64).collect(); // Convert usize to i64
+                    print!("Token Indices: {:?} | ", tokens_indices); // Print mapped indices
+                    let input_tensor = Tensor::from_slice(&tokens_indices_i64).to_kind(Kind::Int64);
+                    let embeddings = pymodel.method_ts("get_embedding", &[input_tensor])
+                        .expect("Failed to get embeddings");
+                    println!("Embeddings: {:?} ", embeddings);
+
+                }
+            }
                 /*
 
                 println!("names_to_embed {}", names_to_embed.join("\n"));
