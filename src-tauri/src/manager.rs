@@ -41,7 +41,7 @@ pub static MODEL: Lazy<TextEmbedding> = Lazy::new(|| {
 
 pub static PYMODEL: Lazy<CModule> = Lazy::new(|| {
     println!("Initializing model...");
-    let model_path = "neural_network/skipgram_model.pt"; // Replace with the actual path to your .pt file
+    let model_path = "src-tauri/src/neural_network/skipgram_model_script.pt"; // Replace with the actual path to your .pt file
     let model = CModule::load(model_path).expect("Could not load the TorchScript model");
     model
 });
