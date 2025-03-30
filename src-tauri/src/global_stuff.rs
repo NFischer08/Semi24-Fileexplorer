@@ -1,14 +1,14 @@
-use std::collections::{HashMap, HashSet};
+use crate::config_handler::FAVOURITE_FILE_EXTENSIONS;
+use std::collections::HashMap;
 use tauri::command;
 
 #[command]
-pub fn get_fav_extensions() -> Result<HashMap<String, String>, String> {
-    let mut extensions: HashMap<String, String> = HashMap::new();
-
-    extensions.insert(String::from("Images"), String::from("png,jpg,jpeg,gif"));
-    extensions.insert(String::from("Text"), String::from("txt,doc,docx,pdf,odt,rtf"));
-    extensions.insert(String::from("Video"), String::from("mp4,mp4a,avi"));
-    extensions.insert(String::from("Coding"), String::from("c,cpp,cs,java,js,html,css,php,py,rs,sh,swift,ts,xml"));
-
-    Ok(extensions)
+pub fn get_fav_extensions() -> Option<HashMap<String, String>> {
+    let x = if let Some(fav_ext) = FAVOURITE_FILE_EXTENSIONS.get() {
+        Some(fav_ext.clone())
+    } else {
+        return get_fav_extensions()
+    };
+    println!("GLOB: fav_ext: {:?}", x);
+    x
 }
