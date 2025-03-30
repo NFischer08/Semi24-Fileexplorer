@@ -23,6 +23,11 @@ class SkipGramModel(nn.Module):
         embed = self.embeddings(target)
         return self.output(embed)
 
+    # Mark get_embedding for export
+    @torch.jit.export
+    def get_embedding(self, target):
+        return self.embeddings(target)
+
 # Read file names from a .txt file
 file_path = "eng-simple_wikipedia_2021_100K/eng-simple_wikipedia_2021_100K-sentences.txt"
 
@@ -86,3 +91,5 @@ for epoch in range(3):  # Training loop
 # Save model and state dict (no need to move them explicitly)
 torch.save(model, "skipgram_model.pt")
 torch.save(model.state_dict(), "skipgram_model_state.pt")
+scripted_model = torch.jit.script(model)
+scripted_model.save("skipgram_model_script.pt")
