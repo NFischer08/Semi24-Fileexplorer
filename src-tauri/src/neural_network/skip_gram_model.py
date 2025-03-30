@@ -4,6 +4,13 @@ import torch.optim as optim
 from itertools import chain
 import json
 import re
+import gc
+from tqdm import tqdm  # Import tqdm for progress tracking
+
+# Check GPU availability and set device
+print(torch.cuda.is_available())
+print(torch.cuda.get_device_name(0))  # Prints the name of the GPU
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Define SkipGram Model
 class SkipGramModel(nn.Module):
@@ -22,7 +29,7 @@ class SkipGramModel(nn.Module):
         return self.embeddings(target)
 
 # Read file names from a .txt file
-file_path = "eng-simple_wikipedia_2021_10K/eng-simple_wikipedia_2021_10K-sentences.txt"
+file_path = "eng-simple_wikipedia_2021_100K/eng-simple_wikipedia_2021_100K-sentences.txt"
 
 with open(file_path, "r", encoding="utf-8") as f:
     file_names = [line.strip() for line in f.readlines()]  # Strip whitespace and newlines
@@ -47,34 +54,41 @@ data = [(vocab[tokens[i]], vocab[tokens[i + 1]]) for i in range(len(tokens) - 1)
 
 # Training
 vocab_size = len(vocab)
-embedding_dim = 64
-model = SkipGramModel(vocab_size, embedding_dim)
+embedding_dim = 256
+model = SkipGramModel(vocab_size, embedding_dim).to(device)  # Move model to GPU
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
-batch_size = 1024  # Process data in batches to reduce memory usage
+batch_size = 512  # Process data in batches to reduce memory usage
 
 for epoch in range(3):  # Training loop
-    print("Training started")
+    print(f"Epoch {epoch + 1} started")
     total_loss = 0
 
-    # Process data in batches
-    for i in range(0, len(data), batch_size):
+    # Use tqdm to show progress for batches within each epoch
+    progress_bar = tqdm(range(0, len(data), batch_size), desc=f"Epoch {epoch + 1}", unit="batch")
+
+    for i in progress_bar:
         batch_data = data[i:i + batch_size]  # Get a batch of data
 
-        targets = torch.tensor([pair[0] for pair in batch_data], dtype=torch.long)
-        contexts = torch.tensor([pair[1] for pair in batch_data], dtype=torch.long)
+        # Move tensors to GPU
+        targets = torch.tensor([pair[0] for pair in batch_data], dtype=torch.long).to(device)
+        contexts = torch.tensor([pair[1] for pair in batch_data], dtype=torch.long).to(device)
 
         optimizer.zero_grad()
-        output = model(targets)
-        loss = criterion(output, contexts)
+        output = model(targets)  # Model is already on GPU
+        loss = criterion(output, contexts)  # Loss computation on GPU
         loss.backward()
         optimizer.step()
 
         total_loss += loss.item()
 
-    print(f"Epoch {epoch}, Loss: {total_loss}")
+        # Update tqdm description with current loss value
+        progress_bar.set_postfix(loss=loss.item())
 
+    print(f"Epoch {epoch + 1}, Total Loss: {total_loss}")
+
+# Save model and state dict (no need to move them explicitly)
 torch.save(model, "skipgram_model.pt")
 torch.save(model.state_dict(), "skipgram_model_state.pt")
 scripted_model = torch.jit.script(model)
