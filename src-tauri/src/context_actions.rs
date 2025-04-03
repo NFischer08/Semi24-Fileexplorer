@@ -1,7 +1,7 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
 use opener::open;
 use std::{
-    fs::{self, remove_file, rename, File},
+    fs,
     io::{Read, Write},
     path::{Path, PathBuf},
     process::Command,
@@ -27,7 +27,7 @@ fn copy_from_file(path: PathBuf) -> Result<String, String> {
 
     println!("copying file {}", path.display());
     // Attempt to open the file
-    let mut file = match File::open(&path) {
+    let mut file = match fs::File::open(&path) {
         Ok(file) => file,
         Err(_) => {
             return Err("Failed to open file.".to_string());
@@ -133,7 +133,7 @@ fn paste_from_file(destination: PathBuf) -> Result<String, String> {
     let contents: String = contents[..index].to_string();
 
     // Write the contents to the specified file
-    let mut file = match File::create(&destination.join(name)) {
+    let mut file = match fs::File::create(&destination.join(name)) {
         Ok(file) => file,
         Err(e) => return Err(e.to_string()),
     };
@@ -219,7 +219,7 @@ pub fn rename_file(filepath: String, new_filename: &str) -> Result<String, Strin
     }
 
     // Rename the file
-    rename(&path, &new_filepath).map_err(|e| format!("Failed to rename file: {}", e))?;
+    fs::rename(&path, &new_filepath).map_err(|e| format!("Failed to rename file: {}", e))?;
 
     Ok("Renamed successfully!".to_string())
 }

@@ -14,9 +14,6 @@ async function loadFilesAndFolders() {
 
   try {
     const entries = await invoke('format_file_data', { path: filepath }); // grab entries from backend
-    if (filepath === "/") { // in case the filepath is just a slash it needs to be cleared, so you don't get a double slash while setting data
-      filepath = "";
-    }
 
     const fileTable = document.getElementById('fileTable'); // get the whole table
     fileTable.rows[0].cells[1].style.display = 'none'; // hide column "Filepath"
@@ -30,7 +27,7 @@ async function loadFilesAndFolders() {
       const row = document.createElement('tr');
 
       // add important background information
-      row.dataset.filepath = filepath + "/" + entry.name; // needed to know the path of the file
+      row.dataset.filepath = entry.path; // needed to know the path of the file
       row.dataset.filetype = entry.file_type; // needed to open a file properly when clicking on it
 
       // create each cell
