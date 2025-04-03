@@ -7,7 +7,7 @@ pub mod global_stuff;
 pub mod manager;
 
 use config_handler::{initialize_config, ALLOWED_FILE_EXTENSIONS, FAVOURITE_FILE_EXTENSIONS};
-use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file};
+use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file, open_file};
 use file_information::format_file_data;
 use global_stuff::get_fav_extensions;
 use manager::manager_basic_search;
@@ -22,6 +22,7 @@ pub fn run() {
             cut_file,
             delete_file,
             rename_file,
+            open_file,
             open_file_with,
             manager_basic_search,
             get_fav_extensions

@@ -7,6 +7,7 @@ use std::{
 };
 use tauri::command;
 
+// custom enum to handle all possible file types
 #[derive(Debug)]
 pub(crate) enum FileType {
     Directory,
@@ -30,25 +31,12 @@ pub struct FileDataFormatted {
     size: String,
 }
 
-fn list_files_and_folders(path: &str) -> Result<Vec<FileEntry>, String> {
-    let path = PathBuf::from(path);
+fn list_files_and_folders(filepath: &str) -> Result<Vec<FileEntry>, String> {
+    let path = PathBuf::from(&filepath);
 
     // Check if the path exists
     if !path.exists() {
         return Err("The specified path does not exist.".into());
-    }
-
-    if path.is_file() {
-        return match open_file(&path) {
-            Ok(_) => {
-                if let Some(parent) = path.parent() {
-                    Err(parent.to_string_lossy().into())
-                } else {
-                    Err(String::from("The specified path is not a directory."))
-                }
-            }
-            Err(e) => Err(e),
-        };
     }
 
     // Check if the path is a directory
@@ -126,8 +114,8 @@ pub fn get_file_information(entry: &DirEntry) -> FileEntry {
                 .timestamp_opt(d.as_secs() as i64, d.subsec_nanos())
                 .single()
                 .unwrap_or_else(Local::now)
-        }) // Fallback to current time if there's an error
-        .unwrap(); // TODO => keine Ahnung was das macht!
+        }).unwrap_or_else(|_| Local::now()); // Fallback to current time if there's an error
+
 
     // append the important information to the Vector with the FileEntries
     FileEntry {

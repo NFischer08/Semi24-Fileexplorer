@@ -1,182 +1,190 @@
 const { invoke } = window.__TAURI__.core;
 
-let filePathInputEl;
-let resultText;
 let filePathHistory = ["/"];
 
 async function loadFilesAndFolders() {
-  let filepath = document.getElementById('file-path-input').value; // Aktuellen Pfad auslesen
+  let filepath = document.getElementById('file-path-input').value; // get current filepath
   if (filePathHistory[filePathHistory.length] !== filepath) {
     filePathHistory.push(filepath);  // Pfad in die History eintragen
     console.log(filePathHistory);
   }
-  const fileListElement = document.getElementById('fileList');
-  document.getElementById('fileTable').rows[0].cells[1].style.display = 'none'; // display File Path
-  const errorMessageElement = document.getElementById('error-message');
-  fileListElement.innerHTML = ''; // Vorherige Ergebnisse löschen
-  errorMessageElement.classList.add('hidden');
-  document.getElementById('fileTable').classList.remove('search')
+
+  const errorMessageElement = document.getElementById('error-message'); // get the errorMessageElement
+  errorMessageElement.classList.add('hidden'); // hide error in case there was one
 
   try {
-    const entries = await invoke('format_file_data', { path: filepath });
-    if (filepath === "/") {
+    const entries = await invoke('format_file_data', { path: filepath }); // grab entries from backend
+    if (filepath === "/") { // in case the filepath is just a slash it needs to be cleared, so you don't get a double slash while setting data
       filepath = "";
     }
-    entries.forEach(entry => {
-      const row = document.createElement('tr');
-      row.dataset.filepath = filepath + "/" + entry.name;
 
+    const fileTable = document.getElementById('fileTable'); // get the whole table
+    fileTable.rows[0].cells[1].style.display = 'none'; // hide column "Filepath"
+    fileTable.classList.remove('search') // remove token, so the style gets adjusted properly
+
+    const fileListElement = document.getElementById('fileList'); // get table body with results
+    fileListElement.innerHTML = ''; // remove previously displayed files and folders
+
+    entries.forEach(entry => {
+      // create new row
+      const row = document.createElement('tr');
+
+      // add important background information
+      row.dataset.filepath = filepath + "/" + entry.name; // needed to know the path of the file
+      row.dataset.filetype = entry.file_type; // needed to open a file properly when clicking on it
+
+      // create each cell
       const filenameCell = document.createElement('td');
       const lastModifiedCell = document.createElement('td');
       const fileTypeCell = document.createElement('td');
       const fileSizeCell = document.createElement('td');
 
-      filenameCell.textContent = entry.name; // Dateiname
-      lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
-      fileTypeCell.textContent = entry.file_type; // Dateityp
-      fileSizeCell.textContent = entry.size; //Größe
+      // fill each cell with its belonging data
+      filenameCell.textContent = entry.name; // file name
+      lastModifiedCell.textContent = entry.last_modified; // last time it was modified
+      fileTypeCell.textContent = entry.file_type; // file type
+      fileSizeCell.textContent = entry.size; //file size
 
+      // add cells to the row
       row.appendChild(filenameCell);
       row.appendChild(lastModifiedCell);
       row.appendChild(fileTypeCell);
       row.appendChild(fileSizeCell);
+
+      // add row to the file list
       fileListElement.appendChild(row);
     });
 
   } catch (error) {
-    if (error[0] === "/") {
-      document.getElementById('file-path-input').value = error;
-      await loadFilesAndFolders();
-    } else {
-      console.error('Error:', error);
-
-      // Fehlermeldung unter der Tabelle anzeigen
-      errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
-      errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
-    }
+    console.error('Error:', error);
+    // in case of an error it will be displayed beneth the table
+    errorMessageElement.textContent = 'Error: ' + error; // set error message
+    errorMessageElement.classList.remove('hidden'); // display it
   }
 }
 
 async function display_search_results() {
-  //const start = performance.now();
-  //console.log('Searching...');
-  const search_term = document.getElementById('search-term-input').value; // read the search term
-  const search_path = document.getElementById('file-path-input').value;
-  const fileListElement = document.getElementById('fileList');
+  const search_term = document.getElementById('search-term-input').value; // get the search term
+  const search_path = document.getElementById('file-path-input').value; // get the current path
 
+  // get all checked extensions and join them
   const selectedSettings = [];
   for (const checkbox of document.querySelectorAll('input[type="checkbox"]:checked')) {
     selectedSettings.push(checkbox.value); // add the value of the checked checkboxes to the array
   }
   selectedSettings.push(document.getElementById('setting-filetype').value);
-
   const filetypes = selectedSettings.join(','); // Join the selected values into a string
-  console.log(filetypes);
 
-  //document.getElementById('fileTable').querySelector('thead tr').querySelector('th:nth-child(4)').textContent = "File Path"; // rename column
-  const errorMessageElement = document.getElementById('error-message');
+  const errorMessageElement = document.getElementById('error-message'); // get errorMessageElement
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
 
   try {
     const entries = await invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path, searchfiletype: filetypes }); // get the search results (structs with all the information)
-    fileListElement.innerHTML = ''; // delete previous results
-    document.getElementById('fileTable').rows[0].cells[1].style.display = ''; // display File Path
-    document.getElementById('fileTable').classList.add('search')
-    entries.forEach(entry => { // display every result (already sorted by importance)
-      const row = document.createElement('tr');
-      const filePathRow = document.createElement('tr');
-      filePathRow.dataset.filepath = entry.path // store the filepath of the search result, so rust later knows where it is
-      row.dataset.filepath = entry.path // store the filepath of the search result, so rust later knows where it is
 
+    const fileListElement = document.getElementById('fileList'); // get table body with results
+    fileListElement.innerHTML = ''; // delete previous results
+
+    // load appropriate design and display Filepath column
+    const fileTable = document.getElementById('fileTable');
+    fileTable.rows[0].cells[1].style.display = ''; // display File Path
+    fileTable.classList.add('search'); // design
+
+    // display every result (already sorted by importance)
+    entries.forEach(entry => {
       // create new row
+      const row = document.createElement('tr');
+
+      // add important background information
+      row.dataset.filepath = entry.path
+      row.dataset.filetype = entry.file_type
+
+      // create new cells
       const filenameCell = document.createElement('td');
       const filePathCell = document.createElement('td');
       const lastModifiedCell = document.createElement('td');
       const fileTypeCell = document.createElement('td');
       const fileSizeCell = document.createElement('td');
 
-      // insert the information in the row
-      filenameCell.textContent = entry.name; // Dateiname
-      filePathCell.textContent = entry.path // File Path
-      lastModifiedCell.textContent = entry.last_modified; // Letzte Änderung
-      fileTypeCell.textContent = entry.file_type; // Type
-      fileSizeCell.textContent = entry.size; //Größe
+      // insert the information in the cells
+      filenameCell.textContent = entry.name; // filename
+      filePathCell.textContent = entry.path // filepath
+      lastModifiedCell.textContent = entry.last_modified; // last time modified
+      fileTypeCell.textContent = entry.file_type; // type
+      fileSizeCell.textContent = entry.size; // size
 
-      // append row
+      // append cells to row
       row.appendChild(filenameCell);
       row.appendChild(filePathCell);
       row.appendChild(lastModifiedCell);
       row.appendChild(fileTypeCell);
       row.appendChild(fileSizeCell);
-      fileListElement.appendChild(row);
 
-      //filePathCell.colSpan = 4; // span across all columns
-      //filePathRow.appendChild(filePathCell);
-      //fileListElement.appendChild(filePathRow);
+      // insert row into table
+      fileListElement.appendChild(row);
     });
 
   } catch (error) {
     console.error('Error:', error);
 
-    // Fehlermeldung unter der Tabelle anzeigen
-    errorMessageElement.textContent = 'Error: ' + error; // Fehlermeldung setzen
-    errorMessageElement.classList.remove('hidden'); // Meldung sichtbar machen
+    // display error beneth the table
+    errorMessageElement.textContent = 'Error: ' + error; // set message
+    errorMessageElement.classList.remove('hidden'); // display message
   }
-  //const end = performance.now();
-  //const timeTaken = end - start;
-  //console.log(`Time taken: ${timeTaken} ms`);
 }
 
-document.getElementById('go-to-file-path-button').addEventListener('click', async () => {
-  await loadFilesAndFolders();
-});
-
+// runs when program starts
 document.addEventListener('DOMContentLoaded', async () => {
   await display_fav_settings();
   await loadFilesAndFolders();
 });
 
+// calls apropriate function when clicking on button
+document.getElementById('go-to-file-path-button').addEventListener('click', async () => {
+  await loadFilesAndFolders();
+});
+
+// calls apropriate function when clicking on button
 document.getElementById('search-button').addEventListener('click', async () => {
-  if (document.getElementById('search-term-input').value.trim()) {
+  if (document.getElementById('search-term-input').value.trim()) { // calls search function only when there is a search term
     await display_search_results();
   }
 })
 
-//Einstellungskästchen
-const settingsButton = document.getElementById('settings-button');
+// search settings
 const settingsModal = document.getElementById('settings-modal');
-const closeModal = document.getElementById('close-modal');
-
-
-settingsButton.addEventListener('click', () => {
+// display settings when clicking on button
+document.getElementById('settings-button').addEventListener('click', () => {
   settingsModal.classList.remove('hidden');
 });
-
-closeModal.addEventListener('click', () => {
+// close settings when clicking away from it
+document.getElementById('close-modal').addEventListener('click', () => {
   settingsModal.classList.add('hidden');
 });
-
+// TODO was macht das?
 window.addEventListener('click', (event) => {
   if (event.target === settingsModal) {
     settingsModal.classList.add('hidden');
   }
 });
 
+// request favourite settings from backend (=> config.json)
 async function display_fav_settings() {
-  const settings = await invoke('get_fav_extensions');
-
+  const settings = await invoke('get_fav_extensions'); // get favourite settings as HashMap<String, String>
   const form = document.getElementById('settings-form');
-  for (const [key, value] of Object.entries(settings)) {
+
+  for (const [titel, favourites] of Object.entries(settings)) {
+    // create new checkbox with assosiated data
     const checkbox = document.createElement('input');
     checkbox.type = 'checkbox';
-    checkbox.id = key;
-    console.log(value);
-    checkbox.value = value;
+    checkbox.id = titel;
+    checkbox.value = favourites;
 
+    // create a label for the user with TextNode
     const label = document.createElement('label');
-    label.htmlFor = key;
-    label.appendChild(document.createTextNode(key));
+    label.htmlFor = titel;
+    label.appendChild(document.createTextNode(titel));
 
+    // append append checkbox and label as well as new line
     form.appendChild(checkbox);
     form.appendChild(label);
     form.appendChild(document.createElement('br'));
@@ -184,17 +192,21 @@ async function display_fav_settings() {
 }
 
 // double click to open file / folder
-document.getElementById('fileTable').addEventListener('dblclick', async (event) => {
+document.getElementById('fileList').addEventListener('dblclick', async (event) => {
   event.preventDefault();
   const target = event.target.closest('tr');
   if (target) {
-    selectedFile = target.dataset.filepath
-    if (selectedFile === undefined) { // prevents the user from clicking at the table head
-      return;
+    // open file with program or call function to display folder content
+    if (target.dataset.filetype === "Directory") {
+      document.getElementById('file-path-input').value = target.dataset.filepath;
+      await loadFilesAndFolders();
+    } else {
+      try {
+        invoke('open_file', { filepath: target.dataset.filepath });
+      } catch (error) {
+        console.error('Error while opening file for user:', error);
+      }
     }
-    console.log(`Opening file: ${selectedFile}`);
-    document.getElementById('file-path-input').value = selectedFile;
-    await loadFilesAndFolders();
   }
 })
 
@@ -214,24 +226,19 @@ document.getElementById('search-term-input').addEventListener('keypress', (event
   }
 })
 
-// hide Sidebar
-document.getElementById('toggle-sidebar-button').addEventListener('click', () => {
-  console.log('Toggle Sidebar');
-  document.getElementById('sidebar').style.display = 'none';
-});
-
-// forward and backward buttons
+// backwards buttons
 document.getElementById('back-button').addEventListener('click', async () => {
   try {
     const len = filePathHistory.length;
+    // check for lenth of 2 or more, because it can't go back if its already in root folder
     if (len < 2) {
       return;
     }
-    document.getElementById('file-path-input').value = filePathHistory[len - 2];
-    filePathHistory.pop();
-    filePathHistory.pop();
+    document.getElementById('file-path-input').value = filePathHistory[len - 2]; // -2 because -1 is current folder => -2 is previous
+    filePathHistory.pop(); // remove current path
+    filePathHistory.pop(); // remove the one before since it will be added manually
     await loadFilesAndFolders();
-  } catch (error) {}
+  } catch (error) {} // no need to handle error since it just prevents user from going back
 });
 
 // context Menu
@@ -249,6 +256,7 @@ document.getElementById('fileTable').addEventListener('contextmenu', (event) => 
   }
 });
 
+// hide context menu as soon as you click on an option
 document.addEventListener('click', () => {
   contextMenu.style.display = 'none';
 });
@@ -302,13 +310,11 @@ document.getElementById('context-open_with').addEventListener('click', () => {
 
 document.getElementById('context-rename').addEventListener('click', () => {
   if (selectedFile) {
-    // console.log(`Renaming file: ${selectedFile}`);
-    //const result = invoke('rename_file', { filepath: selectedFile, newFilename: "TEstoto"});
-    //console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
 
+// TODO: I don't understand it!
 document.addEventListener("DOMContentLoaded", () => {
   const renameTrigger = document.getElementById("context-rename");
   const renameModal = document.getElementById("rename-modal");
@@ -332,7 +338,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renameForm.addEventListener("submit",async (e) => {
     e.preventDefault();
     const newFilename = newFilenameInput.value.trim();
-    if (newFilename) {
+    if (newFilename || !newFilename.contains("/")) { // make sure its a valid new name - neither / nor empty
       try {
         const result = invoke('rename_file', {filepath: selectedFile, newFilename: newFilename});
         console.log(`Renaming to: ${newFilename}`); // Hier erfolgt der Umbenennungsprozess
@@ -348,71 +354,3 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 })
-
-/*
-
-document.addEventListener('DOMContentLoaded', () => {
-  loadPinnedDirectories();
-
-  document.getElementById('add-pinned').addEventListener('click', () => {
-    const dir = prompt('Enter directory path to pin:');
-    if (dir) {
-      addPinnedDirectory(dir);
-    }
-  });
-});
-
-function loadPinnedDirectories() {
-  const pinnedList = document.getElementById('pinned-list');
-  const directories = JSON.parse(localStorage.getItem('pinnedDirectories')) || [];
-
-  pinnedList.innerHTML = ''; // Leere Listeneinträge löschen
-  directories.forEach((dir, index) => {
-    const li = document.createElement('li');
-    li.textContent = dir;
-
-    const removeButton = document.createElement('button');
-    removeButton.textContent = '✖';
-    removeButton.style.marginLeft = '10px';
-    removeButton.style.background = 'none';
-    removeButton.style.color = '#fff';
-    removeButton.style.border = 'none';
-    removeButton.style.cursor = 'pointer';
-
-    removeButton.addEventListener('click', () => {
-      removePinnedDirectory(index);
-    });
-
-    li.appendChild(removeButton);
-    pinnedList.appendChild(li);
-
-    // Direkter Jump bei Klick
-    li.addEventListener('click', () => {
-      document.getElementById('file-path').value = dir;
-      loadFilesAndFolders();
-    });
-  });
-}
-
-function addPinnedDirectory(dir) {
-  const directories = JSON.parse(localStorage.getItem('pinnedDirectories')) || [];
-  directories.push(dir);
-  localStorage.setItem('pinnedDirectories', JSON.stringify(directories));
-  loadPinnedDirectories();
-}
-
-function removePinnedDirectory(index) {
-  const directories = JSON.parse(localStorage.getItem('pinnedDirectories')) || [];
-  directories.splice(index, 1);
-  localStorage.setItem('pinnedDirectories', JSON.stringify(directories));
-  loadPinnedDirectories();
-} */
-
-window.addEventListener("DOMContentLoaded", () => { // TODO: keine Ahnung was das macht
-  filePathInputEl = document.querySelector("#file-path");
-  resultText = document.querySelector("#result-files");
-  document.querySelector("#file-form").addEventListener("submit", (e) => {
-    e.preventDefault();
-    list_files_in_directory();
-  });
-});

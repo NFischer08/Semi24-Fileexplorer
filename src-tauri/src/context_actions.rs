@@ -227,7 +227,7 @@ pub fn rename_file(filepath: String, new_filename: &str) -> Result<String, Strin
 #[command]
 pub fn delete_file(filepath: String) -> Result<String, String> {
     let _path: PathBuf = clean_path(filepath);
-    // fs::remove_file(filepath).map_err(|e| e.to_string())?;
+    //remove_file(path).map_err(|e| e.to_string())?;
     Ok("File deleted successfully.".to_string())
 }
 
@@ -266,8 +266,10 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
     }
 }
 
-pub fn open_file(filepath: &PathBuf) -> Result<String, String> {
-    match open(filepath) {
+#[command]
+pub fn open_file(filepath: String) -> Result<String, String> {
+    let path: PathBuf = clean_path(filepath);
+    match open(path) {
         Ok(_) => Ok(String::from("File opened successfully!")),
         Err(_) => Err(String::from("Failed to open file for user.")),
     }
