@@ -6,7 +6,7 @@ pub mod file_information;
 pub mod global_stuff;
 pub mod manager;
 
-use config_handler::{initialize_config, ALLOWED_FILE_EXTENSIONS, FAVOURITE_FILE_EXTENSIONS};
+use config_handler::{ CopyMode, get_copy_mode };
 use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file};
 use file_information::format_file_data;
 use global_stuff::get_fav_extensions;

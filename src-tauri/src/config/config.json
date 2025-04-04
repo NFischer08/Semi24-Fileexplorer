@@ -14,5 +14,6 @@
     "Images": "png,jpeg,png,gif,wepg",
     "Video": "mp4,mp4a,avi",
     "Coding": "c,cpp,cs,java,js,html,css,php,py,rs,sh,swift,ts,xml"
-  }
+  },
+  "copy_mode": 1
 }

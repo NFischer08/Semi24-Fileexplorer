@@ -1,25 +1,17 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
 use opener::open;
 use std::{
-    fs::{self, remove_file, rename, File},
+    fs::{self, remove_file, rename, File, copy},
     io::{Read, Write},
     path::{Path, PathBuf},
     process::Command,
 };
 use tauri::command;
+use crate::config_handler::{CopyMode, get_copy_mode};
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
-    let clean_path: PathBuf = clean_path(filepath);
-    let mode: u8 = 2;
-    match mode {
-        1 => copy_from_file(clean_path),
-        2 => copy_from_path(clean_path),
-        _ => Err(String::from("Invalid mode!")),
-    }
-}
-
-fn copy_from_file(path: PathBuf) -> Result<String, String> {
+    let path: PathBuf = clean_path(filepath);
     // checks if path refers to a directory
     if path.is_dir() {
         return Err(String::from("Can't copy directory! yet!"));
@@ -37,7 +29,7 @@ fn copy_from_file(path: PathBuf) -> Result<String, String> {
     // Read the file contents
     let mut contents = String::new();
     match file.read_to_string(&mut contents) {
-        Ok(_) => {}
+        Ok(_) => {},
         Err(_) => {
             return Err("Failed to read file.".to_string());
         }
@@ -52,35 +44,65 @@ fn copy_from_file(path: PathBuf) -> Result<String, String> {
 
     contents += filename.as_str();
 
-    // Create a clipboard context
-    let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
-        Ok(ctx) => ctx,
-        Err(_) => {
-            return Err("Failed to access clipboard.".to_string());
-        }
-    };
+    match get_copy_mode() {
+        CopyMode::Clipboard => {
+            // Create a clipboard context
+            let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
+                Ok(ctx) => ctx,
+                Err(_) => {
+                    return Err("Failed to access clipboard.".to_string());
+                }
+            };
 
-    // Copy the contents to the clipboard
-    match clipboard.set_contents(contents) {
-        Ok(_) => {}
-        Err(_) => {
-            return Err("Failed to copy to clipboard.".to_string());
+            // Copy the contents to the clipboard
+            match clipboard.set_contents(contents) {
+                Ok(_) => {},
+                Err(_) => {
+                    return Err("Failed to copy to clipboard.".to_string());
+                }
+            };
         }
-    };
+        CopyMode::File => {
+            // copy file to paste it later
+            match copy(&path, "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/src/context_actions_tmp/FILE") {
+                Ok(_) => {}
+                Err(e) => return Err(e.to_string())
+            }
+            // open copy.txt to store name + extension
+            let mut file: File = match File::open("/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/src/context_actions_tmp/copy.txt") {
+                Ok(file) => file,
+                Err(e) => {return Err(e.to_string())}
+            };
+            // clear file
+            match file.set_len(0) {
+                Ok(_) => {},
+                Err(e) => {return Err(e.to_string())}
+            }
+            // write the content
+            let filename: String = match path.file_name() {
+                Some(name) => name.to_string_lossy().to_string(),
+                None => String::from("Unbenannt"),
+            };
+            // TODO!!! FIX!!
+            match file.write(filename) {
+                Ok(_) => {},
+                Err(e) => {return Err(e.to_string())}
+            }
+        }
+    }
+
 
     println!("Copied successfully!");
     Ok(format!("File copyied successfully to {}!", path.display()))
 }
 
-fn copy_from_path(path: PathBuf) -> Result<String, String> {
-    // Copying path to Clipboard
-    if !path.exists() {
-        // Pfad kann nur existieren, da er sonnst nicht übergeben werden kann! kann also eigentlich weg
+fn copy_from_path(path: PathBuf) -> Result<String, String> { // Copying path to Clipboard
+    if !path.exists() { // Pfad kann nur existieren, da er sonnst nicht übergeben werden kann! kann also eigentlich weg
         return Err("Source file does not exist.".to_string());
     }
 
-    let mut clipboard: ClipboardContext =
-        ClipboardProvider::new().map_err(|e| format!("Failed to access clipboard: {}", e))?;
+    let mut clipboard: ClipboardContext = ClipboardProvider::new()
+        .map_err(|e| format!("Failed to access clipboard: {}", e))?;
 
     clipboard
         .set_contents(path.to_string_lossy().into_owned()) // geht alles einfacher, indem man den Pfad nie zum PathBuf macht
@@ -108,10 +130,7 @@ fn paste_from_file(destination: PathBuf) -> Result<String, String> {
     //    return Err(String::from("File already exists!"));
     //}
     // Create a clipboard context
-    println!(
-        "Pasting: {} ... next: Access clipboard",
-        destination.display()
-    );
+    println!("Pasting: {} ... next: Access clipboard", destination.display());
     let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
         Ok(ctx) => ctx,
         Err(_) => return Err("Failed to access clipboard.".to_string()),
@@ -140,17 +159,15 @@ fn paste_from_file(destination: PathBuf) -> Result<String, String> {
     println!("Created File ... next: write contents");
 
     match file.write_all(contents.as_bytes()) {
-        Ok(_) => Ok(format!(
-            "Successfully copied file to {}",
-            destination.display()
-        )),
+        Ok(_) => Ok(format!("Successfully copied file to {}", destination.display())),
         Err(_) => Err("Failed write to file!".to_string()),
+
     }
 }
 
 fn paste_from_path(dest_path: PathBuf) -> Result<String, String> {
-    let mut clipboard: ClipboardContext =
-        ClipboardProvider::new().map_err(|e| format!("Failed to access clipboard: {}", e))?;
+    let mut clipboard: ClipboardContext = ClipboardProvider::new()
+        .map_err(|e| format!("Failed to access clipboard: {}", e))?;
 
     // Dateipfad aus der Zwischenablage lesen
     let source_path_str = clipboard
@@ -168,8 +185,8 @@ fn paste_from_path(dest_path: PathBuf) -> Result<String, String> {
     if let Some(parent) = dest_path.parent() {
         if !parent.exists() {
             match fs::create_dir_all(parent) {
-                Ok(_) => {}
-                Err(e) => return Err(format!("Failed to create destination directory: {}", e)),
+                Ok(_) => {},
+                Err(e) => return Err(format!("Failed to create destination directory: {}", e))
             };
         }
     }
@@ -188,14 +205,13 @@ fn paste_from_path(dest_path: PathBuf) -> Result<String, String> {
 
 #[command]
 pub fn cut_file(filepath: String) -> Result<String, String> {
-    match copy_from_file(clean_path(filepath.to_owned())) {
-        Ok(_) => {}
-        Err(error) => return Err(error), // returnt Error, wenn kopieren nicht klappt -> nicht wird gelöscht!
+    match copy_file(filepath.to_owned()) {
+        Ok(_) => {},
+        Err(error) => return Err(error) // returnt Error, wenn kopieren nicht klappt -> nicht wird gelöscht!
     };
-    match delete_file(filepath) {
-        //nicht lieber erstmal überprüfen, ob die auch wieder gespeichert wurde? Nino: wenns nicht klappt wird ein Error returnt!
+    match delete_file(filepath) { //nicht lieber erstmal überprüfen, ob die auch wieder gespeichert wurde? Nino: wenns nicht klappt wird ein Error returnt!
         Ok(_) => Ok("Cut successfully!".to_string()),
-        Err(error) => Err(error),
+        Err(error) => Err(error)
     }
 }
 
@@ -212,14 +228,12 @@ pub fn rename_file(filepath: String, new_filename: &str) -> Result<String, Strin
 
     // Check if the new file already exists
     if new_filepath.exists() {
-        return Err(format!(
-            "A file with the name '{}' already exists in the directory.",
-            new_filename
-        ));
+        return Err(format!("A file with the name '{}' already exists in the directory.", new_filename));
     }
 
     // Rename the file
-    rename(&path, &new_filepath).map_err(|e| format!("Failed to rename file: {}", e))?;
+    rename(&path, &new_filepath)
+        .map_err(|e| format!("Failed to rename file: {}", e))?;
 
     Ok("Renamed successfully!".to_string())
 }
@@ -242,8 +256,7 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
     {
         match Command::new("cmd")
             .args(&["/C", "start", "", path.to_str().unwrap()])
-            .spawn()
-        {
+            .spawn() {
             Ok(_) => Ok("File opened successfully.".to_string()),
             Err(_) => Err("Failed to open file.".to_string()),
         }
@@ -251,7 +264,9 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
 
     #[cfg(target_os = "macos")]
     {
-        match Command::new("open").arg(path).spawn() {
+        match Command::new("open")
+            .arg(path)
+            .spawn() {
             Ok(_) => Ok("File opened successfully.".to_string()),
             Err(_) => Err("Failed to open file.".to_string()),
         }
@@ -259,7 +274,9 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
 
     #[cfg(target_os = "linux")]
     {
-        match Command::new("xdg-open").arg(path).spawn() {
+        match Command::new("xdg-open")
+            .arg(path)
+            .spawn() {
             Ok(_) => Ok("File opened successfully.".to_string()),
             Err(_) => Err("Failed to open file.".to_string()),
         }
@@ -269,7 +286,7 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
 pub fn open_file(filepath: &PathBuf) -> Result<String, String> {
     match open(filepath) {
         Ok(_) => Ok(String::from("File opened successfully!")),
-        Err(_) => Err(String::from("Failed to open file for user.")),
+        Err(_) => Err(String::from("Failed to open file for user."))
     }
 }
 

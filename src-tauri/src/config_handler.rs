@@ -1,18 +1,27 @@
-use once_cell::sync::Lazy;
 use serde::Deserialize;
 use serde_json;
 use std::sync::OnceLock;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Read;
+use std::ops::Deref;
+use tauri::command;
 
 pub static ALLOWED_FILE_EXTENSIONS: OnceLock<HashSet<String>> = OnceLock::new();
 pub static FAVOURITE_FILE_EXTENSIONS: OnceLock<HashMap<String, String>> = OnceLock::new();
+pub static COPY_MODE: OnceLock<CopyMode> = OnceLock::new();
 
 #[derive(Debug, Deserialize)]
 struct Settings {
     pub allowed_extensions: HashSet<String>,
     pub favourite_extensions: HashMap<String, String>,
+    pub copy_mode: CopyMode,
+}
+
+#[derive(Debug, Deserialize)]
+pub enum CopyMode {
+    Clipboard,
+    File
 }
 
 impl Settings {
@@ -56,11 +65,12 @@ impl Settings {
         Settings {
             allowed_extensions,
             favourite_extensions,
+            copy_mode: CopyMode::File
         }
     }
 }
 
-fn get_config(config_path: &str) -> Settings {
+fn read_config(config_path: &str) -> Settings {
     // Open the file
     let mut file = match File::open(config_path) {
         Ok(file) => file,
@@ -79,7 +89,7 @@ fn get_config(config_path: &str) -> Settings {
 }
 
 pub fn initialize_config() -> Result<String, String> {
-    let config = get_config(
+    let config = read_config(
         r"C:\Users\ninof\RustroverProjects\Semi24-Fileexplorer\src-tauri\src\config\config.json",
     ); // change path if needed
     println!("INIT: config: {:?}", config);
@@ -94,4 +104,27 @@ pub fn initialize_config() -> Result<String, String> {
     println!("INIT: ALLOWED_FILE_EXTENSIONS: {:?}", ALLOWED_FILE_EXTENSIONS.get());
     println!("INIT: FAVOURITE_FILE_EXTENSIONS: {:?}", FAVOURITE_FILE_EXTENSIONS.get());
     Ok("Properly set".to_string())
+}
+
+#[command]
+pub fn get_fav_file_extensions() -> Result<HashMap<String, String>, String> {
+    match FAVOURITE_FILE_EXTENSIONS.get() {
+        Some(fav_ext) => Ok(fav_ext.to_owned()),
+        None => Err("couldn't load value for some reason".to_string())
+    }
+}
+
+#[command]
+pub fn get_allowed_file_extensions() -> HashSet<String> {
+    match ALLOWED_FILE_EXTENSIONS.get() {
+        Some(ext) => ext.to_owned(),
+        None => Settings::default().allowed_extensions
+    }
+}
+
+pub fn get_copy_mode() -> CopyMode {
+    match COPY_MODE.get() {
+        Some(mode) => CopyMode::File, // TODO: fix Ownership and return mode
+        None => CopyMode::File
+    }
 }
