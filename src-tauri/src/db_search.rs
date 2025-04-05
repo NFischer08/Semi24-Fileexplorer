@@ -118,7 +118,7 @@ pub fn search_database(
             })
             .collect()
     });
-    
+
     println!("Results Length {}", results.len());
 
     query_thread

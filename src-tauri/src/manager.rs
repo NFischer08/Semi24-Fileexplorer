@@ -7,12 +7,11 @@ use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{fs::DirEntry, path::PathBuf};
+use std::cell::RefCell;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use tauri::command;
 use std::time::Instant;
-use tch::{CModule, Tensor};
-use std::collections::HashMap;
-use std::fs;
+use tch::{CModule};
 
 #[derive(serde::Serialize)]
 pub struct SearchResult {
@@ -25,7 +24,7 @@ pub struct SearchResult {
 
 pub static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
     ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get()/2)
+        .num_threads(num_cpus::get())
         .build()
         .unwrap()
 });
@@ -39,12 +38,11 @@ pub static MODEL: Lazy<TextEmbedding> = Lazy::new(|| {
     model
 });
 
-pub static PYMODEL: Lazy<CModule> = Lazy::new(|| {
-    println!("Initializing model...");
-    let model_path = "src-tauri/src/neural_network/skipgram_model_script.pt"; // Replace with the actual path to your .pt file
-    let model = CModule::load(model_path).expect("Could not load the TorchScript model");
-    model
-});
+thread_local! {
+    pub static LOCAL_MODEL: RefCell<CModule> = RefCell::new(
+        CModule::load("src-tauri/src/neural_network/skipgram_model_script.pt").expect("Failed to load model")
+    );
+}
 
 impl SearchResult {
     fn format(file_entry: FileEntry, path: DirEntry) -> SearchResult {
@@ -134,7 +132,7 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
         &allowed_file_extensions,
         &thread_pool,
         &MODEL,
-        &PYMODEL
+        "src-tauri/src/neural_network/skipgram_model_script.pt",
     ) {
         Ok(_) => {}
         Err(e) => return Err(e.to_string()),

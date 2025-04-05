@@ -1,18 +1,13 @@
-use crossbeam::channel;
 use fastembed::{TextEmbedding};
 use jwalk::WalkDir;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use rusqlite::{params, Result};
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::{collections::HashSet, fs, path::PathBuf, time::Instant};
-use std::collections::HashMap;
+use std::{collections::HashSet, path::PathBuf, thread, time::Instant};
 use once_cell::sync::Lazy;
 use tch::{CModule, Tensor, Kind};
-use tch::nn::Module;
-use crate::db_util::{convert_to_forward_slashes, is_allowed_file, should_ignore_path, Files, tokenize_file_name, EmbeddingModel, load_vocab, tokens_to_indices};
+use crate::db_util::{convert_to_forward_slashes, is_allowed_file, should_ignore_path, Files, tokenize_file_name, load_vocab, tokens_to_indices};
 
 pub fn create_database(
     connection_pool: Pool<SqliteConnectionManager>,
@@ -20,8 +15,10 @@ pub fn create_database(
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
     model: &Lazy<TextEmbedding>,
-    pymodel : &Lazy<CModule, fn() -> CModule>
+    pymodel_path: &str
 ) -> Result<(), String> {
+
+    tch::set_num_threads(num_cpus::get() as i32);
 
     const BATCH_SIZE: usize = 250;
 
@@ -31,8 +28,7 @@ pub fn create_database(
     );
     let start_time = Instant::now();
 
-    let (tx, rx) = channel::unbounded();
-    let rx = Arc::new(Mutex::new(rx));
+    let (tx, rx) = crossbeam_channel::unbounded();
 
     println!("Threadpool {}", start_time.elapsed().as_millis());
 
@@ -77,7 +73,6 @@ pub fn create_database(
 
     let allowed_file_extensions = allowed_file_extensions.clone();
     let file_walking_thread = std::thread::spawn(move || {
-        let tx = Arc::new(tx);
         let mut batch: Vec<Files> = Vec::with_capacity(BATCH_SIZE);
         WalkDir::new(&path)
             .follow_links(false)
@@ -101,6 +96,7 @@ pub fn create_database(
                         };
                         batch.push(file);
                         if batch.len() >= BATCH_SIZE {
+                            //println!("Batch send");
                             tx.send(std::mem::take(&mut batch))
                                 .unwrap_or_else(|_| println!("Failed to send batch"));
                         }
@@ -109,24 +105,24 @@ pub fn create_database(
             });
 
         if !batch.is_empty() {
+            println!("Last Batch send");
             tx.send(batch)
                 .unwrap_or_else(|_| println!("Failed to send final batch"));
         }
     });
 
-    let rx = Arc::clone(&rx);
-    while let Ok(batch) = rx.lock().unwrap().recv() {
-        thread_pool.install(|| {
-            // Prepare batch data
+    thread_pool.install(move || {
+        println!("Starting thread pool");
+        while let Ok(batch) = rx.recv() {
+            // Time batch preparation
             let batch_data: Vec<_> = batch
-                .par_iter()
+                .iter()
                 .filter_map(|file| {
                     if !existing_files.contains(&(file.file_name.clone(), file.file_path.clone())) {
                         let file_name_without_ext = file.file_name
                             .split_once('.')
                             .map(|(before, _)| before.to_string())
                             .unwrap_or(file.file_name.clone());
-                        //Needed for Fastembed let file_name_finished = format!("query: {}", file_name_without_ext);
                         let file_name_finished = file_name_without_ext;
                         Some((file.clone(), file_name_finished))
                     } else {
@@ -136,41 +132,61 @@ pub fn create_database(
                 .collect();
 
             if !batch_data.is_empty() {
+                // Time database connection setup
+                let db_start = Instant::now();
                 let mut connection = connection_pool.get().unwrap();
                 let transaction = connection.transaction().unwrap();
+                println!("🕒 DB connection setup took: {:?}", db_start.elapsed());
+
                 {
-                    let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)").expect("Failed to prepare insertion file");
-                    let mut batch_embeddings_vec_u8: Vec<Vec<u8>> = vec![];
-                    let batch_embeddings_vec_u8 = Mutex::new(batch_embeddings_vec_u8); // Wrap in Mutex
+                    // Time embedding generation
+                    let embeddings_start = Instant::now();
+                    let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)")
+                        .expect("Failed to prepare insertion file");
 
                     let vocab = load_vocab("src-tauri/src/neural_network/vocab.json");
-                    batch_data.par_iter().for_each(|file_data| {
-                        let file_name = &file_data.1;
-                        let tokens = tokenize_file_name(file_name);
-                        let token_indices = tokens_to_indices(tokens, &vocab);
-                        let tokens_indices_i64: Vec<i64> = token_indices.iter().map(|&x| x as i64).collect(); // Convert usize to i64
-                        let input_tensor = Tensor::from_slice(&tokens_indices_i64)
-                            .to_kind(Kind::Int64)
-                            .unsqueeze(0); // Add batch dimension
-                        let embeddings = pymodel.method_ts("get_embedding", &[input_tensor])
-                            .expect("Failed to get embeddings");
-                        let numel = embeddings.numel();
-                        let mut embeddings_vec_f32 = vec![0.0f32; numel];
-                        embeddings.copy_data(&mut embeddings_vec_f32, numel);
+                    let model = CModule::load(pymodel_path).expect("Failed to load model");
 
-                        let embeddings_vec_u8: Vec<u8> = embeddings_vec_f32.to_vec().into_iter()
-                            .flat_map(|f| f.to_le_bytes())
-                            .collect();
+                    let embeddings: Vec<Vec<u8>> = batch_data.par_iter()
+                        .map(|file_data| {
 
-                        batch_embeddings_vec_u8.lock().unwrap().push(embeddings_vec_u8);
-                    });
+                            println!("Running on thread: {:?}", thread::current().id());
 
-                    let batch_embeddings_vec_u8_guard = batch_embeddings_vec_u8.lock().unwrap(); // Acquire lock
+                            let file_name = &file_data.1;
+                            let tokens = tokenize_file_name(file_name);
+                            let token_indices = tokens_to_indices(tokens, &vocab);
+
+                            let tokens_indices_i64: Vec<i64> = token_indices.iter()
+                                .map(|&x| x as i64)
+                                .collect();
+
+                            let input_tensor = Tensor::from_slice(&tokens_indices_i64)
+                                .to_kind(Kind::Int64)
+                                .unsqueeze(0);
+
+                            let embedding = model.method_ts("get_embedding", &[input_tensor]).expect("Inference failed");
+
+                            let numel = embedding.numel();
+
+                            let mut embedding_vec_f32 = vec![0.0f32; numel];
+                            embedding.copy_data(&mut embedding_vec_f32, numel);
+
+                            let result = embedding_vec_f32.into_iter()
+                                .flat_map(|f| f.to_le_bytes())
+                                .collect();
+
+                            result
+
+                        })
+                        .collect();
+                    println!("🕒 Embeddings generation took: {:?}", embeddings_start.elapsed());
+
+                    // Time database insertion
+                    let insert_start = Instant::now();
                     for (c, file_data) in batch_data.iter().enumerate() {
                         let file = &file_data.0;
-                        if c < batch_embeddings_vec_u8_guard.len() {
-                            let vec = &batch_embeddings_vec_u8_guard[c]; // Access element safely
-
+                        if c < embeddings.len() {
+                            let vec = &embeddings[c];
                             insert_stmt.execute(params![
                         file.file_name,
                         file.file_path,
@@ -179,44 +195,16 @@ pub fn create_database(
                     ]).expect("Could not insert file");
                         }
                     }
+                    println!("🕒 Database insertion took: {:?}", insert_start.elapsed());
                 }
+
+                // Time transaction commit
+                let commit_start = Instant::now();
                 transaction.commit().unwrap();
+                println!("🕒 Transaction commit took: {:?}", commit_start.elapsed());
             }
-                /*
-
-                println!("names_to_embed {}", names_to_embed.join("\n"));
-
-
-                // Perform batch embedding
-                let name_embeddings = model.embed(names_to_embed, Some(BATCH_SIZE)).expect("Could not embed files");
-
-                // Process embeddings and insert into database
-                let mut connection = connection_pool.get().unwrap();
-                let transaction = connection.transaction().unwrap();
-                {
-                    let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)").expect("Failed to prepare insertion file");
-
-                    for ((file, _), embedding) in batch_data.iter().zip(name_embeddings.iter()) {
-                        let slice_f32 = embedding.as_slice();
-                        let name_vec_embedded: Vec<u8> = slice_f32.to_vec().into_iter()
-                            .flat_map(|f| f.to_le_bytes())
-                            .collect();
-
-                        insert_stmt.execute(params![
-                        file.file_name,
-                        file.file_path,
-                        file.file_type.as_deref().map::<&str, _>(|s| s.as_ref()),
-                        name_vec_embedded
-                    ]).expect("Could not insert file");
-                    }
-                }
-                transaction.commit().unwrap();
-
-                println!("Vec embed took {} ms", vec_embed_time.elapsed().as_millis());
-
-                 */
-    })
-    }
+        }
+    });
 
     file_walking_thread.join().unwrap();
 

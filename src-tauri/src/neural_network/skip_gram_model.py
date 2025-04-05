@@ -1,11 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from itertools import chain
 import json
 import re
-import gc
 from tqdm import tqdm  # Import tqdm for progress tracking
+
 
 # Check GPU availability and set device
 print(torch.cuda.is_available())
