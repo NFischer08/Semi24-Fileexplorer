@@ -8,7 +8,7 @@ use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{fs::DirEntry, path::PathBuf};
 use tauri::command;
-use std::time::Instant;
+use tch::CModule;
 
 #[derive(serde::Serialize)]
 pub struct SearchResult {
@@ -24,6 +24,10 @@ pub static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
         .num_threads(num_cpus::get())
         .build()
         .unwrap()
+});
+
+pub static MODEL: Lazy<CModule> = Lazy::new(|| {
+    CModule::load("src-tauri/src/neural_network/skipgram_model_script.pt").expect("Failed to load model")
 });
 
 impl SearchResult {
@@ -110,6 +114,8 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
 
     let pymodel = "src-tauri/src/neural_network/skipgram_model_script.pt";
 
+    let database_scan_start = PathBuf::from(database_scan_start);
+
     match create_database(
         connection_pool,
         database_scan_start,
@@ -132,19 +138,14 @@ pub fn manager_basic_search(
     searchfiletype: &str,
 ) -> Result<Vec<SearchResult>, String> {
 
-    let manager_search_time = Instant::now();
-    
     let connection_pool = match manager_make_pooled_connection() {
         Ok(connection_pool) => connection_pool,
         Err(e) => return Err(e.to_string()),
     };
 
-    let number_results = 20;
-
-    let pymodel = "src-tauri/src/neural_network/skipgram_model_script.pt";
+    let number_results = 50;
 
     let search_path = PathBuf::from(searchpath);
-
 
     let return_paths = match search_database(
         connection_pool,
@@ -152,7 +153,7 @@ pub fn manager_basic_search(
         &THREAD_POOL,
         search_path,
         searchfiletype,
-        pymodel,
+        &MODEL,
         number_results
     ) {
         Ok(return_paths) => return_paths,
@@ -160,7 +161,6 @@ pub fn manager_basic_search(
     };
 
     let search_result = build_struct(return_paths);
-    println!("Manager Search took: {}", manager_search_time.elapsed().as_millis());
-    
+
     Ok(search_result)
 }

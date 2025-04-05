@@ -15,6 +15,7 @@ use std::{
 use tch::{CModule, Kind};
 use tch::IValue::Tensor;
 use crate::db_util::{cosine_similarity, load_vocab, tokenize_file_name, tokens_to_indices};
+use crate::manager::MODEL;
 
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
@@ -22,7 +23,7 @@ pub fn search_database(
     thread_pool: &ThreadPool,
     search_path: PathBuf,
     search_file_type: &str,
-    pymodel_path : &str,
+    model : &CModule,
     num_results: usize,
 ) -> Result<Vec<DirEntry>> {
     let pooled_connection = connection_pool.get().expect("get connection pool");
@@ -51,8 +52,6 @@ pub fn search_database(
         .expect("Indexing: ");
 
     let search_file_type = search_file_type.replace(" ", "");
-
-    println!("query Results {}", start_time.elapsed().as_millis());
 
     let (tx, rx) = mpsc::channel();
     let query_thread = std::thread::spawn(move || {
@@ -103,7 +102,6 @@ pub fn search_database(
 
     vec_search_term.push("query: ".to_string() + search_term);
 
-    let model = CModule::load(pymodel_path).expect("Failed to load model");
     let vocab = load_vocab("src-tauri/src/neural_network/vocab.json");
 
     let tokenized_searchterm = tokenize_file_name(search_term);
@@ -131,30 +129,22 @@ pub fn search_database(
             .filter_map(|row| {
                 let embedding = row.1;
                 let embedding_f32 = cast_slice(&embedding).to_vec();
-                let similarity: f32 = cosine_similarity(&embedding_f32, &embedded_vec_f32);
+                let similarity: f32 = cosine_similarity(&embedding_f32, &embedded_vec_f32); //Similarity of 1 = full match
                 Some((row.0, similarity as _))
             })
             .collect()
     });
 
-    println!("Results Length {}", results.len());
 
     query_thread
         .join()
         .expect("Query thread panicked")
         .expect("Query thread panicked");
 
-    println!("results took: {}", start_time.elapsed().as_millis());
-
-    let sort_time = Instant::now();
     results.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
-    println!("Sorting time: {:?}", sort_time.elapsed().as_millis());
 
     results.truncate(num_results);
 
-    println!("Results Length {}", results.len());
-    
-    let return_time = Instant::now();
     let return_entries: Vec<DirEntry> = results
         .into_iter()
         .filter_map(|(s, _)| {
@@ -169,9 +159,6 @@ pub fn search_database(
             None
         })
         .collect();
-    println!("Return time: {:?}", return_time.elapsed().as_millis());
-
-    println!("return entries took: {}", start_time.elapsed().as_millis());
 
     println!("search took: {:?}", start_time.elapsed().as_millis());
 
