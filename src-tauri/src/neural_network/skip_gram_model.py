@@ -41,7 +41,7 @@ for name in file_names:
 vocab = {word: idx for idx, word in enumerate(set(tokens))}
 
 # Export vocabulary as a JSON file
-vocab_file_path = "vocab.json"
+vocab_file_path = "./data/model/vocab.json"
 with open(vocab_file_path, "w", encoding="utf-8") as vocab_file:
     json.dump(vocab, vocab_file, ensure_ascii=False, indent=4)  # Save vocab as JSON
 
@@ -88,4 +88,4 @@ for epoch in range(1):  # Training loop
 
 # Save model and state dict (no need to move them explicitly)
 scripted_model = torch.jit.script(model)
-scripted_model.save("skipgram_model_script.pt")
+scripted_model.save("./data/model.pt")

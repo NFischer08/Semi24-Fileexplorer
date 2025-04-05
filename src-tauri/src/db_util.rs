@@ -122,7 +122,6 @@ pub fn tokens_to_indices(tokens: Vec<String>, vocab: &HashMap<String, usize>) ->
         .map(|token| *vocab.get(token).unwrap_or(&0)) // Default to index 0 for unknown tokens
         .collect()
 }
-
 impl EmbeddingModel {
     pub fn new(model_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
         // Load the embeddings from the saved PyTorch model

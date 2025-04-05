@@ -99,7 +99,7 @@ pub fn search_database(
 
     vec_search_term.push("query: ".to_string() + search_term);
 
-    let vocab = load_vocab("src-tauri/src/neural_network/vocab.json");
+    let vocab = load_vocab("./data/model/vocab.json");
 
     let tokenized_searchterm = tokenize_file_name(search_term);
     let indiced_searchterm: Vec<i64> = tokens_to_indices(tokenized_searchterm, &vocab)

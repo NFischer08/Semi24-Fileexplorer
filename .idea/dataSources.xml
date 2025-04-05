@@ -16,11 +16,11 @@
         </library>
       </libraries>
     </data-source>
-    <data-source source="LOCAL" name="files" uuid="3f0faa15-8041-46f4-9224-8e3bad9ca95c">
+    <data-source source="LOCAL" name="files" uuid="d66c5dbc-b640-4f57-9848-9facc5c0eb36">
       <driver-ref>sqlite.xerial</driver-ref>
       <synchronize>true</synchronize>
       <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
-      <jdbc-url>jdbc:sqlite:C:\Users\maxmu\RustroverProjects\Semi24-Fileexplorer\src-tauri\src\db\files.sqlite3</jdbc-url>
+      <jdbc-url>jdbc:sqlite:C:\Users\maxmu\RustroverProjects\Semi24-Fileexplorer\db\files.sqlite3</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
       <libraries>
         <library>

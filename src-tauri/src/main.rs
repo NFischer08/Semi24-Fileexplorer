@@ -7,10 +7,11 @@ pub mod db_util;
 pub mod file_information;
 pub mod manager;
 
+use std::fs::{create_dir};
 use manager::manager_create_database;
 use rayon::prelude::*;
 use std::path::PathBuf;
-use std::thread;
+use std::{thread};
 fn get_all_drives() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
     {
@@ -49,6 +50,13 @@ fn get_all_drives() -> Vec<PathBuf> {
 }
 
 fn main() {
+
+    if !PathBuf::from("./data").exists() {
+        create_dir("./data").expect("Unable to create directory");
+        create_dir("./data/model").expect("Unable to create directory");
+        create_dir("./data/config").expect("Unable to create directory");
+    };
+
     let mut drives = get_all_drives();
     drives.clear();
     drives.push(PathBuf::from(r"C:\Users\maxmu"));

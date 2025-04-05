@@ -135,7 +135,7 @@ pub fn create_database(
                     let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)")
                         .expect("Failed to prepare insertion file");
 
-                    let vocab = load_vocab("src-tauri/src/neural_network/vocab.json");
+                    let vocab = load_vocab("./data/model/vocab.json");
                     let model = CModule::load(pymodel_path).expect("Failed to load model");
 
                     let max_len = batch_data.iter()
