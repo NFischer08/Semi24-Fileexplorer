@@ -27,12 +27,10 @@ pub fn create_database(
 
     let (tx, rx) = crossbeam_channel::unbounded();
 
-    println!("Threadpool {}", start_time.elapsed().as_millis());
 
     let existing_files_thread = std::thread::spawn({
         let connection_pool = connection_pool.clone();
         move || {
-            let existing_files_time = Instant::now();
             let mut existing_files = HashSet::new();
             let connection = connection_pool.get().expect("Unable to get connection from pool");
             let mut stmt = connection
@@ -52,10 +50,6 @@ pub fn create_database(
                     existing_files.insert((name, path));
                 }
             }
-            println!(
-                "existing_files finished in {}ms",
-                existing_files_time.elapsed().as_millis()
-            );
             existing_files
         }
     });
@@ -93,7 +87,6 @@ pub fn create_database(
                         };
                         batch.push(file);
                         if batch.len() >= BATCH_SIZE {
-                            //println!("Batch send");
                             tx.send(std::mem::take(&mut batch))
                                 .unwrap_or_else(|_| println!("Failed to send batch"));
                         }
@@ -109,7 +102,6 @@ pub fn create_database(
     });
 
     thread_pool.install(move || {
-        println!("Starting thread pool");
         while let Ok(batch) = rx.recv() {
             // Time batch preparation
             let batch_data: Vec<_> = batch
@@ -130,14 +122,11 @@ pub fn create_database(
 
             if !batch_data.is_empty() {
                 // Time database connection setup
-                let db_start = Instant::now();
                 let mut connection = connection_pool.get().expect("Unable to get connection from pool");
                 let transaction = connection.transaction().expect("Unable to create transaction");
-                println!("🕒 DB connection setup took: {:?}", db_start.elapsed());
 
                 {
                     // Time embedding generation
-                    let embeddings_start = Instant::now();
                     let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)")
                         .expect("Failed to prepare insertion file");
 
@@ -190,10 +179,8 @@ pub fn create_database(
                         })
                         .collect();
 
-                    println!("🕒 Embeddings generation took: {:?}", embeddings_start.elapsed());
 
                     // Time database insertion
-                    let insert_start = Instant::now();
                     for (c, file_data) in batch_data.iter().enumerate() {
                         let file = &file_data.0;
                         if c < embeddings_u8.len() {
@@ -206,13 +193,10 @@ pub fn create_database(
                     ]).expect("Could not insert file");
                         }
                     }
-                    println!("🕒 Database insertion took: {:?}", insert_start.elapsed());
                 }
 
                 // Time transaction commit
-                let commit_start = Instant::now();
                 transaction.commit().expect("Unable to commit transaction");
-                println!("🕒 Transaction commit took: {:?}", commit_start.elapsed());
             }
         }
     });

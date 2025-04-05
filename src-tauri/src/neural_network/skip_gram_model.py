@@ -87,7 +87,5 @@ for epoch in range(1):  # Training loop
     print(f"Epoch {epoch + 1}, Total Loss: {total_loss}")
 
 # Save model and state dict (no need to move them explicitly)
-torch.save(model, "skipgram_model.pt")
-torch.save(model.state_dict(), "skipgram_model_state.pt")
 scripted_model = torch.jit.script(model)
 scripted_model.save("skipgram_model_script.pt")

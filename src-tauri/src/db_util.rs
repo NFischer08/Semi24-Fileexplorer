@@ -8,7 +8,6 @@ use std::{
     path::{Path, PathBuf},
 };
 use std::collections::HashMap;
-use std::ffi::CString;
 use tch::Tensor;
 
 #[derive(Debug, Clone)]
@@ -56,57 +55,6 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
 pub fn should_ignore_path(path: &Path) -> bool {
     path.to_str()
         .map_or(false, |s| s.starts_with("/proc") || s.starts_with("/sys"))
-}
-
-pub fn check_database(
-    mut conn: PooledConnection<SqliteConnectionManager>,
-    allowed_file_extensions: &HashSet<String>,
-    thread_pool: &rayon::ThreadPool,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let bad_paths: Vec<String> = {
-        let mut stmt = conn
-            .prepare_cached("SELECT file_path FROM files")
-            .expect("SQL statement preparing failed: ");
-        let rows: Vec<Result<String, _>> = stmt
-            .query_map([], |row| row.get::<_, String>(0))
-            .expect("Getting Rows failed: ")
-            .collect();
-
-        thread_pool.install(|| {
-            rows.into_par_iter()
-                .filter_map(|path_result| {
-                    path_result.ok().and_then(|path| {
-                        let path_obj = Path::new(&path);
-                        if !is_allowed_file(path_obj, &allowed_file_extensions)
-                            && !fs::metadata(&path).is_ok()
-                        {
-                            Some(path)
-                        } else {
-                            None
-                        }
-                    })
-                })
-                .collect()
-        })
-    };
-    println!("Number of bad files: {}", bad_paths.len());
-
-    if !bad_paths.is_empty() {
-        let tx = conn.transaction().expect("Transaction creation failed");
-        {
-            let placeholders = bad_paths.iter().map(|_| "?").collect::<Vec<_>>().join(",");
-            let query = format!("DELETE FROM files WHERE file_path IN ({})", placeholders);
-            let mut stmt = tx
-                .prepare_cached(&query)
-                .expect("SQL statement preparing failed: ");
-            stmt.execute(rusqlite::params_from_iter(bad_paths.iter()))
-                .expect("SQL statement preparing failed: ");
-        }
-        tx.commit().expect("Transaction commit failed");
-    }
-    println!("Check Database completed");
-
-    Ok(())
 }
 
 pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnectionManager>) -> () {

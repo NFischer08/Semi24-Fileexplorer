@@ -26,18 +26,6 @@ pub static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
         .unwrap()
 });
 
-/*
-pub static MODEL: Lazy<TextEmbedding> = Lazy::new(|| {
-    println!("Initializing TextEmbedding model...");
-    let model = TextEmbedding::try_new(
-        InitOptions::new(EmbeddingModel::MultilingualE5Small)
-            .with_show_download_progress(true),
-    )
-        .expect("Could not create TextEmbedding");
-    model
-});
- */
-
 impl SearchResult {
     fn format(file_entry: FileEntry, path: DirEntry) -> SearchResult {
         let (file_type, is_dir) = match file_entry.file_type {
@@ -88,7 +76,7 @@ fn build_struct(paths: Vec<DirEntry>) -> Vec<SearchResult> {
 
 fn manager_make_pooled_connection(
 ) -> Result<Pool<SqliteConnectionManager>, Box<dyn std::error::Error>> {
-    let manager = SqliteConnectionManager::file("files.sqlite3");
+    let manager = SqliteConnectionManager::file("src-tauri/src/db/files.sqlite3");
     let connection_pool = Pool::new(manager).expect("Failed to create pool.");
     Ok(connection_pool)
 }
@@ -143,7 +131,6 @@ pub fn manager_basic_search(
     searchpath: &str,
     searchfiletype: &str,
 ) -> Result<Vec<SearchResult>, String> {
-    println!("manager basic search");
 
     let manager_search_time = Instant::now();
     
@@ -157,7 +144,6 @@ pub fn manager_basic_search(
     let pymodel = "src-tauri/src/neural_network/skipgram_model_script.pt";
 
     let search_path = PathBuf::from(searchpath);
-    println!("Manager before FN took: {}", manager_search_time.elapsed().as_millis());
 
 
     let return_paths = match search_database(
@@ -172,8 +158,6 @@ pub fn manager_basic_search(
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string()),
     };
-    println!("Manager Return Paths took: {}", manager_search_time.elapsed().as_millis());
-
 
     let search_result = build_struct(return_paths);
     println!("Manager Search took: {}", manager_search_time.elapsed().as_millis());
