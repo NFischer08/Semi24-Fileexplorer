@@ -1,6 +1,6 @@
-use bytemuck::{cast_slice};
-use fastembed::{TextEmbedding};
-use r2d2::{Pool};
+use crate::db_util::{cosine_similarity, load_vocab, tokenize_file_name, tokens_to_indices};
+use bytemuck::cast_slice;
+use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use rayon::ThreadPool;
@@ -13,9 +13,6 @@ use std::{
     time::Instant,
 };
 use tch::{CModule, Kind};
-use tch::IValue::Tensor;
-use crate::db_util::{cosine_similarity, load_vocab, tokenize_file_name, tokens_to_indices};
-use crate::manager::MODEL;
 
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
@@ -23,7 +20,7 @@ pub fn search_database(
     thread_pool: &ThreadPool,
     search_path: PathBuf,
     search_file_type: &str,
-    model : &CModule,
+    model: &CModule,
     num_results: usize,
 ) -> Result<Vec<DirEntry>> {
     let pooled_connection = connection_pool.get().expect("get connection pool");
@@ -105,7 +102,7 @@ pub fn search_database(
     let vocab = load_vocab("src-tauri/src/neural_network/vocab.json");
 
     let tokenized_searchterm = tokenize_file_name(search_term);
-    let indiced_searchterm  :Vec<i64> = tokens_to_indices(tokenized_searchterm, &vocab)
+    let indiced_searchterm: Vec<i64> = tokens_to_indices(tokenized_searchterm, &vocab)
         .into_iter()
         .map(|x| x as i64)
         .collect();
@@ -114,13 +111,14 @@ pub fn search_database(
         .to_kind(Kind::Int64)
         .unsqueeze(0);
 
-    let embedded_tensor = model.method_ts("get_embedding", &[search_tensor])
+    let embedded_tensor = model
+        .method_ts("get_embedding", &[search_tensor])
         .expect("Batch embedding lookup failed");
 
     let embedded_f32 = embedded_tensor.to_kind(Kind::Float); // Ensure Float32 type
 
-    let embedded_vec_f32: Vec<f32> = Vec::try_from(embedded_f32.flatten(0, -1))
-        .expect("Can't convert vector to f32");
+    let embedded_vec_f32: Vec<f32> =
+        Vec::try_from(embedded_f32.flatten(0, -1)).expect("Can't convert vector to f32");
 
     let mut results: Vec<(String, f64)> = thread_pool.install(|| {
         rx.into_iter()
@@ -134,7 +132,6 @@ pub fn search_database(
             })
             .collect()
     });
-
 
     query_thread
         .join()
@@ -152,7 +149,9 @@ pub fn search_database(
             if let Some(parent) = path.parent() {
                 if let Ok(dir) = fs::read_dir(parent) {
                     // Use find_map to directly return the matching entry
-                    return dir.filter_map(Result::ok).find(|entry| entry.path() == path);
+                    return dir
+                        .filter_map(Result::ok)
+                        .find(|entry| entry.path() == path);
                 }
             }
 

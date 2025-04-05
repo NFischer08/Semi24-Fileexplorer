@@ -1,22 +1,24 @@
+use crate::db_util::{
+    convert_to_forward_slashes, is_allowed_file, load_vocab, should_ignore_path,
+    tokenize_file_name, tokens_to_indices, Files,
+};
 use jwalk::WalkDir;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use rusqlite::{params, Result};
 use std::{collections::HashSet, path::PathBuf, time::Instant};
-use tch::{CModule, Tensor, Kind};
-use crate::db_util::{convert_to_forward_slashes, is_allowed_file, should_ignore_path, Files, tokenize_file_name, load_vocab, tokens_to_indices};
+use tch::{CModule, Kind, Tensor};
 
 pub fn create_database(
     connection_pool: Pool<SqliteConnectionManager>,
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
-    pymodel_path: &str
+    pymodel_path: &str,
 ) -> Result<(), String> {
-
-    tch::set_num_threads(num_cpus::get() as i32 *2);
-    tch::set_num_interop_threads(num_cpus::get() as i32 *2);
+    tch::set_num_threads(num_cpus::get() as i32 * 2);
+    tch::set_num_interop_threads(num_cpus::get() as i32 * 2);
     const BATCH_SIZE: usize = 250;
 
     println!(
@@ -27,12 +29,13 @@ pub fn create_database(
 
     let (tx, rx) = crossbeam_channel::unbounded();
 
-
     let existing_files_thread = std::thread::spawn({
         let connection_pool = connection_pool.clone();
         move || {
             let mut existing_files = HashSet::new();
-            let connection = connection_pool.get().expect("Unable to get connection from pool");
+            let connection = connection_pool
+                .get()
+                .expect("Unable to get connection from pool");
             let mut stmt = connection
                 .prepare_cached("SELECT file_name, file_path FROM files")
                 .expect("Failed to prepare statement.");
@@ -54,7 +57,9 @@ pub fn create_database(
         }
     });
 
-    let existing_files = existing_files_thread.join().expect("Failed to join thread.");
+    let existing_files = existing_files_thread
+        .join()
+        .expect("Failed to join thread.");
 
     let conn = connection_pool
         .get()

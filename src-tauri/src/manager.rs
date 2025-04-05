@@ -27,7 +27,8 @@ pub static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
 });
 
 pub static MODEL: Lazy<CModule> = Lazy::new(|| {
-    CModule::load("src-tauri/src/neural_network/skipgram_model_script.pt").expect("Failed to load model")
+    CModule::load("src-tauri/src/neural_network/skipgram_model_script.pt")
+        .expect("Failed to load model")
 });
 
 impl SearchResult {
@@ -86,7 +87,7 @@ fn manager_make_pooled_connection(
 }
 
 pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), String> {
-        let connection_pool = match manager_make_pooled_connection() {
+    let connection_pool = match manager_make_pooled_connection() {
         Ok(connection_pool) => connection_pool,
         Err(e) => return Err(e.to_string()),
     };
@@ -137,7 +138,6 @@ pub fn manager_basic_search(
     searchpath: &str,
     searchfiletype: &str,
 ) -> Result<Vec<SearchResult>, String> {
-
     let connection_pool = match manager_make_pooled_connection() {
         Ok(connection_pool) => connection_pool,
         Err(e) => return Err(e.to_string()),
@@ -154,7 +154,7 @@ pub fn manager_basic_search(
         search_path,
         searchfiletype,
         &MODEL,
-        number_results
+        number_results,
     ) {
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string()),

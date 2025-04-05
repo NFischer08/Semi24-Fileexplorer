@@ -1,13 +1,12 @@
 use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
-use rayon::prelude::*;
 use rusqlite::Result;
+use std::collections::HashMap;
 use std::{
     collections::HashSet,
     fs::{self},
     path::{Path, PathBuf},
 };
-use std::collections::HashMap;
 use tch::Tensor;
 
 #[derive(Debug, Clone)]
@@ -112,7 +111,6 @@ pub fn tokenize_file_name(file_name: &str) -> Vec<String> {
         .filter(|s| !s.is_empty()) // Remove empty tokens
         .collect()
 }
-
 
 pub fn load_vocab(path: &str) -> HashMap<String, usize> {
     let vocab_json = fs::read_to_string(path).expect("Failed to read vocab file");

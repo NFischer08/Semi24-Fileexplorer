@@ -7,7 +7,7 @@ pub mod db_util;
 pub mod file_information;
 pub mod manager;
 
-use manager::{manager_create_database};
+use manager::manager_create_database;
 use rayon::prelude::*;
 use std::path::PathBuf;
 use std::thread;
