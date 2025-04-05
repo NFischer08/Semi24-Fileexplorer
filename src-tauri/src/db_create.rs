@@ -1,11 +1,9 @@
-use fastembed::{TextEmbedding};
 use jwalk::WalkDir;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use rusqlite::{params, Result};
-use std::{collections::HashSet, path::PathBuf, thread, time::Instant};
-use once_cell::sync::Lazy;
+use std::{collections::HashSet, path::PathBuf, time::Instant};
 use tch::{CModule, Tensor, Kind};
 use crate::db_util::{convert_to_forward_slashes, is_allowed_file, should_ignore_path, Files, tokenize_file_name, load_vocab, tokens_to_indices};
 
@@ -14,12 +12,11 @@ pub fn create_database(
     path: PathBuf,
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
-    model: &Lazy<TextEmbedding>,
     pymodel_path: &str
 ) -> Result<(), String> {
 
-    tch::set_num_threads(num_cpus::get() as i32);
-
+    tch::set_num_threads(num_cpus::get() as i32 *2);
+    tch::set_num_interop_threads(num_cpus::get() as i32 *2);
     const BATCH_SIZE: usize = 250;
 
     println!(
@@ -147,46 +144,60 @@ pub fn create_database(
                     let vocab = load_vocab("src-tauri/src/neural_network/vocab.json");
                     let model = CModule::load(pymodel_path).expect("Failed to load model");
 
-                    let embeddings: Vec<Vec<u8>> = batch_data.par_iter()
+                    let max_len = batch_data.iter()
                         .map(|file_data| {
+                            let tokens = tokenize_file_name(&file_data.1);
+                            tokens_to_indices(tokens, &vocab).len()
+                        })
+                        .max()
+                        .unwrap_or(0);
 
-                            println!("Running on thread: {:?}", thread::current().id());
+                    let input_tensors: Vec<Tensor> = batch_data.par_iter()
+                        .map(|file_data| {
+                            let tokens = tokenize_file_name(&file_data.1);
+                            let mut token_indices: Vec<i64> = tokens_to_indices(tokens, &vocab)
+                                .into_iter()  // Convert Vec<usize> to iterator
+                                .map(|x| x as i64)  // Convert each usize to i64
+                                .collect();  // Rebuild into Vec<i64>
 
-                            let file_name = &file_data.1;
-                            let tokens = tokenize_file_name(file_name);
-                            let token_indices = tokens_to_indices(tokens, &vocab);
+                            // Pad with zeros to max_len
+                            token_indices.resize(max_len, 0);
 
-                            let tokens_indices_i64: Vec<i64> = token_indices.iter()
-                                .map(|&x| x as i64)
-                                .collect();
-
-                            let input_tensor = Tensor::from_slice(&tokens_indices_i64)
+                            Tensor::from_slice(&token_indices)
                                 .to_kind(Kind::Int64)
-                                .unsqueeze(0);
+                                .unsqueeze(0)
+                        })
+                        .collect();
 
-                            let embedding = model.method_ts("get_embedding", &[input_tensor]).expect("Inference failed");
+                    let batch_tensor = Tensor::cat(&input_tensors, 0); // Concatenate along batch dimension
+                    let batch_embeddings = model.method_ts("get_embedding", &[batch_tensor])
+                        .expect("Batch embedding lookup failed");
 
+                    // Split batch results back into individual tensors if needed
+                    let embeddings: Vec<Tensor> = batch_embeddings.chunk(input_tensors.len() as i64, 0)
+                        .into_iter()
+                        .collect();
+
+                    let embeddings_u8: Vec<Vec<u8>> = embeddings.into_iter()
+                        .map(|embedding| {
                             let numel = embedding.numel();
-
                             let mut embedding_vec_f32 = vec![0.0f32; numel];
                             embedding.copy_data(&mut embedding_vec_f32, numel);
 
-                            let result = embedding_vec_f32.into_iter()
+                            embedding_vec_f32.into_iter()
                                 .flat_map(|f| f.to_le_bytes())
-                                .collect();
-
-                            result
-
+                                .collect()
                         })
                         .collect();
+
                     println!("🕒 Embeddings generation took: {:?}", embeddings_start.elapsed());
 
                     // Time database insertion
                     let insert_start = Instant::now();
                     for (c, file_data) in batch_data.iter().enumerate() {
                         let file = &file_data.0;
-                        if c < embeddings.len() {
-                            let vec = &embeddings[c];
+                        if c < embeddings_u8.len() {
+                            let vec = &embeddings_u8[c];
                             insert_stmt.execute(params![
                         file.file_name,
                         file.file_path,

@@ -7,11 +7,9 @@ use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{fs::DirEntry, path::PathBuf};
-use std::cell::RefCell;
 use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use tauri::command;
 use std::time::Instant;
-use tch::{CModule};
 
 #[derive(serde::Serialize)]
 pub struct SearchResult {
@@ -37,12 +35,6 @@ pub static MODEL: Lazy<TextEmbedding> = Lazy::new(|| {
         .expect("Could not create TextEmbedding");
     model
 });
-
-thread_local! {
-    pub static LOCAL_MODEL: RefCell<CModule> = RefCell::new(
-        CModule::load("src-tauri/src/neural_network/skipgram_model_script.pt").expect("Failed to load model")
-    );
-}
 
 impl SearchResult {
     fn format(file_entry: FileEntry, path: DirEntry) -> SearchResult {
@@ -126,13 +118,14 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
         .pragma_update(None, "wal_autocheckpoint", "1000")
         .expect("wal_autocheckpoint failed");
 
+    let pymodel = "src-tauri/src/neural_network/skipgram_model_script.pt";
+
     match create_database(
         connection_pool,
         database_scan_start,
         &allowed_file_extensions,
         &thread_pool,
-        &MODEL,
-        "src-tauri/src/neural_network/skipgram_model_script.pt",
+        &pymodel,
     ) {
         Ok(_) => {}
         Err(e) => return Err(e.to_string()),
