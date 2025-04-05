@@ -34,10 +34,10 @@ pub fn create_database(
         move || {
             let existing_files_time = Instant::now();
             let mut existing_files = HashSet::new();
-            let connection = connection_pool.get().unwrap();
+            let connection = connection_pool.get().expect("Unable to get connection from pool");
             let mut stmt = connection
                 .prepare_cached("SELECT file_name, file_path FROM files")
-                .unwrap();
+                .expect("Failed to prepare statement.");
             let rows = stmt
                 .query_map([], |row| {
                     Ok((
@@ -45,7 +45,7 @@ pub fn create_database(
                         row.get::<_, String>(1).expect("Rows failed"),
                     ))
                 })
-                .unwrap();
+                .expect("Failed to query result.");
 
             for row in rows {
                 if let Ok((name, path)) = row {
@@ -60,7 +60,7 @@ pub fn create_database(
         }
     });
 
-    let existing_files = existing_files_thread.join().unwrap();
+    let existing_files = existing_files_thread.join().expect("Failed to join thread.");
 
     let conn = connection_pool
         .get()
@@ -131,8 +131,8 @@ pub fn create_database(
             if !batch_data.is_empty() {
                 // Time database connection setup
                 let db_start = Instant::now();
-                let mut connection = connection_pool.get().unwrap();
-                let transaction = connection.transaction().unwrap();
+                let mut connection = connection_pool.get().expect("Unable to get connection from pool");
+                let transaction = connection.transaction().expect("Unable to create transaction");
                 println!("🕒 DB connection setup took: {:?}", db_start.elapsed());
 
                 {
@@ -211,13 +211,13 @@ pub fn create_database(
 
                 // Time transaction commit
                 let commit_start = Instant::now();
-                transaction.commit().unwrap();
+                transaction.commit().expect("Unable to commit transaction");
                 println!("🕒 Transaction commit took: {:?}", commit_start.elapsed());
             }
         }
     });
 
-    file_walking_thread.join().unwrap();
+    file_walking_thread.join().expect("Failed to join thread.");
 
     println!("{}", start_time.elapsed().as_millis());
     Ok(())

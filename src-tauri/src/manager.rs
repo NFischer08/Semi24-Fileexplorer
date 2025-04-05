@@ -7,7 +7,6 @@ use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{fs::DirEntry, path::PathBuf};
-use fastembed::{EmbeddingModel, InitOptions, TextEmbedding};
 use tauri::command;
 use std::time::Instant;
 
@@ -26,6 +25,8 @@ pub static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
         .build()
         .unwrap()
 });
+
+/*
 pub static MODEL: Lazy<TextEmbedding> = Lazy::new(|| {
     println!("Initializing TextEmbedding model...");
     let model = TextEmbedding::try_new(
@@ -35,6 +36,7 @@ pub static MODEL: Lazy<TextEmbedding> = Lazy::new(|| {
         .expect("Could not create TextEmbedding");
     model
 });
+ */
 
 impl SearchResult {
     fn format(file_entry: FileEntry, path: DirEntry) -> SearchResult {
@@ -152,6 +154,7 @@ pub fn manager_basic_search(
 
     let number_results = 20;
 
+    let pymodel = "src-tauri/src/neural_network/skipgram_model_script.pt";
 
     let search_path = PathBuf::from(searchpath);
     println!("Manager before FN took: {}", manager_search_time.elapsed().as_millis());
@@ -163,7 +166,7 @@ pub fn manager_basic_search(
         &THREAD_POOL,
         search_path,
         searchfiletype,
-        &MODEL,
+        pymodel,
         number_results
     ) {
         Ok(return_paths) => return_paths,

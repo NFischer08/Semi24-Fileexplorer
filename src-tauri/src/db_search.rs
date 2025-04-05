@@ -12,8 +12,9 @@ use std::{
     path::{Path, PathBuf},
     time::Instant,
 };
-
-use crate::db_util::cosine_similarity;
+use tch::{CModule, Kind};
+use tch::IValue::Tensor;
+use crate::db_util::{cosine_similarity, load_vocab, tokenize_file_name, tokens_to_indices};
 
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
@@ -21,7 +22,7 @@ pub fn search_database(
     thread_pool: &ThreadPool,
     search_path: PathBuf,
     search_file_type: &str,
-    model: &TextEmbedding,
+    pymodel_path : &str,
     num_results: usize,
 ) -> Result<Vec<DirEntry>> {
     let pooled_connection = connection_pool.get().expect("get connection pool");
@@ -101,10 +102,27 @@ pub fn search_database(
     let mut vec_search_term = Vec::new();
 
     vec_search_term.push("query: ".to_string() + search_term);
-    let search_vec_embedding = model
-        .embed(vec_search_term, None)
-        .expect("Could not create TextEmbedding")[0]
-        .clone();
+
+    let model = CModule::load(pymodel_path).expect("Failed to load model");
+    let vocab = load_vocab("src-tauri/src/neural_network/vocab.json");
+
+    let tokenized_searchterm = tokenize_file_name(search_term);
+    let indiced_searchterm  :Vec<i64> = tokens_to_indices(tokenized_searchterm, &vocab)
+        .into_iter()
+        .map(|x| x as i64)
+        .collect();
+
+    let search_tensor = tch::Tensor::from_slice(&indiced_searchterm)
+        .to_kind(Kind::Int64)
+        .unsqueeze(0);
+
+    let embedded_tensor = model.method_ts("get_embedding", &[search_tensor])
+        .expect("Batch embedding lookup failed");
+
+    let embedded_f32 = embedded_tensor.to_kind(Kind::Float); // Ensure Float32 type
+
+    let embedded_vec_f32: Vec<f32> = Vec::try_from(embedded_f32.flatten(0, -1))
+        .expect("Can't convert vector to f32");
 
     let mut results: Vec<(String, f64)> = thread_pool.install(|| {
         rx.into_iter()
@@ -113,7 +131,7 @@ pub fn search_database(
             .filter_map(|row| {
                 let embedding = row.1;
                 let embedding_f32 = cast_slice(&embedding).to_vec();
-                let similarity: f32 = cosine_similarity(&embedding_f32, &search_vec_embedding);
+                let similarity: f32 = cosine_similarity(&embedding_f32, &embedded_vec_f32);
                 Some((row.0, similarity as _))
             })
             .collect()
