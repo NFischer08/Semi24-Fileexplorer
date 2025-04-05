@@ -1,7 +1,7 @@
 use clipboard::{ClipboardContext, ClipboardProvider};
 use opener::open;
 use std::{
-    fs::{self, remove_file, rename, File, copy},
+    fs,
     io::{Read, Write},
     path::{Path, PathBuf},
     process::Command,
@@ -19,7 +19,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
 
     println!("copying file {}", path.display());
     // Attempt to open the file
-    let mut file = match File::open(&path) {
+    let mut file = match fs::File::open(&path) {
         Ok(file) => file,
         Err(_) => {
             return Err("Failed to open file.".to_string());
@@ -64,12 +64,12 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
         }
         CopyMode::File => {
             // copy file to paste it later
-            match copy(&path, "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/src/context_actions_tmp/FILE") {
+            match fs::copy(&path, "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/src/context_actions_tmp/FILE") {
                 Ok(_) => {}
                 Err(e) => return Err(e.to_string())
             }
             // open copy.txt to store name + extension
-            let mut file: File = match File::open("/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/src/context_actions_tmp/copy.txt") {
+            let mut file: fs::File = match fs::File::open("/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/src/context_actions_tmp/copy.txt") {
                 Ok(file) => file,
                 Err(e) => {return Err(e.to_string())}
             };
@@ -83,8 +83,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
                 Some(name) => name.to_string_lossy().to_string(),
                 None => String::from("Unbenannt"),
             };
-            // TODO!!! FIX!!
-            match file.write(filename) {
+            match file.write(filename.as_ref()) {
                 Ok(_) => {},
                 Err(e) => {return Err(e.to_string())}
             }
@@ -152,7 +151,7 @@ fn paste_from_file(destination: PathBuf) -> Result<String, String> {
     let contents: String = contents[..index].to_string();
 
     // Write the contents to the specified file
-    let mut file = match File::create(&destination.join(name)) {
+    let mut file = match fs::File::create(&destination.join(name)) {
         Ok(file) => file,
         Err(e) => return Err(e.to_string()),
     };
@@ -232,8 +231,7 @@ pub fn rename_file(filepath: String, new_filename: &str) -> Result<String, Strin
     }
 
     // Rename the file
-    rename(&path, &new_filepath)
-        .map_err(|e| format!("Failed to rename file: {}", e))?;
+    fs::rename(&path, &new_filepath).map_err(|e| format!("Failed to rename file: {}", e))?;
 
     Ok("Renamed successfully!".to_string())
 }
@@ -241,7 +239,7 @@ pub fn rename_file(filepath: String, new_filename: &str) -> Result<String, Strin
 #[command]
 pub fn delete_file(filepath: String) -> Result<String, String> {
     let _path: PathBuf = clean_path(filepath);
-    // fs::remove_file(filepath).map_err(|e| e.to_string())?;
+    //remove_file(path).map_err(|e| e.to_string())?;
     Ok("File deleted successfully.".to_string())
 }
 
@@ -283,10 +281,12 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
     }
 }
 
-pub fn open_file(filepath: &PathBuf) -> Result<String, String> {
-    match open(filepath) {
+#[command]
+pub fn open_file(filepath: String) -> Result<String, String> {
+    let path: PathBuf = clean_path(filepath);
+    match open(path) {
         Ok(_) => Ok(String::from("File opened successfully!")),
-        Err(_) => Err(String::from("Failed to open file for user."))
+        Err(_) => Err(String::from("Failed to open file for user.")),
     }
 }
 
