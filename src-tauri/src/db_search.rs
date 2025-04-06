@@ -104,7 +104,7 @@ pub fn search_database(
         .map(|x| x as i64)
         .collect();
 
-    let search_tensor = tch::Tensor::of_slice(&indiced_searchterm)
+    let search_tensor = tch::Tensor::from_slice(&indiced_searchterm)
         .to_kind(Kind::Int64)
         .unsqueeze(0);
 

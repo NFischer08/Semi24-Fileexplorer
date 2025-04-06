@@ -157,7 +157,7 @@ pub fn create_database(
                             // Pad with zeros to max_len
                             token_indices.resize(max_len, 0);
 
-                            Tensor::of_slice(&token_indices)
+                            Tensor::from_slice(&token_indices)
                                 .to_kind(Kind::Int64)
                                 .unsqueeze(0)
                         })
