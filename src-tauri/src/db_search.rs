@@ -12,6 +12,7 @@ use std::{
     path::{Path, PathBuf},
     time::Instant,
 };
+use std::collections::HashMap;
 use tch::{CModule, Kind};
 
 pub fn search_database(
@@ -22,6 +23,7 @@ pub fn search_database(
     search_file_type: &str,
     model: &CModule,
     num_results: usize,
+    vocab: &HashMap<String, usize>,
 ) -> Result<Vec<DirEntry>> {
     let pooled_connection = connection_pool.get().expect("get connection pool");
     const BATCH_SIZE: usize = 1000; // Adjust this value as needed
@@ -95,12 +97,7 @@ pub fn search_database(
         Ok(())
     });
 
-    let mut vec_search_term = Vec::new();
-
-    vec_search_term.push("query: ".to_string() + search_term);
-
-    let vocab = load_vocab("./data/model/vocab.json");
-
+    let search_embedding_start = Instant::now();
     let tokenized_searchterm = tokenize_file_name(search_term);
     let indiced_searchterm: Vec<i64> = tokens_to_indices(tokenized_searchterm, &vocab)
         .into_iter()
@@ -120,6 +117,8 @@ pub fn search_database(
     let embedded_vec_f32: Vec<f32> =
         Vec::try_from(embedded_f32.flatten(0, -1)).expect("Can't convert vector to f32");
 
+    println!("Search embedding took: {:?}", search_embedding_start.elapsed());
+
     let mut results: Vec<(String, f64)> = thread_pool.install(|| {
         rx.into_iter()
             .flat_map(|vec_of_paths| vec_of_paths)
@@ -132,6 +131,8 @@ pub fn search_database(
             })
             .collect()
     });
+
+    println!("Results length {}", results.len());
 
     query_thread
         .join()
@@ -148,13 +149,11 @@ pub fn search_database(
             let path = Path::new(&s);
             if let Some(parent) = path.parent() {
                 if let Ok(dir) = fs::read_dir(parent) {
-                    // Use find_map to directly return the matching entry
                     return dir
                         .filter_map(Result::ok)
                         .find(|entry| entry.path() == path);
                 }
             }
-
             None
         })
         .collect();

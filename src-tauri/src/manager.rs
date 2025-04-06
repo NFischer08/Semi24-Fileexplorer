@@ -1,12 +1,13 @@
 use crate::db_create::create_database;
 use crate::db_search::search_database;
-use crate::db_util::{get_allowed_file_extensions, initialize_database};
+use crate::db_util::{get_allowed_file_extensions, initialize_database, load_vocab};
 use crate::file_information::{get_file_information, FileEntry, FileType};
 use once_cell::sync::Lazy;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{fs::DirEntry, path::PathBuf};
+use std::collections::HashMap;
 use std::fs::create_dir;
 use tauri::command;
 use tch::CModule;
@@ -28,8 +29,11 @@ pub static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
 });
 
 pub static MODEL: Lazy<CModule> = Lazy::new(|| {
-    CModule::load("./data/model/model.pt")
-        .expect("Failed to load model")
+    CModule::load("./data/model/model.pt").expect("Unable to load model")
+});
+
+pub static VOCAB: Lazy<HashMap<String, usize>> = Lazy::new(|| {
+    load_vocab("./data/model/vocab.json")
 });
 
 impl SearchResult {
@@ -159,6 +163,7 @@ pub fn manager_basic_search(
         searchfiletype,
         &MODEL,
         number_results,
+        &VOCAB
     ) {
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string()),
