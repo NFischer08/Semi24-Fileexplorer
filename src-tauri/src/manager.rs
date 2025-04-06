@@ -1,18 +1,10 @@
-use crate::database_operations::{
-    check_database, create_database, initialize_database_and_extensions, search_database,
-};
 use crate::file_information::{get_file_information, FileData, FileDataFormatted};
-use once_cell::sync::Lazy;
-use r2d2::Pool;
 use crate::db_create::create_database;
 use crate::db_search::search_database;
 use crate::db_util::{get_allowed_file_extensions, initialize_database, load_vocab};
-use crate::file_information::{get_file_information, FileEntry, FileType};
 use once_cell::sync::Lazy;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rayon::{ThreadPool, ThreadPoolBuilder};
-use std::{fs::DirEntry, path::PathBuf};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{fs::DirEntry, path::PathBuf};
 use std::collections::HashMap;
@@ -31,6 +23,7 @@ fn build_struct(paths: Vec<DirEntry>) -> Vec<FileDataFormatted> {
     paths
         .into_iter()
         .map(|path| FileData::format(get_file_information(&path)))
+        .collect()
 }
 
 pub static MODEL: Lazy<CModule> = Lazy::new(|| {
@@ -41,26 +34,19 @@ pub static VOCAB: Lazy<HashMap<String, usize>> = Lazy::new(|| {
     load_vocab("./data/model/vocab.json")
 });
 
-fn build_struct(paths: Vec<DirEntry>) -> Vec<SearchResult> {
-    paths
-        .into_iter()
-        .map(|path| SearchResult::format(get_file_information(&path), path))
-        .collect()
-}
-
 fn manager_make_pooled_connection(
 ) -> Pool<SqliteConnectionManager> {
     let path = "./data/db";
     if PathBuf::from(path).try_exists().expect("Reason") {
         let manager = SqliteConnectionManager::file(PathBuf::from(path.to_owned() + "/files.sqlite3"));
         let connection_pool = Pool::new(manager).expect("Failed to create pool.");
-        return connection_pool
+        connection_pool
     }
     else {
         create_dir(PathBuf::from(path)).expect("Failed to create Dir");
         let manager = SqliteConnectionManager::file(PathBuf::from(path.to_owned() + "/files.sqlite3"));
         let connection_pool = Pool::new(manager).expect("Failed to create pool.");
-        return connection_pool
+        connection_pool
     }
 }
 
@@ -112,7 +98,7 @@ pub fn manager_basic_search(
     searchterm: &str,
     searchpath: &str,
     searchfiletype: &str,
-) -> Result<Vec<SearchResult>, String> {
+) -> Result<Vec<FileDataFormatted>, String> {
     let connection_pool = manager_make_pooled_connection();
 
     let number_results = 50;

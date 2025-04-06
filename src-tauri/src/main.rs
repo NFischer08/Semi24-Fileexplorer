@@ -6,15 +6,14 @@ pub mod db_search;
 pub mod db_util;
 pub mod file_information;
 pub mod manager;
+pub mod config_handler;
 
 use config_handler::initialize_config;
-use manager::{manager_check_database, manager_create_database};
-use rayon::prelude::*;
-use std::fs::{create_dir};
 use manager::manager_create_database;
 use rayon::prelude::*;
+use std::fs::{create_dir};
+use rayon::prelude::*;
 use std::path::PathBuf;
-use manager::{manager_create_database, manager_check_database};
 use std::thread;
 use rayon::prelude::*;
 
@@ -77,7 +76,6 @@ fn main() {
         drives.into_par_iter().for_each(|drive| {
             manager_create_database(drive).unwrap();
         });
-        manager_check_database().unwrap();
     });
 
     file_explorer_lib::run();
