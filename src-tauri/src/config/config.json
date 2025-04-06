@@ -13,7 +13,9 @@
     "Text": "txt,doc,docx,pdf,odt,rtf",
     "Images": "png,jpeg,png,gif,wepg",
     "Video": "mp4,mp4a,avi",
-    "Coding": "c,cpp,cs,java,js,html,css,php,py,rs,sh,swift,ts,xml"
+    "Coding": "c,cpp,cs,java,js,html,css,php,py,rs,sh,swift,ts,xml",
+    "Diris": "dir"
   },
-  "copy_mode": 1
+  "copy_mode": "File",
+  "context_actions_tmp_path": "C:\\Users\\ninof\\RustroverProjects\\Semi24-Fileexplorer\\src-tauri\\src\\context_actions_tmp"
 }

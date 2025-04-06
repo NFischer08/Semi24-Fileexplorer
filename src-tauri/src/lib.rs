@@ -3,13 +3,11 @@ pub mod config_handler;
 pub mod context_actions;
 pub mod database_operations;
 pub mod file_information;
-pub mod global_stuff;
 pub mod manager;
 
-use config_handler::{ CopyMode, get_copy_mode };
-use context_actions::{copy_file, cut_file, delete_file, open_file_with, paste, rename_file};
+use config_handler::get_fav_file_extensions;
+use context_actions::{copy_file, cut_file, delete_file, open_file, open_file_with, paste_file, rename_file};
 use file_information::format_file_data;
-use global_stuff::get_fav_extensions;
 use manager::manager_basic_search;
 
 pub fn run() {
@@ -18,13 +16,14 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             format_file_data,
             copy_file,
-            paste,
+            paste_file,
             cut_file,
             delete_file,
             rename_file,
+            open_file,
             open_file_with,
             manager_basic_search,
-            get_fav_extensions
+            get_fav_file_extensions,
         ])
         .run(tauri::generate_context!("tauri.conf.json"))
         .expect("error while running tauri application");

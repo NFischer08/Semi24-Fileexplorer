@@ -1,4 +1,4 @@
-use crate::config_handler::ALLOWED_FILE_EXTENSIONS;
+use crate::config_handler::{get_allowed_file_extensions, ALLOWED_FILE_EXTENSIONS};
 use jwalk::WalkDir;
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
@@ -41,13 +41,8 @@ pub fn initialize_database_and_extensions(
         "CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)",
         [],
     )?;
-    let x = if let Some(allowed_ext) = ALLOWED_FILE_EXTENSIONS.get().clone() {
-        Ok(allowed_ext.clone())
-    } else {
-        Ok(HashSet::new())
-    };
-    println!("DB: allowed file extensions: {:?}", x);
-    x
+
+    Ok(get_allowed_file_extensions())
 }
 
 pub fn create_database(

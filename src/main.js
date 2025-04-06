@@ -166,7 +166,7 @@ window.addEventListener('click', (event) => {
 
 // request favourite settings from backend (=> config.json)
 async function display_fav_settings() {
-  const settings = await invoke('get_fav_extensions'); // get favourite settings as HashMap<String, String>
+  const settings = await invoke('get_fav_file_extensions'); // get favourite settings as HashMap<String, String>
   const form = document.getElementById('settings-form');
 
   for (const [titel, favourites] of Object.entries(settings)) {
@@ -281,7 +281,7 @@ document.getElementById('context-paste').addEventListener('click', () => {
   if (selectedFile) {
     //let selectedFile = document.getElementById("file-path").value
     console.log(`Pasting file: ${selectedFile}`);
-    const result = invoke('paste', { destination: selectedFile});
+    const result = invoke('paste_file', { destination: selectedFile});
     console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
