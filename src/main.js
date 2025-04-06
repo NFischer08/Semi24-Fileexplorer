@@ -133,6 +133,8 @@ async function display_search_results() {
 document.addEventListener('DOMContentLoaded', async () => {
   await display_fav_settings();
   await loadFilesAndFolders();
+  await display_search_results();
+  await loadFilesAndFolders();
 });
 
 // calls apropriate function when clicking on button

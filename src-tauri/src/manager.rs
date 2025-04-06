@@ -4,12 +4,23 @@ use crate::database_operations::{
 use crate::file_information::{get_file_information, FileData, FileDataFormatted};
 use once_cell::sync::Lazy;
 use r2d2::Pool;
+use crate::db_create::create_database;
+use crate::db_search::search_database;
+use crate::db_util::{get_allowed_file_extensions, initialize_database, load_vocab};
+use crate::file_information::{get_file_information, FileEntry, FileType};
+use once_cell::sync::Lazy;
+use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::{fs::DirEntry, path::PathBuf};
+use rayon::{ThreadPool, ThreadPoolBuilder};
+use std::{fs::DirEntry, path::PathBuf};
+use std::collections::HashMap;
+use std::fs::create_dir;
 use tauri::command;
+use tch::CModule;
 
-static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
+pub static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
     ThreadPoolBuilder::new()
         .num_threads(num_cpus::get())
         .build()
@@ -20,27 +31,45 @@ fn build_struct(paths: Vec<DirEntry>) -> Vec<FileDataFormatted> {
     paths
         .into_iter()
         .map(|path| FileData::format(get_file_information(&path)))
+}
+
+pub static MODEL: Lazy<CModule> = Lazy::new(|| {
+    CModule::load("./data/model/model.pt").expect("Unable to load model")
+});
+
+pub static VOCAB: Lazy<HashMap<String, usize>> = Lazy::new(|| {
+    load_vocab("./data/model/vocab.json")
+});
+
+fn build_struct(paths: Vec<DirEntry>) -> Vec<SearchResult> {
+    paths
+        .into_iter()
+        .map(|path| SearchResult::format(get_file_information(&path), path))
         .collect()
 }
 
 fn manager_make_pooled_connection(
-) -> Result<Pool<SqliteConnectionManager>, Box<dyn std::error::Error>> {
-    let manager = SqliteConnectionManager::file("files.sqlite3");
-    let connection_pool = Pool::new(manager)?;
-    Ok(connection_pool)
+) -> Pool<SqliteConnectionManager> {
+    let path = "./data/db";
+    if PathBuf::from(path).try_exists().expect("Reason") {
+        let manager = SqliteConnectionManager::file(PathBuf::from(path.to_owned() + "/files.sqlite3"));
+        let connection_pool = Pool::new(manager).expect("Failed to create pool.");
+        return connection_pool
+    }
+    else {
+        create_dir(PathBuf::from(path)).expect("Failed to create Dir");
+        let manager = SqliteConnectionManager::file(PathBuf::from(path.to_owned() + "/files.sqlite3"));
+        let connection_pool = Pool::new(manager).expect("Failed to create pool.");
+        return connection_pool
+    }
 }
 
 pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), String> {
-    let connection_pool = match manager_make_pooled_connection() {
-        Ok(connection_pool) => connection_pool,
-        Err(e) => return Err(e.to_string()),
-    };
+    let connection_pool = manager_make_pooled_connection();
 
-    let allowed_file_extensions =
-        match initialize_database_and_extensions(&connection_pool.get().unwrap()) {
-            Ok(allowed_file_extensions) => allowed_file_extensions,
-            Err(e) => return Err(e.to_string()),
-        };
+    initialize_database(&connection_pool.get().expect("Initializing failed: "));
+
+    let allowed_file_extensions = get_allowed_file_extensions();
 
     let thread_pool = ThreadPoolBuilder::new()
         .num_threads(num_cpus::get())
@@ -59,11 +88,16 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
         .pragma_update(None, "wal_autocheckpoint", "1000")
         .expect("wal_autocheckpoint failed");
 
+    let pymodel = "./data/model/model.pt";
+
+    let database_scan_start = PathBuf::from(database_scan_start);
+
     match create_database(
-        connection_pool.get().unwrap(),
+        connection_pool,
         database_scan_start,
         &allowed_file_extensions,
         &thread_pool,
+        &pymodel,
     ) {
         Ok(_) => {}
         Err(e) => return Err(e.to_string()),
@@ -78,42 +112,28 @@ pub fn manager_basic_search(
     searchterm: &str,
     searchpath: &str,
     searchfiletype: &str,
-) -> Result<Vec<FileDataFormatted>, String> {
-    let connection_pool = match manager_make_pooled_connection() {
-        Ok(connection_pool) => connection_pool,
-        Err(e) => return Err(e.to_string()),
-    };
+) -> Result<Vec<SearchResult>, String> {
+    let connection_pool = manager_make_pooled_connection();
 
-    let similarity_threshold = 0.7;
+    let number_results = 50;
 
     let search_path = PathBuf::from(searchpath);
 
     let return_paths = match search_database(
         connection_pool,
         searchterm,
-        similarity_threshold,
         &THREAD_POOL,
         search_path,
         searchfiletype,
+        &MODEL,
+        number_results,
+        &VOCAB
     ) {
         Ok(return_paths) => return_paths,
-        Err(e) => return Err(e.to_string()),
+        Err(e) => return Err(e.to_string())
     };
 
     let search_result = build_struct(return_paths);
+
     Ok(search_result)
-}
-pub fn manager_check_database() -> Result<(), Box<dyn std::error::Error>> {
-    let connection_pool = manager_make_pooled_connection()?;
-
-    let allowed_file_extensions =
-        initialize_database_and_extensions(&connection_pool.get().unwrap())?;
-
-    check_database(
-        connection_pool.get().unwrap(),
-        &allowed_file_extensions,
-        &THREAD_POOL,
-    )?;
-
-    Ok(())
 }

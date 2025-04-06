@@ -1,8 +1,11 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 pub mod config_handler;
 pub mod context_actions;
-pub mod database_operations;
+pub mod db_create;
+pub mod db_search;
+pub mod db_util;
 pub mod file_information;
+pub mod global_stuff;
 pub mod manager;
 
 use config_handler::get_fav_file_extensions;
