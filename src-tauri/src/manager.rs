@@ -39,6 +39,7 @@ fn build_struct(paths: Vec<DirEntry>) -> Vec<FileDataFormatted> {
 pub static MODEL: Lazy<CModule> = Lazy::new(|| {
     let mut path = CURRENT_DIR.clone();
     path.push("data/model/model.pt");
+    println!("Model Path : {}", path.display());
     CModule::load(path).expect("Unable to load model")
 });
 
@@ -120,7 +121,8 @@ pub fn manager_basic_search(
 ) -> Result<Vec<FileDataFormatted>, String> {
     let connection_pool = manager_make_pooled_connection();
 
-    let number_results = 50;
+    let number_results_embedding = 50;
+    let number_results_levenhstein = 5;
 
     let search_path = PathBuf::from(searchpath);
 
@@ -131,7 +133,8 @@ pub fn manager_basic_search(
         search_path,
         searchfiletype,
         &MODEL,
-        number_results,
+        number_results_embedding,
+        number_results_levenhstein,
         &VOCAB
     ) {
         Ok(return_paths) => return_paths,
