@@ -112,7 +112,8 @@ pub fn tokenize_file_name(file_name: &str) -> Vec<String> {
         .collect()
 }
 
-pub fn load_vocab(path: &str) -> HashMap<String, usize> {
+pub fn load_vocab(path: &PathBuf) -> HashMap<String, usize> {
+    println!("Loading vocab from {:?}", path);
     let vocab_json = fs::read_to_string(path).expect("Failed to read vocab file");
     serde_json::from_str(&vocab_json).expect("Failed to parse vocab JSON")
 }
