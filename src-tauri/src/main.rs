@@ -16,6 +16,7 @@ use rayon::prelude::*;
 use std::path::PathBuf;
 use std::thread;
 use rayon::prelude::*;
+use file_explorer_lib::manager::CURRENT_DIR;
 
 fn get_all_drives() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
@@ -56,10 +57,14 @@ fn get_all_drives() -> Vec<PathBuf> {
 
 fn main() {
 
-    if !PathBuf::from("./data").exists() {
-        create_dir("./data").expect("Unable to create directory");
-        create_dir("./data/model").expect("Unable to create directory");
-        create_dir("./data/config").expect("Unable to create directory");
+
+    if !PathBuf::from(&*CURRENT_DIR).join("data").exists() {
+        create_dir(&*CURRENT_DIR.join("data"))
+            .expect("Unable to create data directory");
+        create_dir(&*CURRENT_DIR.join("data/model"))
+            .expect("Unable to create model directory");
+        create_dir(&*CURRENT_DIR.join("data/config"))
+            .expect("Unable to create config directory");
     };
 
     let mut drives = get_all_drives();

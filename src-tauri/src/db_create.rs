@@ -1,5 +1,5 @@
 use crate::db_util::{
-    convert_to_forward_slashes, is_allowed_file, load_vocab, should_ignore_path,
+    convert_to_forward_slashes, is_allowed_file, should_ignore_path,
     tokenize_file_name, tokens_to_indices, Files,
 };
 use jwalk::WalkDir;
@@ -8,6 +8,7 @@ use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use rusqlite::{params, Result};
 use std::{collections::HashSet, path::PathBuf, time::Instant};
+use std::collections::HashMap;
 use tch::{CModule, Kind, Tensor};
 
 pub fn create_database(
@@ -16,6 +17,7 @@ pub fn create_database(
     allowed_file_extensions: &HashSet<String>,
     thread_pool: &rayon::ThreadPool,
     pymodel_path: &str,
+    vocab: &HashMap<String, usize>,
 ) -> Result<(), String> {
     tch::set_num_threads(num_cpus::get() as i32 * 2);
     tch::set_num_interop_threads(num_cpus::get() as i32 * 2);
@@ -135,7 +137,6 @@ pub fn create_database(
                     let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)")
                         .expect("Failed to prepare insertion file");
 
-                    let vocab = load_vocab("./data/model/vocab.json");
                     let model = CModule::load(pymodel_path).expect("Failed to load model");
 
                     let max_len = batch_data.iter()

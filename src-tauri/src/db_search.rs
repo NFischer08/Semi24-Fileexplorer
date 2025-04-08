@@ -14,6 +14,7 @@ use std::{
 };
 use std::collections::HashMap;
 use tch::{CModule, Kind};
+use levenshtein::levenshtein;
 
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
@@ -22,15 +23,13 @@ pub fn search_database(
     search_path: PathBuf,
     search_file_type: &str,
     model: &CModule,
-    num_results: usize,
+    num_results_embeddings: usize,
+    num_results_levenhstein: usize,
     vocab: &HashMap<String, usize>,
 ) -> Result<Vec<DirEntry>> {
     let pooled_connection = connection_pool.get().expect("get connection pool");
     const BATCH_SIZE: usize = 1000; // Adjust this value as needed
-
     let start_time = Instant::now();
-
-    // Convert searchpath to a string
     let search_path_str = if cfg!(windows) && search_path.to_str().unwrap_or("") == "/" {
         String::new()
     } else {
@@ -97,7 +96,6 @@ pub fn search_database(
         Ok(())
     });
 
-    let search_embedding_start = Instant::now();
     let tokenized_searchterm = tokenize_file_name(search_term);
     let indiced_searchterm: Vec<i64> = tokens_to_indices(tokenized_searchterm, &vocab)
         .into_iter()
@@ -117,17 +115,20 @@ pub fn search_database(
     let embedded_vec_f32: Vec<f32> =
         Vec::try_from(embedded_f32.flatten(0, -1)).expect("Can't convert vector to f32");
 
-    println!("Search embedding took: {:?}", search_embedding_start.elapsed());
-
-    let mut results: Vec<(String, f64)> = thread_pool.install(|| {
+    let mut results: Vec<(String, f32, usize)> = thread_pool.install(|| {
         rx.into_iter()
             .flat_map(|vec_of_paths| vec_of_paths)
             .par_bridge() // Convert to parallel iterator
             .filter_map(|row| {
+                let path = PathBuf::from(&row.0);
+                let file_name = path.file_stem()
+                    .and_then(|os_str| os_str.to_str())
+                    .unwrap_or("invalid_unicode");
                 let embedding = row.1;
                 let embedding_f32 = cast_slice(&embedding).to_vec();
-                let similarity: f32 = cosine_similarity(&embedding_f32, &embedded_vec_f32); //Similarity of 1 = full match
-                Some((row.0, similarity as _))
+                let vec_similarity: f32 = cosine_similarity(&embedding_f32, &embedded_vec_f32); //Similarity of 1 = full match
+                let levenshtein = levenshtein(search_term, file_name);
+                Some((row.0, vec_similarity, levenshtein))
             })
             .collect()
     });
@@ -139,13 +140,30 @@ pub fn search_database(
         .expect("Query thread panicked")
         .expect("Query thread panicked");
 
-    results.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
+    let ( mut results_embedding, mut results_levenhstein): (Vec<_>, Vec<_>) = results
+        .into_iter()
+        .map(|(s, f, u)| {
+            let s2 = s.clone();  // Single clone operation
+            ((s, f), (s2, u))
+        })
+        .unzip();
 
-    results.truncate(num_results);
+    results_levenhstein.par_sort_by(|b, a| b.1.cmp(&a.1));
+    results_levenhstein.truncate(num_results_levenhstein);
+    results_embedding.par_sort_by(|a, b| {
+        b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal)
+    });
+    results_embedding.truncate(num_results_embeddings);
+
+    let results: Vec<String> = results_levenhstein
+        .into_iter()
+        .map(|(s, _)| s)
+        .chain(results_embedding.into_iter().map(|(s, _)| s))
+        .collect();
 
     let return_entries: Vec<DirEntry> = results
         .into_iter()
-        .filter_map(|(s, _)| {
+        .filter_map(|s| {
             let path = Path::new(&s);
             if let Some(parent) = path.parent() {
                 if let Ok(dir) = fs::read_dir(parent) {

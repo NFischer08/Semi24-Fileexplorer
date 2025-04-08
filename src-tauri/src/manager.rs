@@ -11,6 +11,16 @@ use std::collections::HashMap;
 use std::fs::create_dir;
 use tauri::command;
 use tch::CModule;
+use std::env;
+use std::path::{absolute};
+
+pub static CURRENT_DIR: Lazy<PathBuf> = Lazy::new(|| {
+     env::current_dir()
+        .and_then(|cwd| absolute(cwd))
+        .expect("Failed to resolve absolute path")
+    // VERY IMPORTANT when using .push() don't start with a /, if you do it will override the path with C: + "Your Input"
+});
+
 
 pub static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
     ThreadPoolBuilder::new()
@@ -27,24 +37,33 @@ fn build_struct(paths: Vec<DirEntry>) -> Vec<FileDataFormatted> {
 }
 
 pub static MODEL: Lazy<CModule> = Lazy::new(|| {
-    CModule::load("./data/model/model.pt").expect("Unable to load model")
+    let mut path = CURRENT_DIR.clone();
+    path.push("data/model/model.pt");
+    println!("Model Path : {}", path.display());
+    CModule::load(path).expect("Unable to load model")
 });
 
 pub static VOCAB: Lazy<HashMap<String, usize>> = Lazy::new(|| {
-    load_vocab("./data/model/vocab.json")
+    let mut path = CURRENT_DIR.clone();
+    path.push("data/model/vocab.json");
+    load_vocab(&path)
 });
 
 fn manager_make_pooled_connection(
 ) -> Pool<SqliteConnectionManager> {
-    let path = "./data/db";
-    if PathBuf::from(path).try_exists().expect("Reason") {
-        let manager = SqliteConnectionManager::file(PathBuf::from(path.to_owned() + "/files.sqlite3"));
+    let mut path = CURRENT_DIR.clone();
+    path.push("data/db");
+    println!("CURRENT_DIR = {}", path.to_str().unwrap());
+    if PathBuf::from(&path).try_exists().expect("Reason") {
+        path.push("files.sqlite3");
+        let manager = SqliteConnectionManager::file(PathBuf::from(path));
         let connection_pool = Pool::new(manager).expect("Failed to create pool.");
         connection_pool
     }
     else {
-        create_dir(PathBuf::from(path)).expect("Failed to create Dir");
-        let manager = SqliteConnectionManager::file(PathBuf::from(path.to_owned() + "/files.sqlite3"));
+        create_dir(PathBuf::from(&path)).expect("Failed to create Dir");
+        path.push("files.sqlite3");
+        let manager = SqliteConnectionManager::file(PathBuf::from(path));
         let connection_pool = Pool::new(manager).expect("Failed to create pool.");
         connection_pool
     }
@@ -84,6 +103,7 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
         &allowed_file_extensions,
         &thread_pool,
         &pymodel,
+        &VOCAB,
     ) {
         Ok(_) => {}
         Err(e) => return Err(e.to_string()),
@@ -101,7 +121,8 @@ pub fn manager_basic_search(
 ) -> Result<Vec<FileDataFormatted>, String> {
     let connection_pool = manager_make_pooled_connection();
 
-    let number_results = 50;
+    let number_results_embedding = 50;
+    let number_results_levenhstein = 5;
 
     let search_path = PathBuf::from(searchpath);
 
@@ -112,7 +133,8 @@ pub fn manager_basic_search(
         search_path,
         searchfiletype,
         &MODEL,
-        number_results,
+        number_results_embedding,
+        number_results_levenhstein,
         &VOCAB
     ) {
         Ok(return_paths) => return_paths,

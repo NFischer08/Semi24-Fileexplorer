@@ -20,6 +20,11 @@
       "csp": null
     }
   },
+  "plugins": {
+    "allowlist": {
+      "all": true
+    }
+  },
   "bundle": {
     "active": true,
     "targets": "all",
