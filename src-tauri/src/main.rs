@@ -84,8 +84,8 @@ fn main() {
     }
 
     thread::spawn(move || {
-        drives.into_iter().for_each(|drive| {
-            manager_create_database(drive).unwrap();
+        drives.par_iter().for_each(|drive| {
+            manager_create_database(drive.clone()).unwrap();
         });
     });
 
