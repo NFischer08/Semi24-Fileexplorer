@@ -27,19 +27,16 @@ pub fn convert_to_forward_slashes(path: &PathBuf) -> String {
         .unwrap_or_else(|| String::new())
 }
 
-pub fn cosine_similarity(search_embedding: &Vec<f32>, candidate_embedding: &Vec<f32>) -> f32 {
-    let mut a2: f32 = 0.0;
-    let mut b2: f32 = 0.0;
-    let mut ab: f32 = 0.0;
+pub fn cosine_similarity(search_embedding: &[f32], search_norm: f32, candidate_embedding: &[f32]) -> f32 {
+    let (b2, ab) = candidate_embedding.iter()
+        .zip(search_embedding.iter())
+        .fold((0.0, 0.0), |(b2, ab), (&b, &a)| {
+            (b2 + b * b, ab + a * b)
+        });
 
-    for (a, b) in search_embedding.iter().zip(candidate_embedding.iter()) {
-        a2 += a * a;
-        b2 += b * b;
-        ab += a * b;
-    }
-    let result = ab / a2.sqrt() / b2.sqrt();
-    result
+    ab / (search_norm * b2.sqrt())
 }
+
 
 pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bool {
     if should_ignore_path(path) {

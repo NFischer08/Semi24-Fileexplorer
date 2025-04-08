@@ -133,7 +133,7 @@ async function display_search_results() {
 document.addEventListener('DOMContentLoaded', async () => {
   await display_fav_settings();
   await loadFilesAndFolders();
-  await display_search_results();
+  await display_search_results(); //TODO this is bad :(
   await loadFilesAndFolders();
 });
 

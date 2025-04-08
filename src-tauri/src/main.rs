@@ -16,7 +16,7 @@ use rayon::prelude::*;
 use std::path::PathBuf;
 use std::thread;
 use rayon::prelude::*;
-use file_explorer_lib::manager::CURRENT_DIR;
+use file_explorer_lib::manager::{CURRENT_DIR};
 
 fn get_all_drives() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
@@ -56,7 +56,15 @@ fn get_all_drives() -> Vec<PathBuf> {
 }
 
 fn main() {
+    println!("{}", num_cpus::get());
 
+    rayon::ThreadPoolBuilder::new()
+        .num_threads(num_cpus::get() - 1) // Reserve one core for OS
+        .build_global()
+        .expect("Couldn't build thread pool");
+
+    tch::set_num_interop_threads(1);
+    tch::set_num_threads((num_cpus::get() - 1) as i32);
 
     if !PathBuf::from(&*CURRENT_DIR).join("data").exists() {
         create_dir(&*CURRENT_DIR.join("data"))
@@ -68,8 +76,6 @@ fn main() {
     };
 
     let mut drives = get_all_drives();
-    drives.clear();
-    drives.push(PathBuf::from(r"C:\Users\maxmu"));
     println!("Available drives: {:?}", drives);
 
     match initialize_config() {
@@ -78,7 +84,7 @@ fn main() {
     }
 
     thread::spawn(move || {
-        drives.into_par_iter().for_each(|drive| {
+        drives.into_iter().for_each(|drive| {
             manager_create_database(drive).unwrap();
         });
     });

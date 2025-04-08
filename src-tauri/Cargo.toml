@@ -29,11 +29,10 @@ jwalk = "0.8.1"
 rayon = "1.10.0"
 clipboard = "0.5"
 opener = "0.7.2"
-once_cell = "1.20.2"
 tch = "0.19.0"
 crossbeam-channel = "0.5.14"
 bytemuck = "1.22.0"
-levenshtein = "1.0.5"
+strsim = "0.11.1"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }

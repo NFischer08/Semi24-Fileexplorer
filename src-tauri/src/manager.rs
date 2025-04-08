@@ -2,7 +2,6 @@ use crate::file_information::{get_file_information, FileData, FileDataFormatted}
 use crate::db_create::create_database;
 use crate::db_search::search_database;
 use crate::db_util::{get_allowed_file_extensions, initialize_database, load_vocab};
-use once_cell::sync::Lazy;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
@@ -13,21 +12,36 @@ use tauri::command;
 use tch::CModule;
 use std::env;
 use std::path::{absolute};
+use std::sync::LazyLock;
 
-pub static CURRENT_DIR: Lazy<PathBuf> = Lazy::new(|| {
+pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
      env::current_dir()
         .and_then(|cwd| absolute(cwd))
         .expect("Failed to resolve absolute path")
     // VERY IMPORTANT when using .push() don't start with a /, if you do it will override the path with C: + "Your Input"
 });
 
-
-pub static THREAD_POOL: Lazy<ThreadPool> = Lazy::new(|| {
+pub static THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
+    println!("Thread pool built");
     ThreadPoolBuilder::new()
         .num_threads(num_cpus::get())
         .build()
         .unwrap()
 });
+
+pub static MODEL: LazyLock<CModule> = LazyLock::new(|| {
+    let mut path = CURRENT_DIR.clone();
+    path.push("data/model/model.pt");
+    CModule::load(path).expect("Unable to load model")
+});
+
+pub static VOCAB: LazyLock<HashMap<String, usize>> = LazyLock::new(|| {
+    let mut path = CURRENT_DIR.clone();
+    path.push("data/model/vocab.json");
+    load_vocab(&path)
+});
+
+
 
 fn build_struct(paths: Vec<DirEntry>) -> Vec<FileDataFormatted> {
     paths
@@ -36,24 +50,10 @@ fn build_struct(paths: Vec<DirEntry>) -> Vec<FileDataFormatted> {
         .collect()
 }
 
-pub static MODEL: Lazy<CModule> = Lazy::new(|| {
-    let mut path = CURRENT_DIR.clone();
-    path.push("data/model/model.pt");
-    println!("Model Path : {}", path.display());
-    CModule::load(path).expect("Unable to load model")
-});
-
-pub static VOCAB: Lazy<HashMap<String, usize>> = Lazy::new(|| {
-    let mut path = CURRENT_DIR.clone();
-    path.push("data/model/vocab.json");
-    load_vocab(&path)
-});
-
 fn manager_make_pooled_connection(
 ) -> Pool<SqliteConnectionManager> {
     let mut path = CURRENT_DIR.clone();
     path.push("data/db");
-    println!("CURRENT_DIR = {}", path.to_str().unwrap());
     if PathBuf::from(&path).try_exists().expect("Reason") {
         path.push("files.sqlite3");
         let manager = SqliteConnectionManager::file(PathBuf::from(path));
@@ -76,11 +76,6 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
 
     let allowed_file_extensions = get_allowed_file_extensions();
 
-    let thread_pool = ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get())
-        .build()
-        .unwrap();
-
     let pooled_connection = connection_pool.get().unwrap();
 
     pooled_connection
@@ -95,13 +90,10 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
 
     let pymodel = "./data/model/model.pt";
 
-    let database_scan_start = PathBuf::from(database_scan_start);
-
     match create_database(
         connection_pool,
         database_scan_start,
         &allowed_file_extensions,
-        &thread_pool,
         &pymodel,
         &VOCAB,
     ) {
@@ -121,21 +113,20 @@ pub fn manager_basic_search(
 ) -> Result<Vec<FileDataFormatted>, String> {
     let connection_pool = manager_make_pooled_connection();
 
-    let number_results_embedding = 50;
-    let number_results_levenhstein = 5;
+    let number_results_embedding = 30;
+    let number_results_levenhstein = 10;
 
     let search_path = PathBuf::from(searchpath);
 
     let return_paths = match search_database(
         connection_pool,
         searchterm,
-        &THREAD_POOL,
         search_path,
         searchfiletype,
         &MODEL,
         number_results_embedding,
         number_results_levenhstein,
-        &VOCAB
+        &VOCAB,
     ) {
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string())
