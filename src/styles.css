@@ -1,11 +1,22 @@
 /*Standardaussehen*/
 :root {
+    /* Farbvariablen */
+    --tr-even: #1f1f1f;
+    --th: #0f0f0f;
+    --t-border: #ccc;
+    --bg: #2f2f2f;
+    --font: #f6f6f6;
+    --input-border: #ccc;
+    --button-hover: #ffffff;
+    --modal-hover: #2f2f2f;
+    --modal-bg: #1f1f1f;
+
     font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
     font-size: 16px;
     line-height: 24px;
     font-weight: 400;
-    color: #f6f6f6;
-    background-color: #2f2f2f;
+    color: var(--font);
+    background-color: var(--bg);
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -44,6 +55,7 @@ html, body {
     justify-content: center;
     gap: -1px; /* Abstand zwischen den Spalten Suche und Pfad */
     align-items: stretch;
+    width: 90%;
 }
 
 /*schiebt Dinge weg, die nicht angezeigt werden sollen*/
@@ -62,7 +74,7 @@ html, body {
 
 #fileTable td {
     padding: 8px 12px;
-    border-right: 1px solid #ccc;
+    border-right: 1px solid var(--t-border);
     word-break: break-word;
     overflow-wrap: break-word;
     max-width: 0;
@@ -74,7 +86,7 @@ html, body {
     padding: 8px 12px;
     word-break: break-word;
     overflow-wrap: break-word;
-    background-color: #0f0f0f;
+    background-color: var(--th);
 }
 
 #fileTable th:last-child, #fileTable td:last-child {
@@ -82,16 +94,12 @@ html, body {
     text-align: left;
 }
 
-#fileTable thead {
-    background-color: #0f0f0f;
-}
-
 #fileTable thead th {
-    border-bottom: 2px solid #fff;
+    border-bottom: 2px solid var(--t-border);
 }
 
 #fileTable tbody tr:nth-child(even) {
-    background-color: #1f1f1f;
+    background-color: var(--tr-even);
 }
 
 /* style when displaying search results */
@@ -126,6 +134,7 @@ html, body {
     width: 20%;
 }
 
+/* Error Style */
 td.error {
     text-align: center;
     vertical-align: middle;
@@ -164,7 +173,7 @@ td.error {
 .file-path-input {
     width: 100%;
     padding: 10px 40px 10px 12px; /* Abstand für das Lupensymbol berücksichtigen */
-    border: 1px solid #ccc; /* Leichter Rand */
+    border: 1px solid var(--input-border); /* Leichter Rand */
     border-radius: 20px; /* Runde Ecken */
     font-size: 16px;
     box-sizing: border-box; /* Verhindert Layout-Verschiebungen */
@@ -195,7 +204,7 @@ td.error {
     cursor: pointer;
     font-size: 18px; /* Größe des Icons */
     padding: 5px; /* Leichter Innenabstand */
-    color: #555; /* Farbe des Icons */
+    color: var(--font); /* Farbe des Icons */
     float: left;
 }
 /*trennt Such- und Einstellungsbutton*/
@@ -205,7 +214,7 @@ td.error {
 /*macht Goto Button weiß, wenn man drüber geht*/
 .search-button:hover,
 .file-path-button:hover {
-    color: #ffffff;
+    color: var(--button-hover);
 }
 /*macht Pfadfeld 60% groß*/
 .file-path-container{
@@ -220,10 +229,14 @@ td.error {
     flex: 1; /* Beide Elemente nehmen denselben Platz ein */
     max-width: 40%;
 }
+::placeholder {
+    color: var(--font);
+    opacity: 55%;
+}
 /*macht Hintergrund von Such- und Pfadfeld schwarz*/
 input,
 button {
-    color: #ffffff;
+    color: var(--font);
     background-color: #0f0f0f98;
 }
 @media (max-width: 450px) {
@@ -242,7 +255,7 @@ button {
     .search-input{
         border-top-right-radius: 0;
         border-bottom-left-radius: 20px;
-        border-left: 1px solid #ccc;
+        border-left: 1px solid var(--input-border);
         border-top: none;
     }
 
@@ -258,7 +271,7 @@ button {
         flex-wrap: nowrap;
     }
 }
-/*mit Lukas noch machen*/
+/* Container für Navigationsbuttons*/
 #nav-container {
     display: flex;
     flex-direction: row;
@@ -270,28 +283,25 @@ button {
     align-items: center;
     width: 30px; /* Adjust the size as needed */
     height: 30px; /* Adjust the size as needed */
-    background-color: #333; /* Darker background color */
-    border: 1px solid #555; /*  Small border */
+    background-color: #0f0f0f98; /* Darker background color */
+    border: 1px solid var(--input-border); /* Small border */
     border-radius: 40%; /* Make it a circle */
     margin: 4px 5px; /* Center the button */
     vertical-align: middle;
 }
 
-.sidebar{
-    display: None
-}
-
 .modal.hidden {
     display: none; /* Verstecke das Modal */
 }
+
 /* Context Menu styles -------------------------------------------------------------------*/
 
 /* haupt Context Menu */
 #context-menu {
   display: none;
   position: absolute;
-  background: #1f1f1f;
-  border: 1px solid #ccc;
+  background: var(--modal-bg);
+  border: 1px solid var(--t-border);
   z-index: 1000; /* Ensure it appears above other elements */
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
   border-radius: 7px;
@@ -321,11 +331,11 @@ button {
 }
 /* Hervorhebung beim Hovern */
 #context-menu li:hover {
-  background: #2f2f2f;
+  background: var(--modal-hover);
 }
 /* Trennlinie zwischen Listenelementen */
 #context-menu li:not(:last-child) {
-  border-bottom: 1px solid #3f3f3f;
+  border-bottom: 1px solid var(--bg);
 }
 /* Abrundung der oberen Ecken */
 #context-menu ul li:first-child {
@@ -339,7 +349,7 @@ button {
 }
 /* Design des Rename Feldes (& Einstellungen) */
 .modal-content {
-  background-color: #383838;
+  background-color: var(--modal-bg);
   padding: 20px;
   border-radius: 5px;
   text-align: center;
@@ -363,7 +373,7 @@ button {
 
 /* Button wird beim Hovern hervorgehoben */
 .settings-button:hover {
-  color: #ffffff;
+  color: var(--button-hover);
 }
 
 /*#settings-form {
@@ -407,7 +417,7 @@ button {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Transparenter schwarzer Hintergrund */
+  background-color: rgba(0, 0, 0, 0.4); /* Transparenter schwarzer Hintergrund */
   z-index: 9999;
 }
 
@@ -417,7 +427,7 @@ button {
 }
 
 .modal-content {
-  background-color: #1f1f1f;
+  background-color: var(--modal-bg);
   padding: 20px;
   border-radius: 10px;
   text-align: left;

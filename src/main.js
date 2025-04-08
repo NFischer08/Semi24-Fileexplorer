@@ -131,6 +131,7 @@ async function display_search_results() {
 
 // runs when program starts
 document.addEventListener('DOMContentLoaded', async () => {
+  await load_css_settings()
   await display_fav_settings();
   await loadFilesAndFolders();
   await display_search_results(); //TODO this is bad :(
@@ -188,6 +189,23 @@ async function display_fav_settings() {
     form.appendChild(label);
     form.appendChild(document.createElement('br'));
   }
+}
+
+// request color settings from backend
+async function load_css_settings() {
+  const settings = await invoke('get_css_settings');
+  const documentstyle = document.documentElement.style;
+  console.log("Test");
+
+  documentstyle.setProperty('--bg', settings.background);
+  documentstyle.setProperty('--font', settings.font);
+  documentstyle.setProperty('--th', settings.table_head_background);
+  documentstyle.setProperty('--tr-even', settings.table_every_second_row_background);
+  documentstyle.setProperty('--t-border', settings.table_border);
+  documentstyle.setProperty('--input-border', settings.input_border);
+  documentstyle.setProperty('--button-hover', settings.button_hover);
+  documentstyle.setProperty('--modal-bg', settings.modal_background);
+  documentstyle.setProperty('--modal-hover', settings.modal_hover);
 }
 
 // double click to open file / folder
