@@ -243,7 +243,7 @@ pub fn open_file(filepath: String) -> Result<String, String> {
 /// Bereinigt einen eingegebenen Dateipfad (String) für konsistentes und fehlerfreies Arbeiten.
 ///
 /// - Ersetzt Backslashes (`\`) mit Slashes (`/`) zur Vereinheitlichung.
-/// - Entfernt aufeinanderfolgende Slashes (`///` → `/`).
+/// - Entfernt aufeinanderfolgende Slashes (`//` → `/`).
 /// - Gibt am Ende einen `PathBuf` zurück.
 fn clean_path(filepath: String) -> PathBuf {
     // 1. Beseitige aufeinanderfolgende Slashes und Backslahes

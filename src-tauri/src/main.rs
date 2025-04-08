@@ -63,8 +63,6 @@ fn main() {
     };
 
     let mut drives = get_all_drives();
-    drives.clear();
-    drives.push(PathBuf::from(r"C:\Users\maxmu"));
     println!("Available drives: {:?}", drives);
 
     match initialize_config() {

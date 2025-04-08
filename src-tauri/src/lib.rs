@@ -7,7 +7,7 @@ pub mod db_util;
 pub mod file_information;
 pub mod manager;
 
-use config_handler::get_fav_file_extensions;
+use config_handler::{get_fav_file_extensions, get_css_settings};
 use context_actions::{copy_file, cut_file, delete_file, open_file, open_file_with, paste_file, rename_file};
 use file_information::format_file_data;
 use manager::manager_basic_search;
@@ -26,6 +26,7 @@ pub fn run() {
             open_file_with,
             manager_basic_search,
             get_fav_file_extensions,
+            get_css_settings,
         ])
         .run(tauri::generate_context!("tauri.conf.json"))
         .expect("error while running tauri application");

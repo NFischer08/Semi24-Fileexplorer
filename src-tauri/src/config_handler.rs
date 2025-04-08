@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use serde_json;
 use std::sync::OnceLock;
 use std::collections::{HashMap, HashSet};
@@ -71,29 +71,61 @@ impl Settings {
     }
 }
 
-fn read_config(config_path: &str) -> Settings {
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ColorConfig {
+    background: String,
+    font: String,
+    table_head_background: String,
+    table_every_second_row_background: String,
+    table_border: String,
+    input_border: String,
+    button_hover: String,
+    modal_background: String,
+    modal_hover: String,
+}
+
+impl ColorConfig {
+    pub fn default() -> ColorConfig {
+        ColorConfig {
+            background: String::from("#2f2f2f"),
+            font: String::from("#f6f6f6"),
+            table_head_background: String::from("#0f0f0f"),
+            table_every_second_row_background: String::from("#1f1f1f"),
+            table_border: String::from("#ccc"),
+            input_border: String::from("#ccc"),
+            button_hover: String::from("#ffffff"),
+            modal_background: String::from("#1f1f1f"),
+            modal_hover: String::from("#2f2f2f")
+        }
+    }
+}
+
+fn read_config(config_path: &str) -> Result<String, ()> {
     // Open the file
     let mut file = match File::open(config_path) {
         Ok(file) => file,
-        Err(_) => return Settings::default(),
+        Err(_) => return Err(()),
     };
 
     // Read the file contents into a string
     let mut contents = String::new();
     match file.read_to_string(&mut contents) {
         Ok(_) => (),
-        Err(_) => return Settings::default(),
+        Err(_) => return Err(()),
     }
-
-    // Deserialize the JSON string into the Config struct
-    serde_json::from_str(&contents).unwrap_or_else(|_| Settings::default())
+    Ok(contents)
 }
 
 pub fn initialize_config() -> Result<String, String> {
-    let config = read_config(
+    let config = match read_config(
         r"C:\Users\ninof\RustroverProjects\Semi24-Fileexplorer\src-tauri\src\config\config.json",
-    ); // change path if needed
+    ) {
+        Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| Settings::default()),
+        Err(_) => Settings::default(),
+    }; // change path if needed
+
     println!("INIT: config: {:?}", config);
+
     match FAVOURITE_FILE_EXTENSIONS.set(config.favourite_extensions) {
         Ok(_) => {}
         Err(_) => return Err("couldn't set favourite extensions".to_string()),
@@ -102,6 +134,11 @@ pub fn initialize_config() -> Result<String, String> {
         Ok(_) => {}
         Err(_) => return Err("couldn't set allowed extensions".to_string()),
     }
+    match COPY_MODE.set(config.copy_mode) {
+        Ok(_) => {}
+        Err(_) => return Err("couldn't set copy mode".to_string()),
+    }
+
     Ok("Properly set".to_string())
 }
 
@@ -132,10 +169,18 @@ pub fn get_copy_mode() -> CopyMode {
     match COPY_MODE.get() {
         Some(mode) => {
             match mode {
-                CopyMode::File => CopyMode::File,
                 CopyMode::Clipboard => CopyMode::Clipboard,
+                CopyMode::File => CopyMode::File,
             }
         }
         None => CopyMode::File
+    }
+}
+
+#[command]
+pub fn get_css_settings() -> ColorConfig {
+    match read_config(r"C:\Users\ninof\RustroverProjects\Semi24-Fileexplorer\src-tauri\src\config\color-settings.json") {
+        Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
+        Err(_) => ColorConfig::default()
     }
 }

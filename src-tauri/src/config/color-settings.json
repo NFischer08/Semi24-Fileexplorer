@@ -1,0 +1,11 @@
+{
+  "background": "#2f2f2f",
+  "font": "#f6f6f6",
+  "table_head_background": "#0f0f0f",
+  "table_every_second_row_background": "#1f1f1f",
+  "table_border": "#ccc",
+  "input_border": "#ccc",
+  "button_hover": "#ffffff",
+  "modal_background": "#1f1f1f",
+  "modal_hover": "#2f2f2f"
+}

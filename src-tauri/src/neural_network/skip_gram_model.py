@@ -27,7 +27,7 @@ class SkipGramModel(nn.Module):
         return self.embeddings(target)
 
 # Read file names from a .txt file
-file_path = "eng-simple_wikipedia_2021_10K/eng-simple_wikipedia_2021_10K-sentences.txt"
+file_path = "eng-simple_wikipedia_2021_100K/eng-simple_wikipedia_2021_100K-sentences.txt"
 
 with open(file_path, "r", encoding="utf-8") as f:
     file_names = [line.strip() for line in f.readlines()]  # Strip whitespace and newlines
@@ -41,7 +41,7 @@ for name in file_names:
 vocab = {word: idx for idx, word in enumerate(set(tokens))}
 
 # Export vocabulary as a JSON file
-vocab_file_path = "vocab.json"
+vocab_file_path = "../../../data/model/vocab.json"
 with open(vocab_file_path, "w", encoding="utf-8") as vocab_file:
     json.dump(vocab, vocab_file, ensure_ascii=False, indent=4)  # Save vocab as JSON
 
