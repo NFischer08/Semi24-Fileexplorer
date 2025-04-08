@@ -140,13 +140,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // calls apropriate function when clicking on button
 document.getElementById('go-to-file-path-button').addEventListener('click', async () => {
+  settingsModal.classList.add('hidden');
   await loadFilesAndFolders();
 });
 
 // calls apropriate function when clicking on button
 document.getElementById('search-button').addEventListener('click', async () => {
+  settingsModal.classList.add('hidden');
   if (document.getElementById('search-term-input').value.trim()) { // calls search function only when there is a search term
     await display_search_results();
+  }
+})
+
+// starts searching when pressing enter in settings input
+document.getElementById('setting-filetype').addEventListener('keypress', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    document.getElementById('search-button').click();
   }
 })
 
@@ -154,18 +164,21 @@ document.getElementById('search-button').addEventListener('click', async () => {
 const settingsModal = document.getElementById('settings-modal');
 // display settings when clicking on button
 document.getElementById('settings-button').addEventListener('click', () => {
-  settingsModal.classList.remove('hidden');
-});
-// close settings when clicking away from it
-document.getElementById('close-modal').addEventListener('click', () => {
-  settingsModal.classList.add('hidden');
-});
-// TODO was macht das?
-window.addEventListener('click', (event) => {
-  if (event.target === settingsModal) {
+  if (settingsModal.classList.contains('hidden')) {
+    settingsModal.classList.remove('hidden');
+  } else {
     settingsModal.classList.add('hidden');
   }
+    document.getElementById('setting-filetype').focus()
 });
+
+// clears search settings when pressing clear button
+document.getElementById('clear-modal').addEventListener('click', () => {
+  document.getElementById('setting-filetype').value = "";
+  document.querySelectorAll('#settings-form input[type="checkbox"]:checked').forEach(checkbox => {
+    checkbox.checked = false;
+  })
+})
 
 // request favourite settings from backend (=> config.json)
 async function display_fav_settings() {
@@ -341,6 +354,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Öffne das Modal bei Klick auf "Rename"
   renameTrigger.addEventListener("click", () => {
+    document.getElementById("settings-modal").classList.add('hidden');
     renameModal.classList.remove("hidden");
     newFilenameInput.value = ""; // Texteingabe zurücksetzen
     newFilenameInput.focus(); // Fokussiert die Eingabe

@@ -270,6 +270,9 @@ button {
         flex-direction: column;
         flex-wrap: nowrap;
     }
+    .modal-content {
+        top: 95px;
+    }
 }
 /* Container für Navigationsbuttons*/
 #nav-container {
@@ -396,33 +399,30 @@ button {
   margin-left: 10px;
 }
 
+#settings-form {
+  width: 100%;
+}
+
 .search-container {
   position: relative;
   display: flex; /* Flexbox zur Ausrichtung von Suchfeld und Buttons */
   align-items: center; /* Vertikale Zentrierung der Inhalte */
 }
 #setting-filetype {
-  width: auto;
+  width: 100%;
   outline: none;
   border: none;
-}
-
-/* Modal-Stil */
-.modal {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.4); /* Transparenter schwarzer Hintergrund */
-  z-index: 9999;
+  font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+  color: var(--font);
+  background-color: var(--bg);
+  font-synthesis: none;
 }
 
 /* Modal standardmäßig verstecken */
-.modal.hidden {
+.modal-content.hidden {
   display: none;
 }
 
@@ -431,8 +431,12 @@ button {
   padding: 20px;
   border-radius: 10px;
   text-align: left;
-  max-width: 300px;
+  max-width: 330px;
   width: 80%;
+  position: absolute;
+  top: 65px;
+  right: 10px;
+  z-index: 2;
 }
 
 /* Schließ-Button */
@@ -443,9 +447,41 @@ button {
   font-size: 20px;
   font-weight: bold;
   cursor: pointer;
+  color: red;
 }
 
 /* Schließ-Button wird rot beim Hovern */
 .close-button:hover {
   color: red;
+}
+
+/* Rename Modal */
+
+/* Hintergrund */
+.modal {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.4); /* Transparenter schwarzer Hintergrund*/
+    z-index: 1;
+}
+
+.rename-modal-content.hidden {
+    display: none;
+}
+/* rename Feld*/
+.rename-modal-content {
+    position: absolute;
+    background-color: var(--modal-bg);
+    padding: 20px;
+    border-radius: 10px;
+    text-align: left;
+    max-width: 330px;
+    width: 80%;
+    z-index: 2;
 }
