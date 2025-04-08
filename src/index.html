@@ -30,16 +30,14 @@
         </div>
       </div>
       <!-- Dialog/MODAL-Fenster -->
-      <div id="settings-modal" class="modal hidden">
-        <div class="modal-content">
-          <span id="close-modal" class="close-button">&times;</span>
+        <div id="settings-modal" class="modal-content hidden">
+          <span id="clear-modal" class="close-button">clear</span>
           <h3>Search Stettings</h3>
           <p>You can enter multiple Types, just separate them by a comma. Use "dir" for Directories.</p>
           <form id="settings-form">
-            <label><input type="text" id="setting-filetype" placeholder="Enter a file extension"></label><br>
+            <input type="text" id="setting-filetype" placeholder="Enter a file extension"><br><br>
           </form>
         </div>
-      </div>
     </div>
 
     <div class="table-container">
@@ -90,7 +88,7 @@
     </div>
 
     <div id="rename-modal" class="modal hidden">
-      <div class="modal-content">
+      <div class="rename-modal-content">
         <span id="close-rename-modal" class="close-button">&times;</span>
         <h3>Rename File</h3>
         <form id="rename-form">
