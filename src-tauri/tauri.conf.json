@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "file_explorer",
+        "title": "Profi File Explorer",
         "width": 1200,
         "height": 800,
         "resizable": true

@@ -179,7 +179,7 @@ pub fn get_copy_mode() -> CopyMode {
 
 #[command]
 pub fn get_css_settings() -> ColorConfig {
-    match read_config(r"C:\Users\ninof\RustroverProjects\Semi24-Fileexplorer\src-tauri\src\config\color-settings.json") {
+    match read_config(r"C:\Users\ninof\RustroverProjects\Semi24-Fileexplorer\src-tauri\src\config\color-config.json") {
         Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
         Err(_) => ColorConfig::default()
     }
