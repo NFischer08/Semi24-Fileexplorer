@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 <svg width="120" height="120" version="1.1" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
- <g fill="#fff" stroke-linecap="round">
-  <rect transform="scale(-1,1)" x="-110" y="20" width="100" height="7.5" rx="5.5165" ry=".30863" stroke-width="1.2626"/>
-  <rect x="25" y="55" width="70" height="6.9565" rx="3.8616" ry=".28627" stroke-width="1.0174"/>
-  <rect x="40" y="90" width="40" height="6.9565" rx="2.2066" ry=".28627" stroke-width=".76904"/>
+ <g stroke-linecap="round">
+  <g fill="#fff">
+   <rect transform="scale(-1,1)" x="-110" y="20" width="70.949" height="5" rx="3.9139" ry=".20576" stroke-width=".86833"/>
+   <rect transform="scale(-1,1)" x="-22.547" y="20" width="12.547" height="5" rx=".69215" ry=".20576" stroke-width=".36516"/>
+   <rect x="10" y="55" width="67.32" height="5" rx="3.7137" ry=".20576" stroke-width=".84583"/>
+   <rect x="93.604" y="55" width="16.394" height="5" rx=".90438" ry=".20576" stroke-width=".4174"/>
+   <rect x="10" y="90" width="39.173" height="5" rx="2.161" ry=".20576" stroke-width=".64521"/>
+   <rect x="65.52" y="90" width="44.478" height="5" rx="2.4536" ry=".20576" stroke-width=".68751"/>
+  </g>
+  <g fill="none" stroke="#fff" stroke-linejoin="round" stroke-width="5">
+   <circle cx="30.888" cy="22.063" r="8.1742" style="paint-order:normal"/>
+   <circle cx="85.481" cy="57.975" r="8.1742" style="paint-order:stroke markers fill"/>
+   <circle cx="57.346" cy="92.404" r="8.1742" style="paint-order:stroke markers fill"/>
+  </g>
  </g>
 </svg>

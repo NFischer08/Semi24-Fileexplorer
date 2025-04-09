@@ -25,13 +25,19 @@
 
         <div class="search-container">
           <label for="search-term-input"></label><input type="text" id="search-term-input" class="search-input" placeholder="Search...">
-          <button type="button" id="search-button" class="search-button">🔍</button>
-          <button type="button" id="settings-button" class="settings-button">⚙️</button>
+          <button type="button" id="search-button" class="search-button">
+            <img src="assets/search.svg" alt="Lupe" class="icon">
+          </button>
+          <button type="button" id="settings-button" class="settings-button">
+            <img src="assets/filter.svg" alt="Filter" class="icon">
+          </button>
         </div>
       </div>
       <!-- Dialog/MODAL-Fenster -->
         <div id="settings-modal" class="modal-content hidden">
-          <span id="clear-modal" class="close-button">clear</span>
+          <span id="clear-modal" class="close-button">
+            <img id="clear-img" src="assets/trash.svg" alt="Trash can" class="icon-big">
+          </span>
           <h3>Search Stettings</h3>
           <p>You can enter multiple Types, just separate them by a comma. Use "dir" for Directories.</p>
           <form id="settings-form">
@@ -65,7 +71,6 @@
       </li>
       <li id="context-paste">
         <span class="icon">📑</span>
-        <!--<img src="assets/tauri.svg" alt="Tauri Logo" class="icon">-->
         <span class="label">Paste</span>
       </li>
       <li id="context-cut">

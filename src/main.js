@@ -208,7 +208,6 @@ async function display_fav_settings() {
 async function load_css_settings() {
   const settings = await invoke('get_css_settings');
   const documentstyle = document.documentElement.style;
-  console.log("Test");
 
   documentstyle.setProperty('--bg', settings.background);
   documentstyle.setProperty('--font', settings.font);

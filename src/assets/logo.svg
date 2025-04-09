@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+<svg width="120" height="120" version="1.1" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+ <g stroke="#000">
+  <rect transform="rotate(90)" x="4.3283" y="-103.46" width="110.54" height="84.462" ry="5.5653" fill="#d8c26c" stroke-linecap="round"/>
+  <circle cx="79.43" cy="60.113" r="20.442" fill="#fff" stroke-width="1.2"/>
+  <g stroke-linecap="round">
+   <path d="m65.927 75.46-34.939 34.939" fill="none"/>
+   <ellipse transform="scale(1,-1)" cx="79.481" cy="-60.062" rx="15.634" ry="15.634" fill="#aef" stroke-width=".91776"/>
+   <path transform="rotate(90)" d="m73.571-80.963a15.332 15.332 0 0 1-12.729 15.109" fill="none" stroke-width=".75" style="paint-order:markers stroke fill"/>
+   <rect transform="rotate(-45)" x="-56.337" y="97.834" width="39.281" height="4.1112" stroke-linejoin="bevel" style="paint-order:markers stroke fill"/>
+  </g>
+ </g>
+ <rect x="24.875" y="12.316" width="78.09" height="15.667" ry=".18927" fill="#fff6d5" style="paint-order:stroke markers fill"/>
+ <path d="m24.375 4.3315v110.54" fill="none" stroke="#502d16" stroke-dasharray="1, 3" stroke-linecap="round"/>
+</svg>
