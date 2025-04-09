@@ -52,7 +52,8 @@ pub fn search_database(
 
     let search_file_type = search_file_type.replace(" ", "");
 
-    let (tx, rx) = mpsc::channel();
+    let (tx, rx) = crossbeam_channel::unbounded();
+
     let query_thread = std::thread::spawn(move || {
         let pooled_connection = connection_pool.get().expect("get connection pool");
 
@@ -141,9 +142,6 @@ pub fn search_database(
                 Some((row.0.clone(), vec_similarity, normalized_levenhstein_dist))
             })
         .collect();
-
-
-
 
     println!("Finished results in : {:?} ", results_start.elapsed());
 
