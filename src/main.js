@@ -12,15 +12,15 @@ async function loadFilesAndFolders() {
   const errorMessageElement = document.getElementById('error-message'); // get the errorMessageElement
   errorMessageElement.classList.add('hidden'); // hide error in case there was one
 
+  const fileListElement = document.getElementById('fileList'); // get table body with results
+  fileListElement.innerHTML = ''; // remove previously displayed files and folders
+
   try {
     const entries = await invoke('format_file_data', { path: filepath }); // grab entries from backend
 
     const fileTable = document.getElementById('fileTable'); // get the whole table
     fileTable.rows[0].cells[1].style.display = 'none'; // hide column "Filepath"
     fileTable.classList.remove('search') // remove token, so the style gets adjusted properly
-
-    const fileListElement = document.getElementById('fileList'); // get table body with results
-    fileListElement.innerHTML = ''; // remove previously displayed files and folders
 
     entries.forEach(entry => {
       // create new row
@@ -75,11 +75,11 @@ async function display_search_results() {
   const errorMessageElement = document.getElementById('error-message'); // get errorMessageElement
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
 
+  const fileListElement = document.getElementById('fileList'); // get table body with results
+  fileListElement.innerHTML = ''; // delete previous results
+
   try {
     const entries = await invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path, searchfiletype: filetypes }); // get the search results (structs with all the information)
-
-    const fileListElement = document.getElementById('fileList'); // get table body with results
-    fileListElement.innerHTML = ''; // delete previous results
 
     // load appropriate design and display Filepath column
     const fileTable = document.getElementById('fileTable');
