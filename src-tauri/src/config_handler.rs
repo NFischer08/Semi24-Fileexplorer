@@ -182,7 +182,7 @@ pub fn get_copy_mode() -> CopyMode {
 #[command]
 pub fn get_css_settings() -> ColorConfig {
     let mut path = CURRENT_DIR.clone();
-    path.push("data/config/color-settings.json");
+    path.push("data/config/color-config.json");
     match read_config(&path) {
         Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
         Err(_) => ColorConfig::default()
