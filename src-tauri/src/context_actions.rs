@@ -9,12 +9,15 @@ use std::{
 use std::io::BufReader;
 use tauri::command;
 use crate::config_handler::{CopyMode, get_copy_mode};
+use crate::manager::CURRENT_DIR;
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
     let path: PathBuf = clean_path(filepath);
     let copy_mode: CopyMode = get_copy_mode();
-    let copy_path: String = String::from("C:/Users/ninof/RustroverProjects/Semi24-Fileexplorer/src-tauri/src/context_actions_tmp");
+
+    let mut copy_path = CURRENT_DIR.clone();
+    copy_path.push("data/tmp/context_actions_tmp");
 
     // checks if path refers to a directory
     if path.is_dir() {
@@ -58,7 +61,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
         }
         CopyMode::File => {
             // copy file to paste it later
-            match fs::copy(&path, format!("{copy_path}/FILE.copy")) {
+            match fs::copy(&path, copy_path.join("FILE.copy")) {
                 Ok(_) => {}
                 Err(e) => return Err(e.to_string())
             };
@@ -71,7 +74,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
     };
     println!("{}", filename);
     // open copy file to store filename
-    let mut file = match fs::OpenOptions::new().read(false).truncate(true).write(true).create(true).open(format!("{copy_path}/copy.txt")) {
+    let mut file = match fs::OpenOptions::new().read(false).truncate(true).write(true).create(true).open(copy_path.join("copy.txt")) {
         Ok(file) => file,
         Err(e) => {return Err(e.to_string())}
     };
@@ -90,10 +93,12 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
 pub fn paste_file(destination: String) -> Result<String, String> {
     let mut path: PathBuf = clean_path(destination);
     let copy_mode: CopyMode = get_copy_mode();
-    let copy_path: String = String::from("C:/Users/ninof/RustroverProjects/Semi24-Fileexplorer/src-tauri/src/context_actions_tmp");
+
+    let mut copy_path = CURRENT_DIR.clone();
+    copy_path.push("data/tmp/context_actions_tmp");
 
     // read filename
-    let file = match fs::File::open(format!("{copy_path}/copy.txt")) {
+    let file = match fs::File::open(copy_path.join("copy.txt")) {
         Ok(file) => file,
         Err(e) => return Err(e.to_string())
     };
@@ -142,7 +147,7 @@ pub fn paste_file(destination: String) -> Result<String, String> {
         }
         CopyMode::File => {
             // copy file to desired location
-            match fs::copy(format!("{copy_path}/FILE.copy"), &path) {
+            match fs::copy(copy_path.join("FILE.copy"), &path) {
                 Ok(_) => {}
                 Err(e) => return Err(e.to_string())
             };

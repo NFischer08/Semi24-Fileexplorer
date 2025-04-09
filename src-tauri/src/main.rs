@@ -66,14 +66,26 @@ fn main() {
     tch::set_num_interop_threads(1);
     tch::set_num_threads((num_cpus::get() - 1) as i32);
 
-    if !PathBuf::from(&*CURRENT_DIR).join("data").exists() {
-        create_dir(&*CURRENT_DIR.join("data"))
-            .expect("Unable to create data directory");
-        create_dir(&*CURRENT_DIR.join("data/model"))
-            .expect("Unable to create model directory");
-        create_dir(&*CURRENT_DIR.join("data/config"))
-            .expect("Unable to create config directory");
-    };
+
+    //TODO Schönes Match statement bitte Nino
+    let data_dir = CURRENT_DIR.join("data");
+    let model_dir = data_dir.join("model");
+    let config_dir = data_dir.join("config");
+    let tmp_dir = data_dir.join("tmp");
+
+    match (data_dir.exists(), model_dir.exists(), config_dir.exists(), tmp_dir.exists()) {
+        (false, _, _, _) => {
+            create_dir(&data_dir).expect("Unable to create data directory");
+            create_dir(&model_dir).expect("Unable to create model directory");
+            create_dir(&config_dir).expect("Unable to create config directory");
+            create_dir(&tmp_dir).expect("Unable to create tmp directory");
+        }
+        (true, false, _, _) => create_dir(&model_dir).expect("Unable to create model directory"),
+        (true, _, false, _) => create_dir(&config_dir).expect("Unable to create config directory"),
+        (true, _, _, false) => create_dir(&tmp_dir).expect("Unable to create tmp directory"),
+        _ => {}
+    }
+
 
     let mut drives = get_all_drives();
     println!("Available drives: {:?}", drives);

@@ -4,7 +4,9 @@ use std::sync::OnceLock;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Read;
+use std::path::PathBuf;
 use tauri::command;
+use crate::manager::CURRENT_DIR;
 
 pub static ALLOWED_FILE_EXTENSIONS: OnceLock<HashSet<String>> = OnceLock::new();
 pub static FAVOURITE_FILE_EXTENSIONS: OnceLock<HashMap<String, String>> = OnceLock::new();
@@ -15,7 +17,6 @@ struct Settings {
     allowed_extensions: HashSet<String>,
     favourite_extensions: HashMap<String, String>,
     copy_mode: CopyMode,
-    context_actions_tmp_path: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -66,7 +67,6 @@ impl Settings {
             allowed_extensions,
             favourite_extensions,
             copy_mode: CopyMode::File,
-            context_actions_tmp_path: "C:\\Users\\ninof\\RustroverProjects\\Semi24-Fileexplorer\\src-tauri\\src\\context_actions_tmp".to_string(),
         }
     }
 }
@@ -100,7 +100,7 @@ impl ColorConfig {
     }
 }
 
-fn read_config(config_path: &str) -> Result<String, ()> {
+fn read_config(config_path: &PathBuf) -> Result<String, ()> {
     // Open the file
     let mut file = match File::open(config_path) {
         Ok(file) => file,
@@ -117,8 +117,10 @@ fn read_config(config_path: &str) -> Result<String, ()> {
 }
 
 pub fn initialize_config() -> Result<String, String> {
+    let mut path = CURRENT_DIR.clone();
+    path.push("data/config/config.json");
     let config = match read_config(
-        r"C:\Users\ninof\RustroverProjects\Semi24-Fileexplorer\src-tauri\src\config\config.json",
+        &path,
     ) {
         Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| Settings::default()),
         Err(_) => Settings::default(),
@@ -179,7 +181,9 @@ pub fn get_copy_mode() -> CopyMode {
 
 #[command]
 pub fn get_css_settings() -> ColorConfig {
-    match read_config(r"C:\Users\ninof\RustroverProjects\Semi24-Fileexplorer\src-tauri\src\config\color-settings.json") {
+    let mut path = CURRENT_DIR.clone();
+    path.push("data/config/color-settings.json");
+    match read_config(&path) {
         Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
         Err(_) => ColorConfig::default()
     }
