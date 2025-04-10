@@ -165,8 +165,8 @@ pub fn get_file_information(entry: &DirEntry) -> FileData {
                 .timestamp_opt(d.as_secs() as i64, d.subsec_nanos())
                 .single()
                 .unwrap_or_else(Local::now)
-        }).unwrap_or_else(|_| Local::now()); // Fallback to current time if there's an error
-
+        })
+        .unwrap_or_else(|_| Local::now()); // Fallback to current time if there's an error
 
     // append the important information to the Vector with the FileEntries
     FileData {

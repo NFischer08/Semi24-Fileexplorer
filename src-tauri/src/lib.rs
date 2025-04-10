@@ -7,8 +7,10 @@ pub mod db_util;
 pub mod file_information;
 pub mod manager;
 
-use config_handler::{get_fav_file_extensions, get_css_settings};
-use context_actions::{copy_file, cut_file, delete_file, open_file, open_file_with, paste_file, rename_file};
+use config_handler::{get_css_settings, get_fav_file_extensions};
+use context_actions::{
+    copy_file, cut_file, delete_file, open_file, open_file_with, paste_file, rename_file,
+};
 use file_information::format_file_data;
 use manager::manager_basic_search;
 

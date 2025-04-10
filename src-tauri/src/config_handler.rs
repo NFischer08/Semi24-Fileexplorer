@@ -1,12 +1,12 @@
-use serde::{Serialize, Deserialize};
+use crate::manager::CURRENT_DIR;
+use serde::{Deserialize, Serialize};
 use serde_json;
-use std::sync::OnceLock;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use std::sync::OnceLock;
 use tauri::command;
-use crate::manager::CURRENT_DIR;
 
 pub static ALLOWED_FILE_EXTENSIONS: OnceLock<HashSet<String>> = OnceLock::new();
 pub static FAVOURITE_FILE_EXTENSIONS: OnceLock<HashMap<String, String>> = OnceLock::new();
@@ -22,7 +22,7 @@ struct Settings {
 #[derive(Debug, Deserialize)]
 pub enum CopyMode {
     Clipboard,
-    File
+    File,
 }
 
 impl Settings {
@@ -95,7 +95,7 @@ impl ColorConfig {
             input_border: String::from("#ccc"),
             button_hover: String::from("#ffffff"),
             modal_background: String::from("#1f1f1f"),
-            modal_hover: String::from("#2f2f2f")
+            modal_hover: String::from("#2f2f2f"),
         }
     }
 }
@@ -119,9 +119,7 @@ fn read_config(config_path: &PathBuf) -> Result<String, ()> {
 pub fn initialize_config() -> Result<String, String> {
     let mut path = CURRENT_DIR.clone();
     path.push("data/config/config.json");
-    let config = match read_config(
-        &path,
-    ) {
+    let config = match read_config(&path) {
         Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| Settings::default()),
         Err(_) => Settings::default(),
     }; // change path if needed
@@ -151,7 +149,8 @@ pub fn get_fav_file_extensions() -> HashMap<String, String> {
         Some(fav_ext) => fav_ext.to_owned(),
         None => {
             println!("No FAVOURITE_FILE_EXTENSIONS :(");
-            Settings::default().favourite_extensions },
+            Settings::default().favourite_extensions
+        }
     }
 }
 
@@ -169,13 +168,11 @@ pub fn get_allowed_file_extensions() -> HashSet<String> {
 
 pub fn get_copy_mode() -> CopyMode {
     match COPY_MODE.get() {
-        Some(mode) => {
-            match mode {
-                CopyMode::Clipboard => CopyMode::Clipboard,
-                CopyMode::File => CopyMode::File,
-            }
-        }
-        None => CopyMode::File
+        Some(mode) => match mode {
+            CopyMode::Clipboard => CopyMode::Clipboard,
+            CopyMode::File => CopyMode::File,
+        },
+        None => CopyMode::File,
     }
 }
 
@@ -185,6 +182,6 @@ pub fn get_css_settings() -> ColorConfig {
     path.push("data/config/color-config.json");
     match read_config(&path) {
         Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
-        Err(_) => ColorConfig::default()
+        Err(_) => ColorConfig::default(),
     }
 }

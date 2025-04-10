@@ -41,7 +41,7 @@ for name in file_names:
 vocab = {word: idx for idx, word in enumerate(set(tokens))}
 
 # Export vocabulary as a JSON file
-vocab_file_path = "../../../data/model/vocab.json"
+vocab_file_path = "vocab.json"
 with open(vocab_file_path, "w", encoding="utf-8") as vocab_file:
     json.dump(vocab, vocab_file, ensure_ascii=False, indent=4)  # Save vocab as JSON
 
@@ -52,14 +52,14 @@ data = [(vocab[tokens[i]], vocab[tokens[i + 1]]) for i in range(len(tokens) - 1)
 
 # Training
 vocab_size = len(vocab)
-embedding_dim = 512
+embedding_dim = 384
 model = SkipGramModel(vocab_size, embedding_dim).to(device)  # Move model to GPU
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.Adam(model.parameters(), lr=0.01)
 
 batch_size = 1028  # Process data in batches to reduce memory usage
 
-for epoch in range(3):  # Training loop
+for epoch in range(1):  # Training loop
     print(f"Epoch {epoch + 1} started")
     total_loss = 0
 

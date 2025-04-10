@@ -1,22 +1,22 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+pub mod config_handler;
 pub mod context_actions;
 pub mod db_create;
 pub mod db_search;
 pub mod db_util;
 pub mod file_information;
 pub mod manager;
-pub mod config_handler;
 
 use config_handler::initialize_config;
+use file_explorer_lib::manager::CURRENT_DIR;
 use manager::manager_create_database;
 use rayon::prelude::*;
-use std::fs::{create_dir};
 use rayon::prelude::*;
+use rayon::prelude::*;
+use std::fs::create_dir;
 use std::path::PathBuf;
 use std::thread;
-use rayon::prelude::*;
-use file_explorer_lib::manager::{CURRENT_DIR};
 
 fn get_all_drives() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
@@ -66,14 +66,18 @@ fn main() {
     tch::set_num_interop_threads(1);
     tch::set_num_threads((num_cpus::get() - 1) as i32);
 
-
     //TODO Schönes Match statement bitte Nino
     let data_dir = CURRENT_DIR.join("data");
     let model_dir = data_dir.join("model");
     let config_dir = data_dir.join("config");
     let tmp_dir = data_dir.join("tmp");
 
-    match (data_dir.exists(), model_dir.exists(), config_dir.exists(), tmp_dir.exists()) {
+    match (
+        data_dir.exists(),
+        model_dir.exists(),
+        config_dir.exists(),
+        tmp_dir.exists(),
+    ) {
         (false, _, _, _) => {
             create_dir(&data_dir).expect("Unable to create data directory");
             create_dir(&model_dir).expect("Unable to create model directory");
@@ -86,12 +90,13 @@ fn main() {
         _ => {}
     }
 
-
     let mut drives = get_all_drives();
     println!("Available drives: {:?}", drives);
 
     match initialize_config() {
-        Ok(x) => {println!("{}", x)}
+        Ok(x) => {
+            println!("{}", x)
+        }
         Err(e) => panic!("Failed to initialize config: {e}"),
     }
 
@@ -102,5 +107,4 @@ fn main() {
     });
 
     file_explorer_lib::run();
-
 }

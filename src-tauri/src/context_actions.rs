@@ -1,15 +1,15 @@
+use crate::config_handler::{get_copy_mode, CopyMode};
+use crate::manager::CURRENT_DIR;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use opener::open;
+use std::io::BufReader;
 use std::{
     fs,
     io::{Read, Write},
     path::{Path, PathBuf},
     process::Command,
 };
-use std::io::BufReader;
 use tauri::command;
-use crate::config_handler::{CopyMode, get_copy_mode};
-use crate::manager::CURRENT_DIR;
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
@@ -37,7 +37,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
             // read the file contents
             let mut contents = String::new();
             match file.read_to_string(&mut contents) {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => {
                     return Err("Failed to read file.".to_string());
                 }
@@ -53,7 +53,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
 
             // copy the contents to the clipboard
             match clipboard.set_contents(contents) {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => {
                     return Err("Failed to copy to clipboard.".to_string());
                 }
@@ -63,7 +63,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
             // copy file to paste it later
             match fs::copy(&path, copy_path.join("FILE.copy")) {
                 Ok(_) => {}
-                Err(e) => return Err(e.to_string())
+                Err(e) => return Err(e.to_string()),
             };
         }
     };
@@ -74,15 +74,21 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
     };
     println!("{}", filename);
     // open copy file to store filename
-    let mut file = match fs::OpenOptions::new().read(false).truncate(true).write(true).create(true).open(copy_path.join("copy.txt")) {
+    let mut file = match fs::OpenOptions::new()
+        .read(false)
+        .truncate(true)
+        .write(true)
+        .create(true)
+        .open(copy_path.join("copy.txt"))
+    {
         Ok(file) => file,
-        Err(e) => {return Err(e.to_string())}
+        Err(e) => return Err(e.to_string()),
     };
     println!("File cleared");
     // write the content
     match file.write(filename.as_ref()) {
-        Ok(_) => {},
-        Err(e) => {return Err(e.to_string())}
+        Ok(_) => {}
+        Err(e) => return Err(e.to_string()),
     }
 
     println!("Copied successfully!");
@@ -100,12 +106,12 @@ pub fn paste_file(destination: String) -> Result<String, String> {
     // read filename
     let file = match fs::File::open(copy_path.join("copy.txt")) {
         Ok(file) => file,
-        Err(e) => return Err(e.to_string())
+        Err(e) => return Err(e.to_string()),
     };
     let mut reader = BufReader::new(file);
     let mut filename = String::new();
     match reader.read_to_string(&mut filename) {
-        Ok(_) => {},
+        Ok(_) => {}
         Err(_) => filename = String::from("Unbenannt"),
     };
 
@@ -140,16 +146,15 @@ pub fn paste_file(destination: String) -> Result<String, String> {
 
             // write contents to the file
             match file.write_all(contents.as_bytes()) {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(_) => return Err("Failed write to file!".to_string()),
-
             }
         }
         CopyMode::File => {
             // copy file to desired location
             match fs::copy(copy_path.join("FILE.copy"), &path) {
                 Ok(_) => {}
-                Err(e) => return Err(e.to_string())
+                Err(e) => return Err(e.to_string()),
             };
         }
     }
@@ -160,12 +165,13 @@ pub fn paste_file(destination: String) -> Result<String, String> {
 #[command]
 pub fn cut_file(filepath: String) -> Result<String, String> {
     match copy_file(filepath.to_owned()) {
-        Ok(_) => {},
-        Err(error) => return Err(error) // returnt Error, wenn kopieren nicht klappt -> nicht wird gelöscht!
+        Ok(_) => {}
+        Err(error) => return Err(error), // returnt Error, wenn kopieren nicht klappt -> nicht wird gelöscht!
     };
-    match delete_file(filepath) { //nicht lieber erstmal überprüfen, ob die auch wieder gespeichert wurde? Nino: wenns nicht klappt wird ein Error returnt!
+    match delete_file(filepath) {
+        //nicht lieber erstmal überprüfen, ob die auch wieder gespeichert wurde? Nino: wenns nicht klappt wird ein Error returnt!
         Ok(_) => Ok("Cut successfully!".to_string()),
-        Err(error) => Err(error)
+        Err(error) => Err(error),
     }
 }
 
@@ -182,7 +188,10 @@ pub fn rename_file(filepath: String, new_filename: &str) -> Result<String, Strin
 
     // Check if the new file already exists
     if new_filepath.exists() {
-        return Err(format!("A file with the name '{}' already exists in the directory.", new_filename));
+        return Err(format!(
+            "A file with the name '{}' already exists in the directory.",
+            new_filename
+        ));
     }
 
     // Rename the file
@@ -209,7 +218,8 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
     {
         match Command::new("cmd")
             .args(&["/C", "start", "", path.to_str().unwrap()])
-            .spawn() {
+            .spawn()
+        {
             Ok(_) => Ok("File opened successfully.".to_string()),
             Err(_) => Err("Failed to open file.".to_string()),
         }
@@ -217,9 +227,7 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
 
     #[cfg(target_os = "macos")]
     {
-        match Command::new("open")
-            .arg(path)
-            .spawn() {
+        match Command::new("open").arg(path).spawn() {
             Ok(_) => Ok("File opened successfully.".to_string()),
             Err(_) => Err("Failed to open file.".to_string()),
         }
@@ -227,9 +235,7 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
 
     #[cfg(target_os = "linux")]
     {
-        match Command::new("xdg-open")
-            .arg(path)
-            .spawn() {
+        match Command::new("xdg-open").arg(path).spawn() {
             Ok(_) => Ok("File opened successfully.".to_string()),
             Err(_) => Err("Failed to open file.".to_string()),
         }

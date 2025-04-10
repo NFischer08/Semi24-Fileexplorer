@@ -27,16 +27,18 @@ pub fn convert_to_forward_slashes(path: &PathBuf) -> String {
         .unwrap_or_else(|| String::new())
 }
 
-pub fn cosine_similarity(search_embedding: &[f32], search_norm: f32, candidate_embedding: &[f32]) -> f32 {
-    let (b2, ab) = candidate_embedding.iter()
+pub fn cosine_similarity(
+    search_embedding: &[f32],
+    search_norm: f32,
+    candidate_embedding: &[f32],
+) -> f32 {
+    let (b2, ab) = candidate_embedding
+        .iter()
         .zip(search_embedding.iter())
-        .fold((0.0, 0.0), |(b2, ab), (&b, &a)| {
-            (b2 + b * b, ab + a * b)
-        });
+        .fold((0.0, 0.0), |(b2, ab), (&b, &a)| (b2 + b * b, ab + a * b));
 
     ab / (search_norm * b2.sqrt())
 }
-
 
 pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bool {
     if should_ignore_path(path) {
@@ -74,32 +76,6 @@ pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnection
         )
         .expect("Indexing failed: ");
 }
-
-pub fn get_allowed_file_extensions() -> HashSet<String> {
-    [
-        // Text and documents
-        "txt", "pdf", "doc", "docx", "rtf", "odt", "tex", "md", "epub",
-        // Spreadsheets and presentations
-        "xls", "xlsx", "csv", "ods", "ppt", "pptx", "odp", "key", // Images
-        "jpg", "jpeg", "png", "gif", "bmp", "tiff", "svg", "webp", "ico", "raw",
-        // Audio and video
-        "mp3", "wav", "ogg", "flac", "aac", "wma", "m4a", "mp4", "avi", "mov", "wmv", "flv", "mkv",
-        "webm", "m4v", "3gp", // Archives and data
-        "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "json", "xml", "yaml", "yml", "toml", "ini",
-        "cfg", // Web and programming
-        "html", "htm", "css", "js", "php", "asp", "jsp", "py", "java", "c", "cpp", "h", "hpp",
-        "cs", "rs", "go", "rb", "pl", "swift", "kt", "ts", "coffee", "scala", "groovy", "lua", "r",
-        // Scripts and executables
-        "sh", "bash", "zsh", "fish", "bat", "cmd", "ps1", "exe", "dll", "so", "dylib",
-        // Other formats
-        "sql", "db", "sqlite", "mdb", "ttf", "otf", "woff", "woff2", "obj", "stl", "fbx", "dxf",
-        "dwg", "psd", "ai", "ind", "iso", "img", "dmg", "bak", "tmp", "log", "pcap",
-    ]
-    .iter()
-    .map(|&s| String::from(s))
-    .collect()
-}
-
 pub fn tokenize_file_name(file_name: &str) -> Vec<String> {
     // Split file name into tokens based on underscores and other delimiters
     file_name

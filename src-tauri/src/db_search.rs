@@ -1,4 +1,5 @@
-use crate::db_util::{cosine_similarity, load_vocab, tokenize_file_name, tokens_to_indices};
+use crate::db_util::{cosine_similarity, tokenize_file_name, tokens_to_indices};
+use crate::manager::{THREAD_POOL, VOCAB};
 use bytemuck::cast_slice;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -6,16 +7,15 @@ use rayon::prelude::*;
 use rayon::ThreadPool;
 use rusqlite::{params, Result};
 use std::cmp::Ordering;
+use std::collections::HashMap;
 use std::sync::mpsc;
 use std::{
     fs::{self, DirEntry},
     path::{Path, PathBuf},
     time::Instant,
 };
-use std::collections::HashMap;
-use tch::{CModule, Kind};
 use strsim::normalized_levenshtein;
-use crate::manager::THREAD_POOL;
+use tch::{CModule, Kind};
 
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
@@ -25,10 +25,11 @@ pub fn search_database(
     model: &CModule,
     num_results_embeddings: usize,
     num_results_levenhstein: usize,
-    vocab: &HashMap<String, usize>,
 ) -> Result<Vec<DirEntry>> {
     let pooled_connection = connection_pool.get().expect("get connection pool");
     const BATCH_SIZE: usize = 1000; // Adjust this value as needed
+
+    let vocab = VOCAB.clone();
 
     let start_time = Instant::now();
     let search_path_str = if cfg!(windows) && search_path.to_str().unwrap_or("") == "/" {
@@ -117,30 +118,33 @@ pub fn search_database(
     let embedded_vec_f32: Vec<f32> =
         Vec::try_from(embedded_f32.flatten(0, -1)).expect("Can't convert vector to f32");
 
-    let search_norm: f32 = embedded_vec_f32.iter()
+    let search_norm: f32 = embedded_vec_f32
+        .iter()
         .fold(0.0, |acc, &x| acc + x * x)
         .sqrt();
 
     let results_start = Instant::now();
 
-    let results: Vec<(String, f32, f64)> = rx.into_iter()
-            .par_bridge()
-            .flat_map(|vec_of_paths| vec_of_paths)
-            .filter_map(|row| {
-                let path = PathBuf::from(&row.0);
-                let file_name = path.file_stem()
-                    .and_then(|os_str| os_str.to_str())
-                    .unwrap_or("invalid_unicode");
+    let results: Vec<(String, f32, f64)> = rx
+        .into_iter()
+        .par_bridge()
+        .flat_map(|vec_of_paths| vec_of_paths)
+        .filter_map(|row| {
+            let path = PathBuf::from(&row.0);
+            let file_name = path
+                .file_stem()
+                .and_then(|os_str| os_str.to_str())
+                .unwrap_or("invalid_unicode");
 
-                let vec_similarity = cosine_similarity(
-                    cast_slice::<u8, f32>(&row.1),
-                    search_norm,
-                    &embedded_vec_f32
-                );
-                let normalized_levenhstein_dist = normalized_levenshtein(file_name, search_term);
+            let vec_similarity = cosine_similarity(
+                cast_slice::<u8, f32>(&row.1),
+                search_norm,
+                &embedded_vec_f32,
+            );
+            let normalized_levenhstein_dist = normalized_levenshtein(file_name, search_term);
 
-                Some((row.0.clone(), vec_similarity, normalized_levenhstein_dist))
-            })
+            Some((row.0.clone(), vec_similarity, normalized_levenhstein_dist))
+        })
         .collect();
 
     println!("Finished results in : {:?} ", results_start.elapsed());
@@ -153,28 +157,22 @@ pub fn search_database(
     let (mut results_embedding, mut results_levenhstein): (Vec<_>, Vec<_>) = results
         .into_iter()
         .map(|(s, f, u)| {
-            let s2 = s.clone();  // Single clone operation
+            let s2 = s.clone(); // Single clone operation
             ((s, f), (s2, u))
         })
         .unzip();
 
-    results_levenhstein.par_sort_by(|a, b|
-        b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal)
-    );
-
+    results_levenhstein.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
 
     results_levenhstein.truncate(num_results_levenhstein);
 
     //println!("results levenhstein {:?}", &results_levenhstein);
 
-    results_embedding.par_sort_by(|a, b| {
-        b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal)
-    });
+    results_embedding.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
 
     results_embedding.truncate(num_results_embeddings);
 
     //println!("results embeddings {:?}", &results_embedding);
-
 
     let results: Vec<String> = results_levenhstein
         .into_iter()
