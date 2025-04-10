@@ -2,6 +2,7 @@ use crate::db_create::create_database;
 use crate::db_search::search_database;
 use crate::db_util::{initialize_database, load_vocab};
 use crate::file_information::{get_file_information, FileData, FileDataFormatted};
+use crate::config_handler::{get_number_results_levenhstein, get_number_results_embedding};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
@@ -11,8 +12,15 @@ use std::fs::create_dir;
 use std::path::absolute;
 use std::sync::LazyLock;
 use std::{fs::DirEntry, path::PathBuf};
-use tauri::command;
+use tauri::{command, Emitter};
 use tch::CModule;
+use tauri::{State, AppHandle};
+
+
+#[derive(Debug)]
+pub(crate) struct AppState {
+    pub(crate) handle: AppHandle,
+}
 
 pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     env::current_dir()
@@ -95,11 +103,9 @@ pub fn manager_basic_search(
     searchterm: &str,
     searchpath: &str,
     searchfiletype: &str,
-) -> Result<Vec<FileDataFormatted>, String> {
+    state: State<AppState>
+) -> Result<(), String>   {
     let connection_pool = manager_make_pooled_connection();
-
-    let number_results_embedding = 30;
-    let number_results_levenhstein = 10;
 
     let search_path = PathBuf::from(searchpath);
 
@@ -109,8 +115,8 @@ pub fn manager_basic_search(
         search_path,
         searchfiletype,
         &MODEL,
-        number_results_embedding,
-        number_results_levenhstein,
+        get_number_results_embedding(),
+        get_number_results_levenhstein(),
     ) {
         Ok(return_paths) => return_paths,
         Err(e) => return Err(e.to_string()),
@@ -118,5 +124,11 @@ pub fn manager_basic_search(
 
     let search_result = build_struct(return_paths);
 
-    Ok(search_result)
+    emit_search(&state.handle, search_result);
+    Ok(())
+}
+
+#[command]
+fn emit_search(app: &AppHandle, search_results: Vec<FileDataFormatted>) {
+    app.emit("search_finished", &search_results).unwrap();
 }

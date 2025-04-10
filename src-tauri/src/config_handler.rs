@@ -11,12 +11,17 @@ use tauri::command;
 pub static ALLOWED_FILE_EXTENSIONS: OnceLock<HashSet<String>> = OnceLock::new();
 pub static FAVOURITE_FILE_EXTENSIONS: OnceLock<HashMap<String, String>> = OnceLock::new();
 pub static COPY_MODE: OnceLock<CopyMode> = OnceLock::new();
+pub static NUMBER_RESULTS_LEVENHSTEIN: OnceLock<usize> = OnceLock::new();
+pub static NUMBER_RESULTS_EMBEDDING: OnceLock<usize> = OnceLock::new();
+
 
 #[derive(Debug, Deserialize)]
 struct Settings {
     allowed_extensions: HashSet<String>,
     favourite_extensions: HashMap<String, String>,
     copy_mode: CopyMode,
+    number_results_levenhstein: usize,
+    number_results_embedding: usize
 }
 
 #[derive(Debug, Deserialize)]
@@ -63,10 +68,13 @@ impl Settings {
         .map(|&(key, value)| (String::from(key), String::from(value)))
         .collect();
 
+
         Settings {
             allowed_extensions,
             favourite_extensions,
             copy_mode: CopyMode::File,
+            number_results_levenhstein: 15,
+            number_results_embedding: 25,
         }
     }
 }
@@ -138,8 +146,17 @@ pub fn initialize_config() -> Result<String, String> {
         Ok(_) => {}
         Err(_) => return Err("couldn't set copy mode".to_string()),
     }
+    match NUMBER_RESULTS_EMBEDDING.set(config.number_results_embedding) {
+        Ok(_) => {}
+        Err(_) => return Err("couldn't set num emb".to_string()),
+    }
+    match NUMBER_RESULTS_LEVENHSTEIN.set(config.number_results_levenhstein) {
+        Ok(_) => {}
+        Err(_) => return Err("couldn't set num lev".to_string()),
+    }
 
-    Ok("Properly set".to_string())
+
+    Ok("".to_string())
 }
 
 #[command]
@@ -171,6 +188,19 @@ pub fn get_copy_mode() -> CopyMode {
             CopyMode::File => CopyMode::File,
         },
         None => CopyMode::File,
+    }
+}
+
+pub fn get_number_results_levenhstein() -> usize {
+    match NUMBER_RESULTS_LEVENHSTEIN.get() {
+        None => Settings::default().number_results_levenhstein,
+        Some(val) => val.clone()
+    }
+}
+pub fn get_number_results_embedding() -> usize {
+    match NUMBER_RESULTS_LEVENHSTEIN.get() {
+        None => Settings::default().number_results_embedding,
+        Some(val) => val.clone()
     }
 }
 

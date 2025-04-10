@@ -11,8 +11,7 @@ path = "src/main.rs"
 name = "Semi24-Fileexplorer"
 
 [lib]
-name = "file_explorer_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+name = "file_explorer"
 path = "src/lib.rs"
 
 [dependencies]

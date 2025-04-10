@@ -9,8 +9,7 @@ pub mod file_information;
 pub mod manager;
 
 use config_handler::initialize_config;
-use file_explorer_lib::manager::CURRENT_DIR;
-use manager::manager_create_database;
+use file_explorer::manager::{manager_create_database, CURRENT_DIR};
 use rayon::prelude::*;
 use std::fs::create_dir;
 use std::path::PathBuf;
@@ -99,5 +98,5 @@ fn main() {
         });
     });
 
-    file_explorer_lib::run();
+    file_explorer::run();
 }

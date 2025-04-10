@@ -18,10 +18,7 @@ pub fn create_database(
 ) -> Result<(), String> {
     const BATCH_SIZE: usize = 250;
 
-    println!(
-        "Starting create_database function of Path {}",
-        path.display()
-    );
+    let path2 = path.clone();
     let start_time = Instant::now();
 
     let vocab = VOCAB.clone();
@@ -196,6 +193,6 @@ pub fn create_database(
     }
     file_walking_thread.join().expect("Failed to join thread.");
 
-    println!("{}", start_time.elapsed().as_millis());
+    println!("Database population for {:?} took {}ms", path2, start_time.elapsed().as_millis());
     Ok(())
 }

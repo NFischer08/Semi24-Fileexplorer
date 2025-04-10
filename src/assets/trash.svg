@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 <svg width="120" height="120" version="1.1" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
- <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2">
-  <path d="m25.033 24.081h70l-10 80h-50z"/>
-  <path d="m60.033 29.081v67.229z"/>
-  <path d="m36.079 29.155 8.3388 66.71z"/>
-  <path d="m84.102 29.155-8.3388 66.71z"/>
-  <path d="m25.033 24.081h77.861-87.302 9.4412"/>
-  <path d="m45.761 10.6h28.885l9.9997 13.481h-48.885z"/>
+ <g stroke-linecap="round" stroke-linejoin="round" stroke-width="3.5">
+  <path d="m25.033 24.081h70l-10 80h-50z" fill="#fff" stroke="#fff"/>
+  <g stroke="#000">
+   <path d="m60.033 29.081v67.229z" fill="#fff"/>
+   <path d="m36.079 29.155 8.3388 66.71z"/>
+   <path d="m84.102 29.155-8.3388 66.71z"/>
+  </g>
+  <path d="m25.033 24.081h77.861-87.302 9.4412" fill="#fff" stroke="#fff"/>
+  <path d="m45.761 10.6h28.885l9.9997 13.481h-48.885z" fill="#fff" stroke="#fff"/>
  </g>
 </svg>
