@@ -1,5 +1,5 @@
 const { invoke } = window.__TAURI__.core;
-import { listen } from '@tauri-apps/api/event';
+const { listen } = window.__TAURI__.event;
 
 let filePathHistory = ["/"];
 
@@ -60,7 +60,7 @@ async function loadFilesAndFolders() {
     errorMessageElement.classList.remove('hidden'); // display it
   }
 }
-function initSearch() {
+async function initSearch() {
   const search_term = document.getElementById('search-term-input').value; // get the search term
   const search_path = document.getElementById('file-path-input').value; // get the current path
 
@@ -71,11 +71,13 @@ function initSearch() {
   }
   selectedSettings.push(document.getElementById('setting-filetype').value);
   const filetypes = selectedSettings.join(','); // Join the selected values into a string
-
+  console.log("start searching");
   invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path, searchfiletype: filetypes }); // start search process; values will be send back via event
+  console.log("finished searching");
 }
 
 listen('search_finished', (event) => {
+  console.log("finished searching fr this time");
   try {
     const entries = event.payload
     displaySearchResults(entries);
