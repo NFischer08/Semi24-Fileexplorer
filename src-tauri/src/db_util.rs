@@ -21,7 +21,7 @@ pub struct EmbeddingModel {
     pub embeddings: Tensor,
 }
 
-pub fn convert_to_forward_slashes(path: &PathBuf) -> String {
+pub fn convert_to_forward_slashes(path: &Path) -> String {
     path.to_str()
         .map(|s| s.replace('\\', "/"))
         .unwrap_or_else(|| String::new())
@@ -55,7 +55,7 @@ pub fn should_ignore_path(path: &Path) -> bool {
         .map_or(false, |s| s.starts_with("/proc") || s.starts_with("/sys"))
 }
 
-pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnectionManager>) -> () {
+pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnectionManager>){
     pooled_connection
         .execute(
             "CREATE TABLE IF NOT EXISTS files (
@@ -79,14 +79,13 @@ pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnection
 pub fn tokenize_file_name(file_name: &str) -> Vec<String> {
     // Split file name into tokens based on underscores and other delimiters
     file_name
-        .split(|c: char| c == '_' || c == ' ' || c == '-')
+        .split(['_', ' ', '-'])
         .map(|s| s.to_lowercase())
         .filter(|s| !s.is_empty()) // Remove empty tokens
         .collect()
 }
 
 pub fn load_vocab(path: &PathBuf) -> HashMap<String, usize> {
-    println!("Loading vocab from {:?}", path);
     let vocab_json = fs::read_to_string(path).expect("Failed to read vocab file");
     serde_json::from_str(&vocab_json).expect("Failed to parse vocab JSON")
 }

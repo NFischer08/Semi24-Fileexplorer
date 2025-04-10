@@ -16,13 +16,12 @@ use tch::CModule;
 
 pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     env::current_dir()
-        .and_then(|cwd| absolute(cwd))
+        .and_then(absolute)
         .expect("Failed to resolve absolute path")
     // VERY IMPORTANT when using .push() don't start with a /, if you do it will override the path with C: + "Your Input"
 });
 
 pub static THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
-    println!("Thread pool built");
     ThreadPoolBuilder::new()
         .num_threads(num_cpus::get())
         .build()
@@ -53,13 +52,13 @@ fn manager_make_pooled_connection() -> Pool<SqliteConnectionManager> {
     path.push("data/db");
     if PathBuf::from(&path).try_exists().expect("Reason") {
         path.push("files.sqlite3");
-        let manager = SqliteConnectionManager::file(PathBuf::from(path));
+        let manager = SqliteConnectionManager::file(path);
         let connection_pool = Pool::new(manager).expect("Failed to create pool.");
         connection_pool
     } else {
         create_dir(PathBuf::from(&path)).expect("Failed to create Dir");
         path.push("files.sqlite3");
-        let manager = SqliteConnectionManager::file(PathBuf::from(path));
+        let manager = SqliteConnectionManager::file(path);
         let connection_pool = Pool::new(manager).expect("Failed to create pool.");
         connection_pool
     }

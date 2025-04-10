@@ -1,14 +1,11 @@
 use crate::db_util::{cosine_similarity, tokenize_file_name, tokens_to_indices};
-use crate::manager::{THREAD_POOL, VOCAB};
+use crate::manager::VOCAB;
 use bytemuck::cast_slice;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
-use rayon::ThreadPool;
 use rusqlite::{params, Result};
 use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::sync::mpsc;
 use std::{
     fs::{self, DirEntry},
     path::{Path, PathBuf},
@@ -123,8 +120,6 @@ pub fn search_database(
         .fold(0.0, |acc, &x| acc + x * x)
         .sqrt();
 
-    let results_start = Instant::now();
-
     let results: Vec<(String, f32, f64)> = rx
         .into_iter()
         .par_bridge()
@@ -147,8 +142,6 @@ pub fn search_database(
         })
         .collect();
 
-    println!("Finished results in : {:?} ", results_start.elapsed());
-
     query_thread
         .join()
         .expect("Query thread panicked")
@@ -163,16 +156,10 @@ pub fn search_database(
         .unzip();
 
     results_levenhstein.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
-
     results_levenhstein.truncate(num_results_levenhstein);
 
-    //println!("results levenhstein {:?}", &results_levenhstein);
-
     results_embedding.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
-
     results_embedding.truncate(num_results_embeddings);
-
-    //println!("results embeddings {:?}", &results_embedding);
 
     let results: Vec<String> = results_levenhstein
         .into_iter()

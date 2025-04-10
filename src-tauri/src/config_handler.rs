@@ -124,7 +124,7 @@ pub fn initialize_config() -> Result<String, String> {
         Err(_) => Settings::default(),
     }; // change path if needed
 
-    println!("INIT: config: {:?}", config);
+    println!("INIT: config");
 
     match FAVOURITE_FILE_EXTENSIONS.set(config.favourite_extensions) {
         Ok(_) => {}
@@ -144,7 +144,6 @@ pub fn initialize_config() -> Result<String, String> {
 
 #[command]
 pub fn get_fav_file_extensions() -> HashMap<String, String> {
-    println!("GET FAV_FILE_EXTENSIONS");
     match FAVOURITE_FILE_EXTENSIONS.get() {
         Some(fav_ext) => fav_ext.to_owned(),
         None => {
@@ -156,7 +155,6 @@ pub fn get_fav_file_extensions() -> HashMap<String, String> {
 
 #[command]
 pub fn get_allowed_file_extensions() -> HashSet<String> {
-    println!("GET ALLOWED_FILE_EXTENSIONS");
     match ALLOWED_FILE_EXTENSIONS.get() {
         Some(ext) => ext.to_owned(),
         None => {

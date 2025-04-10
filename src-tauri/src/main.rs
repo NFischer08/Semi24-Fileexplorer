@@ -12,8 +12,6 @@ use config_handler::initialize_config;
 use file_explorer_lib::manager::CURRENT_DIR;
 use manager::manager_create_database;
 use rayon::prelude::*;
-use rayon::prelude::*;
-use rayon::prelude::*;
 use std::fs::create_dir;
 use std::path::PathBuf;
 use std::thread;
@@ -56,8 +54,6 @@ fn get_all_drives() -> Vec<PathBuf> {
 }
 
 fn main() {
-    println!("{}", num_cpus::get());
-
     rayon::ThreadPoolBuilder::new()
         .num_threads(num_cpus::get() - 1) // Reserve one core for OS
         .build_global()
@@ -90,16 +86,13 @@ fn main() {
         _ => {}
     }
 
-    let mut drives = get_all_drives();
-    println!("Available drives: {:?}", drives);
-
     match initialize_config() {
         Ok(x) => {
             println!("{}", x)
         }
         Err(e) => panic!("Failed to initialize config: {e}"),
     }
-
+    let drives = get_all_drives();
     thread::spawn(move || {
         drives.par_iter().for_each(|drive| {
             manager_create_database(drive.clone()).unwrap();
