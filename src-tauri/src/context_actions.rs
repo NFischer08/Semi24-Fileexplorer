@@ -17,7 +17,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
     let copy_mode: CopyMode = get_copy_mode();
 
     let mut copy_path = CURRENT_DIR.clone();
-    copy_path.push("data/tmp/context_actions_tmp");
+    copy_path.push("data/tmp/");
 
     // checks if path refers to a directory
     if path.is_dir() {
@@ -101,7 +101,7 @@ pub fn paste_file(destination: String) -> Result<String, String> {
     let copy_mode: CopyMode = get_copy_mode();
 
     let mut copy_path = CURRENT_DIR.clone();
-    copy_path.push("data/tmp/context_actions_tmp");
+    copy_path.push("data/tmp/");
 
     // read filename
     let file = match fs::File::open(copy_path.join("copy.txt")) {

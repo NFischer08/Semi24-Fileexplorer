@@ -1,4 +1,5 @@
 const { invoke } = window.__TAURI__.core;
+import { listen } from '@tauri-apps/api/event';
 
 let filePathHistory = ["/"];
 
@@ -59,8 +60,7 @@ async function loadFilesAndFolders() {
     errorMessageElement.classList.remove('hidden'); // display it
   }
 }
-
-async function display_search_results() {
+function initSearch() {
   const search_term = document.getElementById('search-term-input').value; // get the search term
   const search_path = document.getElementById('file-path-input').value; // get the current path
 
@@ -72,6 +72,23 @@ async function display_search_results() {
   selectedSettings.push(document.getElementById('setting-filetype').value);
   const filetypes = selectedSettings.join(','); // Join the selected values into a string
 
+  invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path, searchfiletype: filetypes }); // start search process; values will be send back via event
+}
+
+listen('search_finished', (event) => {
+  try {
+    const entries = event.payload
+    displaySearchResults(entries);
+  } catch (error) {
+    console.error('Error:', error);
+    // display error beneth the table
+    const errorMessageElement = document.getElementById('error-message'); // get errorMessageElement
+    errorMessageElement.textContent = 'Error: ' + error; // set message
+    errorMessageElement.classList.remove('hidden'); // display message
+  }
+})
+
+function displaySearchResults(entries) {
   const errorMessageElement = document.getElementById('error-message'); // get errorMessageElement
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
 
@@ -79,8 +96,6 @@ async function display_search_results() {
   fileListElement.innerHTML = ''; // delete previous results
 
   try {
-    const entries = await invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path, searchfiletype: filetypes }); // get the search results (structs with all the information)
-
     // load appropriate design and display Filepath column
     const fileTable = document.getElementById('fileTable');
     fileTable.rows[0].cells[1].style.display = ''; // display File Path
@@ -131,10 +146,10 @@ async function display_search_results() {
 
 // runs when program starts
 document.addEventListener('DOMContentLoaded', async () => {
-  await load_css_settings()
-  await display_fav_settings();
+  await loadCSSSettings()
+  await displayFavSettings();
   await loadFilesAndFolders();
-  await display_search_results(); //TODO this is bad :(
+  await initSearch();
   await loadFilesAndFolders();
 });
 
@@ -148,7 +163,7 @@ document.getElementById('go-to-file-path-button').addEventListener('click', asyn
 document.getElementById('search-button').addEventListener('click', async () => {
   settingsModal.classList.add('hidden');
   if (document.getElementById('search-term-input').value.trim()) { // calls search function only when there is a search term
-    await display_search_results();
+    await initSearch();
   }
 })
 
@@ -181,7 +196,7 @@ document.getElementById('clear-modal').addEventListener('click', () => {
 })
 
 // request favourite settings from backend (=> config.json)
-async function display_fav_settings() {
+async function displayFavSettings() {
   const settings = await invoke('get_fav_file_extensions'); // get favourite settings as HashMap<String, String>
   const form = document.getElementById('settings-form');
 
@@ -205,7 +220,7 @@ async function display_fav_settings() {
 }
 
 // request color settings from backend
-async function load_css_settings() {
+async function loadCSSSettings() {
   const settings = await invoke('get_css_settings');
   const documentstyle = document.documentElement.style;
 
