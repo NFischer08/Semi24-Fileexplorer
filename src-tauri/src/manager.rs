@@ -130,7 +130,8 @@ pub fn manager_basic_search(
     Ok(())
 }
 
-#[command]
 fn emit_search(app: &AppHandle, search_results: Vec<FileDataFormatted>) {
+    println!("I have somethin' for ya'll");
     app.emit("search_finished", &search_results).unwrap();
+    println!("I had somethin' for ya'll");
 }
