@@ -1,0 +1,15 @@
+{
+  "devDependencies": {
+    "@tauri-apps/cli": "latest",
+    "vite": "latest"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "tauri": "npm run build && npx tauri dev --no-watch"
+  },
+  "dependencies": {
+    "@tauri-apps/api": "^2.4.1"
+  }
+}

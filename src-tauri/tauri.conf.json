@@ -4,10 +4,13 @@
   "version": "0.1.0",
   "identifier": "com.file_explorer.app",
   "build": {
-    "frontendDist": "../src"
+    "frontendDist": "../src",
+    "devUrl": "http://localhost:3000/",
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build"
   },
   "app": {
-    "withGlobalTauri": true,
+    "withGlobalTauri": false,
     "windows": [
       {
         "title": "Profi File Explorer",
@@ -22,7 +25,10 @@
   },
   "plugins": {
     "allowlist": {
-      "all": true
+      "event": {
+        "listen": ["search_finished"],
+        "emit": ["search_finished"]
+      }
     }
   },
   "bundle": {

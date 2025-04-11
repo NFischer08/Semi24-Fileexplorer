@@ -39,12 +39,14 @@ pub static THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
 pub static MODEL: LazyLock<CModule> = LazyLock::new(|| {
     let mut path = CURRENT_DIR.clone();
     path.push("data/model/model.pt");
+    println!("{}", path.display());
     CModule::load(path).expect("Unable to load model")
 });
 
 pub static VOCAB: LazyLock<HashMap<String, usize>> = LazyLock::new(|| {
     let mut path = CURRENT_DIR.clone();
     path.push("data/model/vocab.json");
+    println!("{}", path.display());
     load_vocab(&path)
 });
 

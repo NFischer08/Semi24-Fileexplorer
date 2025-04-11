@@ -1,4 +1,4 @@
-const { invoke } = window.__TAURI__.core;
+import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 
 let filePathHistory = ["/"];
@@ -77,16 +77,21 @@ function initSearch() {
 
 listen('search_finished', (event) => {
   try {
-    const entries = event.payload
+    const entries = event.payload;
     displaySearchResults(entries);
   } catch (error) {
     console.error('Error:', error);
-    // display error beneth the table
-    const errorMessageElement = document.getElementById('error-message'); // get errorMessageElement
-    errorMessageElement.textContent = 'Error: ' + error; // set message
-    errorMessageElement.classList.remove('hidden'); // display message
+    const errorMessageElement = document.getElementById('error-message');
+    errorMessageElement.textContent = 'Error: ' + error.message; // Use .message
+    errorMessageElement.classList.remove('hidden');
   }
-})
+}).then((unlistenFn) => {
+  // Store unlisten function for cleanup
+  window._searchFinishedUnlisten = unlistenFn;
+}).catch((err) => {
+  console.error('Listener setup failed:', err);
+});
+
 
 function displaySearchResults(entries) {
   const errorMessageElement = document.getElementById('error-message'); // get errorMessageElement
