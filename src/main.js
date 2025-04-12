@@ -1,5 +1,5 @@
-import { invoke } from '@tauri-apps/api/core';
-import { listen } from '@tauri-apps/api/event';
+const { invoke } = __TAURI__.core;
+const { listen } = __TAURI__.event;
 
 let filePathHistory = ["/"];
 

@@ -2,18 +2,15 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "file_explorer",
   "version": "0.1.0",
-  "identifier": "com.file_explorer.app",
+  "identifier": "com.file-explorer.app",
   "build": {
-    "frontendDist": "../src",
-    "devUrl": "http://localhost:3000/",
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build"
+    "frontendDist": "../src"
   },
   "app": {
-    "withGlobalTauri": false,
+    "withGlobalTauri": true,
     "windows": [
       {
-        "title": "Profi File Explorer",
+        "title": "file_explorer",
         "width": 1200,
         "height": 800,
         "resizable": true
@@ -21,14 +18,6 @@
     ],
     "security": {
       "csp": null
-    }
-  },
-  "plugins": {
-    "allowlist": {
-      "event": {
-        "listen": ["search_finished"],
-        "emit": ["search_finished"]
-      }
     }
   },
   "bundle": {

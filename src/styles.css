@@ -500,3 +500,19 @@ button {
 #clear-img:hover {
     content: url("assets/trash_hover.svg");
 }
+
+:root[data-theme="light"] {
+    --text: #14042a;
+    --background: #f7f1fe;
+    --primary: #400c88;
+    --secondary: #f36dae;
+    --accent: #bc102d;
+}
+:root[data-theme="dark"] {
+    --text: #e4d3fb;
+    --background: #080110;
+    --primary: #aa76f3;
+    --secondary: #910c4d;
+    --accent: #ef425f;
+}
+
