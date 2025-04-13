@@ -71,7 +71,6 @@ function initSearch() {
   }
   selectedSettings.push(document.getElementById('setting-filetype').value);
   const filetypes = selectedSettings.join(','); // Join the selected values into a string
-
   invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path, searchfiletype: filetypes }); // start search process; values will be send back via event
 }
 
@@ -154,7 +153,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadCSSSettings()
   await displayFavSettings();
   await loadFilesAndFolders();
-  await initSearch();
+  initSearch();
   await loadFilesAndFolders();
 });
 
@@ -168,7 +167,7 @@ document.getElementById('go-to-file-path-button').addEventListener('click', asyn
 document.getElementById('search-button').addEventListener('click', async () => {
   settingsModal.classList.add('hidden');
   if (document.getElementById('search-term-input').value.trim()) { // calls search function only when there is a search term
-    await initSearch();
+    initSearch();
   }
 })
 

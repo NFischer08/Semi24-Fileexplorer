@@ -100,7 +100,7 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
 }
 
 // searchfiletype is the Filetype Ending without the Dot, for Directorys it must be dir
-#[command]
+#[command(async)]
 pub fn manager_basic_search(
     searchterm: &str,
     searchpath: &str,
