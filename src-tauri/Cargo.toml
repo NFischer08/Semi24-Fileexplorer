@@ -35,6 +35,7 @@ bytemuck = "1.22.0"
 crossbeam-channel = "0.5.15"
 num_cpus = "1.16.0"
 chrono = "0.4.40"
+copy_dir = "0.1.3"
 
 
 [dependencies.windows]

@@ -10,24 +10,30 @@ use std::{
     process::Command,
 };
 use tauri::command;
+use copy_dir::copy_dir;
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
-    let path: PathBuf = clean_path(filepath);
-    let copy_mode: CopyMode = get_copy_mode();
-
+    // get needed values
+    let source_path: PathBuf = clean_path(filepath);
+    let mut copy_mode: CopyMode = get_copy_mode();
     let mut copy_path = CURRENT_DIR.clone();
     copy_path.push("data/tmp/");
 
-    // checks if path refers to a directory
-    if path.is_dir() {
-        return Err(String::from("Can't copy directory! yet!"));
+    // check if the source path is valid
+    if !source_path.exists() {
+        return Err(String::from("No such file or directory"));
+    }
+
+    // if a directory gets copyed, it must be done `File` mode
+    if source_path.is_dir() {
+        copy_mode = CopyMode::File
     }
 
     match copy_mode {
         CopyMode::Clipboard => {
             // attempt to open the file
-            let mut file = match fs::File::open(&path) {
+            let mut file = match fs::File::open(&source_path) {
                 Ok(file) => file,
                 Err(_) => {
                     return Err("Failed to open file.".to_string());
@@ -60,19 +66,23 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
             };
         }
         CopyMode::File => {
-            // copy file to paste it later
-            match fs::copy(&path, copy_path.join("FILE.copy")) {
+            // remove previous file or folder
+            if copy_path.join("CONTENT").exists() {
+                delete_file(copy_path.join("CONTENT").to_string_lossy().to_string())?;
+            }
+            // copy file or folder to paste it later
+            match copy_dir(&source_path, &copy_path.join("CONTENT")) {
                 Ok(_) => {}
                 Err(e) => return Err(e.to_string()),
             };
         }
-    };
+    }
     // get filename
-    let filename: String = match path.file_name() {
+    let filename: String = match source_path.file_name() {
         Some(name) => name.to_string_lossy().to_string(),
         None => String::from("Unbenannt"),
     };
-    println!("{}", filename);
+
     // open copy file to store filename
     let mut file = match fs::OpenOptions::new()
         .read(false)
@@ -84,24 +94,31 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
         Ok(file) => file,
         Err(e) => return Err(e.to_string()),
     };
-    println!("File cleared");
+
     // write the content
     match file.write(filename.as_ref()) {
         Ok(_) => {}
         Err(e) => return Err(e.to_string()),
     }
 
-    println!("Copied successfully!");
-    Ok(format!("File copyied successfully to {}!", path.display()))
+    Ok(format!("File copyied successfully to {}!", source_path.display()))
 }
 
 #[command]
 pub fn paste_file(destination: String) -> Result<String, String> {
-    let mut path: PathBuf = clean_path(destination);
+    // get needed values
+    let mut dest_path: PathBuf = clean_path(destination);
     let copy_mode: CopyMode = get_copy_mode();
-
     let mut copy_path = CURRENT_DIR.clone();
     copy_path.push("data/tmp/");
+
+    // incase it's an file, the parent dir is needed
+    if dest_path.is_file() {
+        dest_path = match dest_path.parent() {
+            None => return Err(String::from("Failed to get parent directory.")),
+            Some(parent) => parent.to_path_buf(),
+        };
+    }
 
     // read filename
     let file = match fs::File::open(copy_path.join("copy.txt")) {
@@ -115,13 +132,12 @@ pub fn paste_file(destination: String) -> Result<String, String> {
         Err(_) => filename = String::from("Unbenannt"),
     };
 
-    path = path.join(&filename);
+    // make sure the filename doesn't exist yet
+    dest_path = dest_path.join(&filename);
     let mut counter: u32 = 1;
-
-    while path.exists() {
-        path.set_file_name(format!("new {counter} {filename}"));
+    while dest_path.exists() {
+        dest_path.set_file_name(format!("new {counter} {filename}"));
         counter += 1;
-        println!("File already exists! new {counter} {filename}");
     }
 
     match copy_mode {
@@ -139,7 +155,7 @@ pub fn paste_file(destination: String) -> Result<String, String> {
             };
 
             // create the file
-            let mut file = match fs::File::create(&path) {
+            let mut file = match fs::File::create(&dest_path) {
                 Ok(file) => file,
                 Err(e) => return Err(e.to_string()),
             };
@@ -152,7 +168,7 @@ pub fn paste_file(destination: String) -> Result<String, String> {
         }
         CopyMode::File => {
             // copy file to desired location
-            match fs::copy(copy_path.join("FILE.copy"), &path) {
+            match copy_dir(copy_path.join("CONTENT"), &dest_path) {
                 Ok(_) => {}
                 Err(e) => return Err(e.to_string()),
             };
@@ -202,8 +218,23 @@ pub fn rename_file(filepath: String, new_filename: &str) -> Result<String, Strin
 
 #[command]
 pub fn delete_file(filepath: String) -> Result<String, String> {
-    let _path: PathBuf = clean_path(filepath);
-    //remove_file(path).map_err(|e| e.to_string())?;
+    let path: PathBuf = clean_path(filepath);
+
+    // check if path is valid
+    if !path.exists() {
+        return Err(String::from("No such file or directory."));
+    }
+
+    // delete dir / file
+    if path.is_dir() {
+        //fs::remove_dir_all(path).map_err(|e| e.to_string())?;
+        println!("Deleted directory '{}'", path.display());
+    } else if path.is_file() {
+        //fs::remove_file(path).map_err(|e| e.to_string())?;
+        println!("Deleted file '{}'", path.display());
+    } else {
+        return Err(String::from("File doesn't exist."));
+    }
     Ok("File deleted successfully.".to_string())
 }
 
