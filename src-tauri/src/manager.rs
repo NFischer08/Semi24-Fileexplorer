@@ -110,7 +110,6 @@ pub fn manager_basic_search(
     let connection_pool = manager_make_pooled_connection();
 
     let search_path = PathBuf::from(searchpath);
-
     let return_paths = match search_database(
         connection_pool,
         searchterm,
@@ -131,7 +130,5 @@ pub fn manager_basic_search(
 }
 
 fn emit_search(app: &AppHandle, search_results: Vec<FileDataFormatted>) {
-    println!("I have somethin' for ya'll");
     app.emit("search_finished", &search_results).unwrap();
-    println!("I had somethin' for ya'll");
 }

@@ -81,7 +81,7 @@ listen('search_finished', (event) => {
   } catch (error) {
     console.error('Error:', error);
     const errorMessageElement = document.getElementById('error-message');
-    errorMessageElement.textContent = 'Error: ' + error.message; // Use .message
+    errorMessageElement.textContent = 'Error: ' + error.message;
     errorMessageElement.classList.remove('hidden');
   }
 }).then((unlistenFn) => {

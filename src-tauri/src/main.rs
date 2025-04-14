@@ -85,12 +85,6 @@ fn main() {
         _ => {}
     }
 
-    match initialize_config() {
-        Ok(x) => {
-            println!("{}", x)
-        }
-        Err(e) => panic!("Failed to initialize config: {e}"),
-    }
     let drives = get_all_drives();
     thread::spawn(move || {
         drives.par_iter().for_each(|drive| {

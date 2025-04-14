@@ -8,6 +8,7 @@ use std::path::PathBuf;
 use std::sync::OnceLock;
 use tauri::command;
 
+// create each constant
 pub static ALLOWED_FILE_EXTENSIONS: OnceLock<HashSet<String>> = OnceLock::new();
 pub static FAVOURITE_FILE_EXTENSIONS: OnceLock<HashMap<String, String>> = OnceLock::new();
 pub static COPY_MODE: OnceLock<CopyMode> = OnceLock::new();
@@ -124,16 +125,18 @@ fn read_config(config_path: &PathBuf) -> Result<String, ()> {
     Ok(contents)
 }
 
-pub fn initialize_config() -> Result<String, String> {
+pub fn initialize_config() -> Result<(), String> {
+    // get the path to the config file
     let mut path = CURRENT_DIR.clone();
     path.push("data/config/config.json");
+
+    // read the config file and parse it into the Settings struct (use default values when an error occurs)
     let config = match read_config(&path) {
         Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| Settings::default()),
         Err(_) => Settings::default(),
-    }; // change path if needed
+    };
 
-    println!("INIT: config");
-
+    // set every constant, if something fails, the whole program immediantly stops executing
     match FAVOURITE_FILE_EXTENSIONS.set(config.favourite_extensions) {
         Ok(_) => {}
         Err(_) => return Err("couldn't set favourite extensions".to_string()),
@@ -155,59 +158,57 @@ pub fn initialize_config() -> Result<String, String> {
         Err(_) => return Err("couldn't set num lev".to_string()),
     }
 
-
-    Ok("".to_string())
+    Ok(())
 }
 
+// functions for retrieving the values of the constants
 #[command]
 pub fn get_fav_file_extensions() -> HashMap<String, String> {
     match FAVOURITE_FILE_EXTENSIONS.get() {
-        Some(fav_ext) => fav_ext.to_owned(),
-        None => {
-            println!("No FAVOURITE_FILE_EXTENSIONS :(");
-            Settings::default().favourite_extensions
-        }
+        None => Settings::default().favourite_extensions,
+        Some(val) => val.to_owned()
     }
 }
 
 #[command]
 pub fn get_allowed_file_extensions() -> HashSet<String> {
     match ALLOWED_FILE_EXTENSIONS.get() {
-        Some(ext) => ext.to_owned(),
-        None => {
-            println!("No allowed file extensions :(");
-            Settings::default().allowed_extensions
-        }
+        None => Settings::default().allowed_extensions,
+        Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_copy_mode() -> CopyMode {
     match COPY_MODE.get() {
-        Some(mode) => match mode {
+        None => Settings::default().copy_mode,
+        Some(val) => match val { // needed to dereference it
             CopyMode::Clipboard => CopyMode::Clipboard,
             CopyMode::File => CopyMode::File,
-        },
-        None => CopyMode::File,
+        }
     }
 }
 
 pub fn get_number_results_levenhstein() -> usize {
     match NUMBER_RESULTS_LEVENHSTEIN.get() {
         None => Settings::default().number_results_levenhstein,
-        Some(val) => val.clone()
+        Some(val) => val.to_owned(),
     }
 }
+
 pub fn get_number_results_embedding() -> usize {
     match NUMBER_RESULTS_LEVENHSTEIN.get() {
         None => Settings::default().number_results_embedding,
-        Some(val) => val.clone()
+        Some(val) => val.to_owned(),
     }
 }
 
 #[command]
 pub fn get_css_settings() -> ColorConfig {
+    // get the path to the color config file
     let mut path = CURRENT_DIR.clone();
     path.push("data/config/color-config.json");
+
+    // read it contents and parse it to the struct, or use the default values
     match read_config(&path) {
         Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
         Err(_) => ColorConfig::default(),

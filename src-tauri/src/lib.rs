@@ -8,7 +8,7 @@ pub mod file_information;
 pub mod manager;
 
 use tauri::Manager;
-use config_handler::{get_css_settings, get_fav_file_extensions};
+use config_handler::{initialize_config, get_css_settings, get_fav_file_extensions};
 use context_actions::{
     copy_file, cut_file, delete_file, open_file, open_file_with, paste_file, rename_file,
 };
@@ -22,6 +22,7 @@ pub fn run() {
             app.manage(AppState {
                 handle: app.handle().clone()
             });
+            initialize_config().unwrap();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -35,7 +36,7 @@ pub fn run() {
             open_file_with,
             manager_basic_search,
             get_fav_file_extensions,
-            get_css_settings
+            get_css_settings,
         ])
         .run(tauri::generate_context!("tauri.conf.json"))
         .expect("error while running tauri application");
