@@ -180,7 +180,10 @@ pub fn get_file_information(entry: &DirEntry) -> FileData {
 
 #[command]
 pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
-    let files = list_files_and_folders(path);
+    // gets the files from the current path
+    let files: Result<Vec<FileData>, String> = list_files_and_folders(path);
+
+    // iterate through every file and format it, so js can work with it
     match files {
         Ok(files) => {
             let mut formatted_files: Vec<FileDataFormatted> = Vec::new();

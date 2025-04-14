@@ -196,7 +196,7 @@ pub fn get_number_results_levenhstein() -> usize {
 }
 
 pub fn get_number_results_embedding() -> usize {
-    match NUMBER_RESULTS_LEVENHSTEIN.get() {
+    match NUMBER_RESULTS_EMBEDDING.get() {
         None => Settings::default().number_results_embedding,
         Some(val) => val.to_owned(),
     }
