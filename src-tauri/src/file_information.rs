@@ -23,7 +23,7 @@ pub struct FileData {
     pub(crate) size_in_kb: u64,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, Clone)]
 pub struct FileDataFormatted {
     name: String,
     path: String,

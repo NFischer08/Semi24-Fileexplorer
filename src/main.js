@@ -74,7 +74,7 @@ function initSearch() {
   invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path, searchfiletype: filetypes }); // start search process; values will be send back via event
 }
 
-listen('search_finished', (event) => {
+listen('search-finnished', (event) => {
   try {
     const entries = event.payload;
     displaySearchResults(entries);
@@ -153,7 +153,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadCSSSettings()
   await displayFavSettings();
   await loadFilesAndFolders();
-  initSearch();
   await loadFilesAndFolders();
 });
 

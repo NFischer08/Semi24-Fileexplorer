@@ -10,9 +10,9 @@ use std::collections::HashMap;
 use std::env;
 use std::fs::create_dir;
 use std::path::absolute;
-use std::sync::LazyLock;
+use std::sync::{LazyLock, OnceLock};
 use std::{fs::DirEntry, path::PathBuf};
-use tauri::{command, Emitter};
+use tauri::{command};
 use tch::CModule;
 use tauri::{State, AppHandle};
 
@@ -21,6 +21,9 @@ use tauri::{State, AppHandle};
 pub(crate) struct AppState {
     pub(crate) handle: AppHandle,
 }
+
+pub static MODEL: OnceLock<CModule> = OnceLock::new();
+pub static VOCAB: OnceLock<HashMap<String, usize>> = OnceLock::new();
 
 pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     env::current_dir()
@@ -36,24 +39,26 @@ pub static THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
-pub static MODEL: LazyLock<CModule> = LazyLock::new(|| {
-    let mut path = CURRENT_DIR.clone();
-    path.push("data/model/model.pt");
-    println!("{}", path.display());
-    CModule::load(path).expect("Unable to load model")
-});
+pub fn initialize_globals() {
+    MODEL.get_or_init(|| {
+        let mut path = CURRENT_DIR.clone();
+        path.push("data/model/model.pt");
+        println!("{}", path.display());
+        CModule::load(path).expect("Unable to load model")
+    });
 
-pub static VOCAB: LazyLock<HashMap<String, usize>> = LazyLock::new(|| {
-    let mut path = CURRENT_DIR.clone();
-    path.push("data/model/vocab.json");
-    println!("{}", path.display());
-    load_vocab(&path)
-});
+    VOCAB.get_or_init(|| {
+        let mut path = CURRENT_DIR.clone();
+        path.push("data/model/vocab.json");
+        println!("{}", path.display());
+        load_vocab(&path)
+    });
+}
 
-fn build_struct(paths: Vec<DirEntry>) -> Vec<FileDataFormatted> {
-    paths
+pub fn build_struct(entries: Vec<DirEntry>) -> Vec<FileDataFormatted> {
+    entries
         .into_iter()
-        .map(|path| FileData::format(get_file_information(&path)))
+        .map(|entry| FileData::format(get_file_information(&entry)))
         .collect()
 }
 
@@ -75,6 +80,7 @@ fn manager_make_pooled_connection() -> Pool<SqliteConnectionManager> {
 }
 
 pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), String> {
+    initialize_globals();
     let connection_pool = manager_make_pooled_connection();
 
     initialize_database(&connection_pool.get().expect("Initializing failed: "));
@@ -91,7 +97,15 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
         .pragma_update(None, "wal_autocheckpoint", "1000")
         .expect("wal_autocheckpoint failed");
 
-    match create_database(connection_pool, database_scan_start) {
+    let model = MODEL.get().unwrap();
+    let vocab = VOCAB.get().unwrap();
+
+    match create_database(
+        connection_pool,
+        database_scan_start,
+        vocab,
+        model
+    ) {
         Ok(_) => {}
         Err(e) => return Err(e.to_string()),
     };
@@ -106,29 +120,24 @@ pub fn manager_basic_search(
     searchpath: &str,
     searchfiletype: &str,
     state: State<AppState>
-) -> Result<(), String>   {
+) -> () {
+    initialize_globals();
+    println!("search started !");
     let connection_pool = manager_make_pooled_connection();
 
     let search_path = PathBuf::from(searchpath);
-    let return_paths = match search_database(
+    let model = MODEL.get().unwrap();
+    let vocab = VOCAB.get().unwrap();
+
+    search_database(
         connection_pool,
         searchterm,
         search_path,
         searchfiletype,
-        &MODEL,
+        model,
+        vocab,
         get_number_results_embedding(),
         get_number_results_levenhstein(),
-    ) {
-        Ok(return_paths) => return_paths,
-        Err(e) => return Err(e.to_string()),
-    };
-
-    let search_result = build_struct(return_paths);
-
-    emit_search(&state.handle, search_result);
-    Ok(())
-}
-
-fn emit_search(app: &AppHandle, search_results: Vec<FileDataFormatted>) {
-    app.emit("search_finished", &search_results).unwrap();
+        state
+    );
 }

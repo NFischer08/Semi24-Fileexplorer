@@ -56,6 +56,17 @@ pub fn should_ignore_path(path: &Path) -> bool {
 }
 
 pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnectionManager>){
+
+    pooled_connection
+        .pragma_update(None, "journal_mode", "WAL")
+        .expect("journal_mode failed");
+    pooled_connection
+        .pragma_update(None, "synchronous", "NORMAL")
+        .expect("synchronous failed");
+    pooled_connection
+        .pragma_update(None, "wal_autocheckpoint", "10000")
+        .expect("wal_autocheckpoint failed");
+
     pooled_connection
         .execute(
             "CREATE TABLE IF NOT EXISTS files (

@@ -7,21 +7,21 @@ use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use rusqlite::{params, Result};
 use std::{collections::HashSet, path::PathBuf, time::Instant};
+use std::collections::HashMap;
 use jwalk::WalkDir;
-use tch::{Kind, Tensor};
+use tch::{CModule, Kind, Tensor};
 use crate::config_handler::{get_allowed_file_extensions};
-use crate::manager::{MODEL, VOCAB};
 
 pub fn create_database(
     connection_pool: Pool<SqliteConnectionManager>,
     path: PathBuf,
+    vocab: &HashMap<String, usize>,
+    model: &CModule,
 ) -> Result<(), String> {
     const BATCH_SIZE: usize = 250;
 
     let path2 = path.clone();
     let start_time = Instant::now();
-
-    let vocab = VOCAB.clone();
 
     let (tx, rx) = crossbeam_channel::unbounded();
 
@@ -152,7 +152,7 @@ pub fn create_database(
                     .collect();
 
                 let batch_tensor = Tensor::cat(&input_tensors, 0); // Concatenate along batch dimension
-                let batch_embeddings = MODEL.method_ts("get_embedding", &[batch_tensor])
+                let batch_embeddings = model.method_ts("get_embedding", &[batch_tensor])
                     .expect("Batch embedding lookup failed");
 
                 // Split batch results back into individual tensors if needed
