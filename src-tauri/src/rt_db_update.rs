@@ -4,7 +4,7 @@ use notify::{
         ModifyKind::Name,
         RenameMode::{From, To},
     },
-    recommended_watcher, Event, EventKind,
+    recommended_watcher, Event,
     EventKind::{Create, Modify, Remove},
     RecursiveMode, Watcher,
 };
@@ -26,7 +26,7 @@ pub fn start_file_watcher(path: PathBuf, allowed_extensions: HashSet<String>) {
     // Start watching the specified path and return if an error occurs
     match watcher.watch(&path, RecursiveMode::Recursive) {
         Ok(_) => {}
-        Err(e) => { // TODO: bei OS Error nicht direkt returnen
+        Err(e) => {
             println!("Error watching path: {:?}", e);
             return;
         }
@@ -39,26 +39,14 @@ pub fn start_file_watcher(path: PathBuf, allowed_extensions: HashSet<String>) {
             Ok(event) => {
                 // usually only one path is returned (for-loop for safety)
                 for file_path in &event.paths {
-                    // check if the path is from interest
-                    if file_path.is_dir() {
-                        // go to parent folder and read every File / Dir in it (recursive)
-                        match event.kind {
-                            EventKind::Any => {println!("Any dir")}
-                            EventKind::Access(kind) => {println!("Accessed dir {:?}", kind)}
-                            Create(_) => {
-                                println!("Create dir {:?}", file_path);
-                            }
-                            Modify(modifiii) => match modifiii {
-                                Name(path) => println!("Renamed dir {:?}, {:?}", file_path, path),
-                                _ => {}
-                            },
-                            Remove(x) => {
-                                println!("Delete dir {:?} KIND: {:?}", file_path, x);
-                            }
-                            EventKind::Other => {println!("Other dir")}
+                    #[cfg(target_os = "windows")] // for windows: ignore recylce bin
+                    {
+                        if file_path.to_string_lossy().contains("C:\\$Recycle.Bin") {
+                            continue;
                         }
-                    } else if
-                    //file_path.is_dir() || // TODO: Directories cause problems => scuffed when renaming, etc. => other handling needed?
+                    }
+                    // check if the path is from interest
+                    if file_path.is_dir() ||
                     file_path
                         .extension() // unpack extension and check if it is in the allowed extensions
                         .map(|ext| allowed_extensions.contains(&ext.to_string_lossy().to_string()))
