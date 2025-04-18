@@ -9,13 +9,16 @@ use notify::{
     RecursiveMode, Watcher,
 };
 use std::{collections::HashSet, path::{Path, PathBuf}, sync::mpsc::channel, fs};
+use crate::manager::manager_make_pooled_connection;
 
 pub fn start_file_watcher(watch_path: PathBuf, allowed_extensions: HashSet<String>) {
+    let connection_pool = manager_make_pooled_connection().expect("Couldn't make pooled connection pool");
+    let pooled_connection = connection_pool.get().expect("Couldn't get pooled connection from pool");
     // Create a channel to receive filesystem events
-    let (tx, rx) = channel::<notify::Result<Event>>();
+    let (sender, receiver) = channel::<notify::Result<Event>>();
 
     // Create a watcher and return if an error occurs
-    let mut watcher = match recommended_watcher(tx) {
+    let mut watcher = match recommended_watcher(sender) {
         Ok(watcher) => watcher,
         Err(e) => {
             println!("Error creating watcher: {:?}", e);
@@ -45,7 +48,7 @@ pub fn start_file_watcher(watch_path: PathBuf, allowed_extensions: HashSet<Strin
 
     println!("Watching for changes in {:?}", watch_path);
     // Loop to receive events from the channel
-    for res in rx {
+    for res in receiver {
         match res {
             Ok(event) => {
                 // usually only one path is returned (for-loop for safety)
@@ -76,7 +79,16 @@ pub fn start_file_watcher(watch_path: PathBuf, allowed_extensions: HashSet<Strin
                         // get actual event kind and handle it
                         match event.kind {
                             Create(_) => {
+
+                                let path = file_path.to_string_lossy();
+                                let name = file_path.file_name().unwrap_or("ERR".as_ref()).to_string_lossy();
+                                let file_type = file_path.extension().unwrap_or("ERR".as_ref()).to_string_lossy();
+
                                 println!("INSERT {:?}", file_path); // TODO: if folder: check content recursive (content doesn't get flagged else)
+                                pooled_connection.execute("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)",
+                                                          (path, name, file_type),
+                                ).expect("Couldn't insert file into pooled connection");
+
                                 if file_path.is_dir() {
                                     todo!()
                                     // update db function starting at `file_path`
@@ -84,6 +96,9 @@ pub fn start_file_watcher(watch_path: PathBuf, allowed_extensions: HashSet<Strin
                             }
                             Remove(_) => {
                                 println!("DELETE {:?}", file_path); // doesn't track folders for whatever reason :(
+
+                                pooled_connection.execute("DELETE FROM files WHERE file_path = ?",
+                                                          (file_path.to_string_lossy(),)).expect("Couldn't delete file into pooled connection");
                             }
                             Modify(modify) => match modify {
                                 // only renaming is interesting

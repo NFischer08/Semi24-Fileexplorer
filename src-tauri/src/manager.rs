@@ -73,7 +73,7 @@ fn build_struct(paths: Vec<DirEntry>) -> Vec<SearchResult> {
         .collect()
 }
 
-fn manager_make_pooled_connection(
+pub fn manager_make_pooled_connection(
 ) -> Result<Pool<SqliteConnectionManager>, Box<dyn std::error::Error>> {
     let manager = SqliteConnectionManager::file("files.sqlite3");
     let connection_pool = Pool::new(manager)?;
