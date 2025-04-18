@@ -151,14 +151,6 @@ fn get_folders_in_dir(parent_path: PathBuf) -> Result<HashSet<PathBuf>, ()> {
     Ok(folders)
 }
 
-fn compare_directories(dir1: &mut HashSet<String>, dir2: &mut HashSet<String>) {
-    let common_el: HashSet<String> = dir1.intersection(dir2).cloned().collect();
-    for el in common_el {
-        dir1.remove(&el);
-        dir2.remove(&el);
-    }
-}
-
 fn check_folder(path: PathBuf) -> Result<(), ()> {
     let mut current_files: HashSet<String> = match get_folders_in_dir(path) {
         Ok(paths) => paths.into_iter().map(|path| path.to_string_lossy().to_string()).collect(), // converts HashSet with PathBufs to HashSet with &str (where the paths only point to directories: filter(|path| path.is_dir()).)
