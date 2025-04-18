@@ -8,7 +8,6 @@ pub mod db_util;
 pub mod file_information;
 pub mod manager;
 
-use config_handler::initialize_config;
 use file_explorer_lib::manager::{manager_create_database, CURRENT_DIR};
 use rayon::prelude::*;
 use std::fs::create_dir;
@@ -86,6 +85,11 @@ fn main() {
     }
 
     let drives = get_all_drives();
+    /*
+    let mut drives: Vec<PathBuf> = Vec::new();
+    drives.push(PathBuf::from(r"C:\Users\maxmu"));
+
+     */
     thread::spawn(move || {
         drives.par_iter().for_each(|drive| {
             manager_create_database(drive.clone()).unwrap();

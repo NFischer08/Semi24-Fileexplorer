@@ -1,8 +1,8 @@
+use crate::config_handler::{get_number_results_embedding, get_number_results_levenhstein};
 use crate::db_create::create_database;
 use crate::db_search::search_database;
 use crate::db_util::{initialize_database, load_vocab};
 use crate::file_information::{get_file_information, FileData, FileDataFormatted};
-use crate::config_handler::{get_number_results_levenhstein, get_number_results_embedding};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
@@ -12,10 +12,9 @@ use std::fs::create_dir;
 use std::path::absolute;
 use std::sync::{LazyLock, OnceLock};
 use std::{fs::DirEntry, path::PathBuf};
-use tauri::{command};
+use tauri::command;
+use tauri::{AppHandle, State};
 use tch::CModule;
-use tauri::{State, AppHandle};
-
 
 #[derive(Debug)]
 pub(crate) struct AppState {
@@ -100,12 +99,7 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
     let model = MODEL.get().unwrap();
     let vocab = VOCAB.get().unwrap();
 
-    match create_database(
-        connection_pool,
-        database_scan_start,
-        vocab,
-        model
-    ) {
+    match create_database(connection_pool, database_scan_start, vocab, model) {
         Ok(_) => {}
         Err(e) => return Err(e.to_string()),
     };
@@ -119,7 +113,7 @@ pub fn manager_basic_search(
     searchterm: &str,
     searchpath: &str,
     searchfiletype: &str,
-    state: State<AppState>
+    state: State<AppState>,
 ) -> () {
     initialize_globals();
     println!("search started !");
@@ -138,6 +132,6 @@ pub fn manager_basic_search(
         vocab,
         get_number_results_embedding(),
         get_number_results_levenhstein(),
-        state
+        state,
     );
 }

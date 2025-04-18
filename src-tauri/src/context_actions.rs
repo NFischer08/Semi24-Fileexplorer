@@ -1,6 +1,7 @@
 use crate::config_handler::{get_copy_mode, CopyMode};
 use crate::manager::CURRENT_DIR;
 use clipboard::{ClipboardContext, ClipboardProvider};
+use copy_dir::copy_dir;
 use opener::open;
 use std::io::BufReader;
 use std::{
@@ -10,7 +11,6 @@ use std::{
     process::Command,
 };
 use tauri::command;
-use copy_dir::copy_dir;
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
@@ -101,7 +101,10 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
         Err(e) => return Err(e.to_string()),
     }
 
-    Ok(format!("File copyied successfully to {}!", source_path.display()))
+    Ok(format!(
+        "File copyied successfully to {}!",
+        source_path.display()
+    ))
 }
 
 #[command]

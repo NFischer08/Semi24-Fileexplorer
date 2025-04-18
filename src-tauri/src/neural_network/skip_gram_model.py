@@ -26,7 +26,8 @@ class SkipGramModel(nn.Module):
     # Mark get_embedding for export
     @torch.jit.export
     def get_embedding(self, target):
-        return self.embeddings(target)
+        x = self.embeddings(target)
+        return x.mean(dim=1)
 
 # Read file names from a .txt file
 file_path = "eng-simple_wikipedia_2021_10K/eng-simple_wikipedia_2021_10K-sentences.txt"
@@ -66,7 +67,7 @@ class SkipGramDataset(Dataset):
         context = self.vocab[self.tokens[idx + 1]]
         return torch.tensor(target, dtype=torch.long), torch.tensor(context, dtype=torch.long)
 
-batch_size = 1028  # Process data in batches to reduce memory usage
+batch_size = 1024  # Process data in batches to reduce memory usage
 dataset = SkipGramDataset(tokens, vocab)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 

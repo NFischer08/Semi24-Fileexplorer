@@ -15,14 +15,13 @@ pub static COPY_MODE: OnceLock<CopyMode> = OnceLock::new();
 pub static NUMBER_RESULTS_LEVENHSTEIN: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_RESULTS_EMBEDDING: OnceLock<usize> = OnceLock::new();
 
-
 #[derive(Debug, Deserialize)]
 struct Settings {
     allowed_extensions: HashSet<String>,
     favourite_extensions: HashMap<String, String>,
     copy_mode: CopyMode,
     number_results_levenhstein: usize,
-    number_results_embedding: usize
+    number_results_embedding: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -68,7 +67,6 @@ impl Settings {
         .iter()
         .map(|&(key, value)| (String::from(key), String::from(value)))
         .collect();
-
 
         Settings {
             allowed_extensions,
@@ -166,7 +164,7 @@ pub fn initialize_config() -> Result<(), String> {
 pub fn get_fav_file_extensions() -> HashMap<String, String> {
     match FAVOURITE_FILE_EXTENSIONS.get() {
         None => Settings::default().favourite_extensions,
-        Some(val) => val.to_owned()
+        Some(val) => val.to_owned(),
     }
 }
 
@@ -181,10 +179,11 @@ pub fn get_allowed_file_extensions() -> HashSet<String> {
 pub fn get_copy_mode() -> CopyMode {
     match COPY_MODE.get() {
         None => Settings::default().copy_mode,
-        Some(val) => match val { // needed to dereference it
+        Some(val) => match val {
+            // needed to dereference it
             CopyMode::Clipboard => CopyMode::Clipboard,
             CopyMode::File => CopyMode::File,
-        }
+        },
     }
 }
 
