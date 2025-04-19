@@ -152,12 +152,12 @@ fn get_folders_in_dir(parent_path: PathBuf) -> Result<HashSet<PathBuf>, ()> {
 }
 
 fn check_folder(path: PathBuf) -> Result<(), ()> {
-    let mut current_files: HashSet<String> = match get_folders_in_dir(path) {
-        Ok(paths) => paths.into_iter().map(|path| path.to_string_lossy().to_string()).collect(), // converts HashSet with PathBufs to HashSet with &str (where the paths only point to directories: filter(|path| path.is_dir()).)
+    let mut current_files: HashSet<PathBuf> = match get_folders_in_dir(path) {
+        Ok(paths) => paths, //.into_iter().map(|path| path.to_string_lossy().to_string()).collect(), // converts HashSet with PathBufs to HashSet with String (where the paths only point to directories: filter(|path| path.is_dir()).)
         Err(_) => return Err(()),
     };
-    let mut db_files: HashSet<String> = HashSet::new(); // TODO: get all files and folders in dir
-    let common_el: HashSet<String> = current_files.intersection(&db_files).cloned().collect();
+    let mut db_files: HashSet<PathBuf> = HashSet::new(); // TODO: get all files and folders in dir
+    let common_el: HashSet<PathBuf> = current_files.intersection(&db_files).cloned().collect();
     for el in common_el {
         current_files.remove(&el);
         db_files.remove(&el);
