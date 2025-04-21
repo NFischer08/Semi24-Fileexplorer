@@ -61,7 +61,7 @@ pub fn build_struct(entries: Vec<DirEntry>) -> Vec<FileDataFormatted> {
         .collect()
 }
 
-fn manager_make_pooled_connection() -> Pool<SqliteConnectionManager> {
+pub fn manager_make_pooled_connection() -> Pool<SqliteConnectionManager> {
     let mut path = CURRENT_DIR.clone();
     path.push("data/db");
     if PathBuf::from(&path).try_exists().expect("Reason") {

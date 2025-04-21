@@ -9,19 +9,14 @@ use notify::{
     RecursiveMode, Watcher,
 };
 use std::{collections::HashSet, path::{Path, PathBuf}, sync::mpsc::channel, fs};
-use r2d2::PooledConnection;
+use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
+use crate::context_actions::delete_file;
 use crate::manager::manager_make_pooled_connection;
 
 pub fn start_file_watcher(watch_path: PathBuf, allowed_extensions: HashSet<String>) {
     // get the connection pool from manager
-    let connection_pool = match manager_make_pooled_connection() {
-        Ok(connection_pool) => connection_pool,
-        Err(_) => {
-            println!("Couldn't make pooled connection pool");
-            return;
-        }
-    };
+    let connection_pool: Pool<SqliteConnectionManager> = manager_make_pooled_connection();
 
     // get a valid connection to db
     let pooled_connection: PooledConnection<SqliteConnectionManager> = match connection_pool.get() {
@@ -70,7 +65,7 @@ pub fn start_file_watcher(watch_path: PathBuf, allowed_extensions: HashSet<Strin
         match res {
             Ok(event) => {
                 // usually only one path is returned (for-loop for safety)
-                for file_path in &event.paths {
+                for file_path in event.paths {
                     // ignore certain paths on windows
                     #[cfg(target_os = "windows")]
                     {
@@ -98,17 +93,8 @@ pub fn start_file_watcher(watch_path: PathBuf, allowed_extensions: HashSet<Strin
                         // get actual event kind and handle it
                         match event.kind {
                             Create(_) => {
-                                // get needed values for db
-                                let path = file_path.to_string_lossy();
-                                let name = file_path.file_name().unwrap_or("ERR".as_ref()).to_string_lossy();
-                                let file_type = file_path.extension().unwrap_or("ERR".as_ref()).to_string_lossy();
-
                                 // insert file into db
-                                match pooled_connection.execute("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)",
-                                                          (path, name, file_type), ) {
-                                    Ok(_) => {}
-                                    Err(_) => println!("Error: Couldn't delete file into pooled connection"),
-                                }
+                                insert_into_db(&pooled_connection, &file_path);
 
                                 if file_path.is_dir() {
                                     todo!()
@@ -117,13 +103,7 @@ pub fn start_file_watcher(watch_path: PathBuf, allowed_extensions: HashSet<Strin
                                 }
                             }
                             Remove(_) => {
-                                println!("DELETE {:?}", file_path); // doesn't track folders for whatever reason :(
-                                // remove file from db
-                                match pooled_connection.execute("DELETE FROM files WHERE file_path = ?",
-                                                          (file_path.to_string_lossy(),)) {
-                                    Ok(_) => {},
-                                    Err(_) => println!("Error: Couldn't delete file in pooled connection"),
-                                }
+                                delete_from_db(&pooled_connection, &file_path);
                             }
                             Modify(modify) => match modify {
                                 // only renaming is interesting
@@ -132,27 +112,16 @@ pub fn start_file_watcher(watch_path: PathBuf, allowed_extensions: HashSet<Strin
                                     match mode {
                                         From => {
                                             // remove file from db
-                                            match pooled_connection.execute("DELETE FROM files WHERE file_path = ?",
-                                                                            (file_path.to_string_lossy(),)) {
-                                                Ok(_) => {},
-                                                Err(_) => println!("Error: Couldn't delete file in pooled connection"),
-                                            }
+                                            delete_from_db(&pooled_connection, &file_path);
                                         }
                                         To => {
                                             if file_path.is_dir() {
+                                                // get parent path and check it
                                                 let ppath = file_path.parent().unwrap_or(Path::new("/")).to_path_buf();
                                                 check_folder(ppath, &pooled_connection).unwrap_or_default()
                                             } else {
-                                                // get needed values
-                                                let path = file_path.to_string_lossy();
-                                                let name = file_path.file_name().unwrap_or("ERR".as_ref()).to_string_lossy();
-                                                let file_type = file_path.extension().unwrap_or("ERR".as_ref()).to_string_lossy();
                                                 // insert file into db
-                                                match pooled_connection.execute("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)",
-                                                                                (path, name, file_type), ) {
-                                                    Ok(_) => {}
-                                                    Err(_) => println!("Error: Couldn't delete file into pooled connection"),
-                                                }
+                                                insert_into_db(&pooled_connection, &file_path);
                                             }
                                         },
                                         // Linux: `Both` why? Idk, what it means? Idk :(
@@ -214,24 +183,32 @@ fn check_folder(path: PathBuf, pooled_connection: &PooledConnection<SqliteConnec
 
     // files which now left in the `current_files` HashSet need to be inserted into the db since they are missing
     for file in current_files {
-        let path = file.to_string_lossy();
-        let name = file.file_name().unwrap_or("ERR".as_ref()).to_string_lossy();
-        let file_type = file.extension().unwrap_or("ERR".as_ref()).to_string_lossy();
-        match pooled_connection.execute("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)",
-                                        (path, name, file_type), ) {
-            Ok(_) => {}
-            Err(_) => println!("Error: Couldn't delete file in pooled connection"),
-        }
+        insert_into_db(&pooled_connection, &file)
     }
 
     // files which are still in the db, but dont exist anymore need to be removed
     for file in db_files {
-        match pooled_connection.execute("DELETE FROM files WHERE file_path = ?",
-                                        (file.to_string_lossy(),)) {
-            Ok(_) => {},
-            Err(_) => println!("Error: Couldn't delete file in pooled connection"),
-        }
+        delete_from_db(&pooled_connection, &file);
     }
 
     Ok(())
+}
+
+fn delete_from_db(pooled_connection: &PooledConnection<SqliteConnectionManager>, file_path: &PathBuf) -> () {
+    match pooled_connection.execute("DELETE FROM files WHERE file_path = ?",
+                                    (file_path.to_string_lossy(),)) {
+        Ok(_) => {},
+        Err(_) => println!("Error: Couldn't delete file in pooled connection"),
+    };
+}
+
+fn insert_into_db(pooled_connection: &PooledConnection<SqliteConnectionManager>, file_path: &PathBuf) -> () {
+    let path = file_path.to_string_lossy();
+    let name = file_path.file_name().unwrap_or("ERR".as_ref()).to_string_lossy();
+    let file_type = file_path.extension().unwrap_or("ERR".as_ref()).to_string_lossy();
+    match pooled_connection.execute("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)",
+                                    (path, name, file_type), ) {
+        Ok(_) => {}
+        Err(_) => println!("Error: Couldn't delete file in pooled connection"),
+    }
 }

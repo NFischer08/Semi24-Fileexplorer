@@ -6,6 +6,7 @@ pub mod db_search;
 pub mod db_util;
 pub mod file_information;
 pub mod manager;
+pub mod rt_db_update;
 
 use crate::manager::AppState;
 use config_handler::{get_css_settings, get_fav_file_extensions, initialize_config};
