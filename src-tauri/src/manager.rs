@@ -7,21 +7,23 @@ use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::collections::HashMap;
-use std::env;
+use std::{env, fs};
 use std::fs::create_dir;
 use std::path::absolute;
 use std::sync::{LazyLock, OnceLock};
 use std::{fs::DirEntry, path::PathBuf};
+use std::cell::OnceCell;
+use bytemuck::cast_slice;
+use ndarray::Array2;
 use tauri::command;
 use tauri::{AppHandle, State};
-use tch::CModule;
 
 #[derive(Debug)]
 pub(crate) struct AppState {
     pub(crate) handle: AppHandle,
 }
 
-pub static MODEL: OnceLock<CModule> = OnceLock::new();
+pub static WEIGHTS: OnceLock<Array2<f32>> = OnceLock::new();
 pub static VOCAB: OnceLock<HashMap<String, usize>> = OnceLock::new();
 
 pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
@@ -39,13 +41,22 @@ pub static THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
 });
 
 pub fn initialize_globals() {
-    MODEL.get_or_init(|| {
+    WEIGHTS.get_or_init(|| {
+        let embedding_dim = 256;
         let mut path = CURRENT_DIR.clone();
-        path.push("data/model/model.pt");
-        println!("{}", path.display());
-        CModule::load(path).expect("Unable to load model")
-    });
+        path.push("data/model/weights");
+        let weights_bytes: Vec<u8> = fs::read(&path).expect("Could not read weights");
+        let weights_as_f32: &[f32] = cast_slice(&weights_bytes);
 
+        // Infer the vocab size from the file length
+        let vocab_size = weights_as_f32.len() / embedding_dim;
+
+        Array2::from_shape_vec(
+            (vocab_size, embedding_dim),
+            weights_as_f32.to_vec()
+        ).expect("Shape mismatch in weights")
+    });
+    
     VOCAB.get_or_init(|| {
         let mut path = CURRENT_DIR.clone();
         path.push("data/model/vocab.json");
@@ -96,10 +107,9 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
         .pragma_update(None, "wal_autocheckpoint", "1000")
         .expect("wal_autocheckpoint failed");
 
-    let model = MODEL.get().unwrap();
     let vocab = VOCAB.get().unwrap();
 
-    match create_database(connection_pool, database_scan_start, vocab, model) {
+    match create_database(connection_pool, database_scan_start, vocab) {
         Ok(_) => {}
         Err(e) => return Err(e.to_string()),
     };
@@ -120,7 +130,6 @@ pub fn manager_basic_search(
     let connection_pool = manager_make_pooled_connection();
 
     let search_path = PathBuf::from(searchpath);
-    let model = MODEL.get().unwrap();
     let vocab = VOCAB.get().unwrap();
 
     search_database(
@@ -128,8 +137,6 @@ pub fn manager_basic_search(
         searchterm,
         search_path,
         searchfiletype,
-        model,
-        vocab,
         get_number_results_embedding(),
         get_number_results_levenhstein(),
         state,

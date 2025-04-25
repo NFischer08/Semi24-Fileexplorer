@@ -1,4 +1,4 @@
-use crate::db_util::{cosine_similarity, tokenize_file_name, tokens_to_indices};
+use crate::db_util::{cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices};
 use crate::manager::{build_struct, AppState};
 use bytemuck::cast_slice;
 use r2d2::Pool;
@@ -16,15 +16,12 @@ use std::{
 };
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
-use tch::{CModule, Kind};
 
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
     search_term: &str,
     search_path: PathBuf,
     search_file_type: &str,
-    model: &CModule,
-    vocab: &HashMap<String, usize>,
     num_results_embeddings: usize,
     num_results_levenhstein: usize,
     state: State<AppState>,
@@ -109,26 +106,10 @@ pub fn search_database(
 
         //println!("Processed rows in {}ms", start_time.elapsed().as_millis());
     });
-
-    let tokenized_searchterm = tokenize_file_name(search_term);
-    let indiced_searchterm: Vec<i64> = tokens_to_indices(tokenized_searchterm, &vocab)
-        .into_iter()
-        .map(|x| x as i64)
-        .collect();
-
-    let search_tensor = tch::Tensor::from_slice(&indiced_searchterm)
-        .to_kind(Kind::Int64)
-        .unsqueeze(0);
-
-    let embedded_tensor = model
-        .method_ts("get_embedding", &[search_tensor])
-        .expect("Batch embedding lookup failed");
-
-    let embedded_f32 = embedded_tensor.to_kind(Kind::Float); // Ensure Float32 type
-
-    let embedded_vec_f32: Vec<f32> =
-        Vec::try_from(embedded_f32.flatten(0, -1)).expect("Can't convert vector to f32");
-
+    
+    
+    let embedded_vec_f32 = full_emb(search_term, 256);
+    
     let search_norm: f32 = embedded_vec_f32
         .iter()
         .fold(0.0, |acc, &x| acc + x * x)

@@ -8,11 +8,12 @@ use std::{
     path::{Path, PathBuf},
 };
 use std::ptr::read;
+use std::time::Instant;
 use bytemuck::{cast, cast_slice};
-use tch::Tensor;
 use regex::Regex;
 use tauri::Error::CurrentDir;
-use crate::manager::CURRENT_DIR;
+use crate::manager::{CURRENT_DIR, VOCAB, WEIGHTS};
+use ndarray::{Array2, Array1, Axis};
 
 #[derive(Debug, Clone)]
 pub struct Files {
@@ -20,10 +21,6 @@ pub struct Files {
     pub(crate) file_name: String,
     pub(crate) file_path: String,
     pub(crate) file_type: Option<String>,
-}
-
-pub struct EmbeddingModel {
-    pub embeddings: Tensor,
 }
 
 pub fn convert_to_forward_slashes(path: &Path) -> String {
@@ -111,27 +108,22 @@ pub fn load_vocab(path: &PathBuf) -> HashMap<String, usize> {
     serde_json::from_str(&vocab_json).expect("Failed to parse vocab JSON")
 }
 
-pub fn embedding(token_indices: Vec<usize>, embedding_dim: usize, vocab_len: usize) -> Vec<f32> {
-    //weights is the binary representation of the weights
-    let weights_bytes :Vec<u8> = fs::read(r"/home/magnus/RustroverProjects/TEST/src/weights").expect("Could not read weights");
-    let weights_as_f32 : Vec<f32> = cast_slice::<u8, f32>(&weights_bytes).to_owned();
+pub fn embedding_from_ind(token_indices: Vec<usize>, embedding_dim: usize, vocab_len: usize) -> Vec<f32> {
+    // Assume WEIGHTS is a OnceCell<Array2<f32>> and already initialized
+    let weights: &Array2<f32> = WEIGHTS.get().unwrap();
 
+    // Select embeddings for the given indices and sum them
+    let sum_embedding: Array1<f32> = token_indices
+        .iter()
+        .map(|&idx| weights.row(idx))
+        .fold(Array1::<f32>::zeros(embedding_dim), |acc, row| acc + &row);
 
-    let weights : Vec<Vec<f32>> = weights_as_f32
-        .chunks(embedding_dim)
-        .map(|chunk| chunk.to_vec())
-        .collect();
+    sum_embedding.to_vec()
+}
 
-    println!("Weights length {:?}", &weights.len());
-
-    let mut sum_embedding = vec![0.0f32; embedding_dim];
-
-    for &token_index in &token_indices {
-        let embedding = &weights[token_index];
-        for (sum, &val) in sum_embedding.iter_mut().zip(embedding.iter()) {
-            *sum += val;
-        }
-    }
-
-    sum_embedding
+pub fn full_emb(file_name: &str, embedding_dim: usize) -> Vec<f32> {
+    let vocab = VOCAB.get().unwrap();
+    let tokenized_file_name = tokenize_file_name(file_name);
+    let indexed_file_name = tokens_to_indices(tokenized_file_name, vocab);
+    embedding_from_ind(indexed_file_name, embedding_dim, vocab.len())
 }

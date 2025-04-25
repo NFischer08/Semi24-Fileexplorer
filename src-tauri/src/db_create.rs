@@ -1,8 +1,5 @@
 use crate::config_handler::get_allowed_file_extensions;
-use crate::db_util::{
-    convert_to_forward_slashes, is_allowed_file, should_ignore_path, tokenize_file_name,
-    tokens_to_indices, Files,
-};
+use crate::db_util::{convert_to_forward_slashes, full_emb, is_allowed_file, should_ignore_path, tokenize_file_name, tokens_to_indices, Files};
 use jwalk::WalkDir;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -10,13 +7,13 @@ use rayon::prelude::*;
 use rusqlite::{params, Result};
 use std::collections::HashMap;
 use std::{collections::HashSet, path::PathBuf, time::Instant};
-use tch::{CModule, Kind, Tensor};
+use ndarray::Array2;
+use crate::manager::{VOCAB, WEIGHTS};
 
 pub fn create_database(
     connection_pool: Pool<SqliteConnectionManager>,
     path: PathBuf,
     vocab: &HashMap<String, usize>,
-    model: &CModule,
 ) -> Result<(), String> {
     const BATCH_SIZE: usize = 250;
 
@@ -140,48 +137,34 @@ pub fn create_database(
                     .max()
                     .unwrap_or(0);
 
-                let input_tensors: Vec<Tensor> = batch_data
+                let embedding_dim = 256;
+
+                let vocab = VOCAB.get().unwrap();
+                let weights: &Array2<f32> = WEIGHTS.get().unwrap();
+
+                let batch_embeddings: Vec<Vec<f32>> = batch_data
                     .par_iter()
                     .map(|file_data| {
-                        let tokens = tokenize_file_name(&file_data.1);
-                        let mut token_indices: Vec<i64> = tokens_to_indices(tokens, &vocab)
-                            .into_iter() // Convert Vec<usize> to iterator
-                            .map(|x| x as i64) // Convert each usize to i64
-                            .collect(); // Rebuild into Vec<i64>
-
-                        // Pad with zeros to max_len
-                        token_indices.resize(max_len, 0);
-
-                        Tensor::from_slice(&token_indices)
-                            .to_kind(Kind::Int64)
-                            .unsqueeze(0)
+                        let file_name = &file_data.1;
+                        let token_indices = tokens_to_indices(tokenize_file_name(file_name), vocab);
+                        let selected = weights.select(ndarray::Axis(0), &token_indices);
+                        let sum_embedding = selected.sum_axis(ndarray::Axis(0));
+                        sum_embedding.to_vec()
                     })
                     .collect();
+                
 
-                let batch_tensor = Tensor::cat(&input_tensors, 0); // Concatenate along batch dimension
-                let batch_embeddings = model
-                    .method_ts("get_embedding", &[batch_tensor])
-                    .expect("Batch embedding lookup failed");
-
-                // Split batch results back into individual tensors if needed
-                let embeddings: Vec<Tensor> = batch_embeddings
-                    .chunk(input_tensors.len() as i64, 0)
+                let embeddings_u8: Vec<Vec<u8>> = batch_embeddings
                     .into_iter()
-                    .collect();
-                let embeddings_u8: Vec<Vec<u8>> = embeddings
-                    .into_iter()
-                    .map(|embedding| {
-                        let numel = embedding.numel();
-                        let mut embedding_vec_f32 = vec![0.0f32; numel];
-                        embedding.copy_data(&mut embedding_vec_f32, numel);
-
+                    .map(|embedding_vec_f32| {
                         embedding_vec_f32
                             .into_iter()
                             .flat_map(|f| f.to_le_bytes())
                             .collect()
                     })
                     .collect();
-
+                
+                
                 // Time database insertion
                 for (c, file_data) in batch_data.iter().enumerate() {
                     let file = &file_data.0;
