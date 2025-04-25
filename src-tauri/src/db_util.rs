@@ -7,7 +7,12 @@ use std::{
     fs::{self},
     path::{Path, PathBuf},
 };
+use std::ptr::read;
+use bytemuck::{cast, cast_slice};
 use tch::Tensor;
+use regex::Regex;
+use tauri::Error::CurrentDir;
+use crate::manager::CURRENT_DIR;
 
 #[derive(Debug, Clone)]
 pub struct Files {
@@ -86,12 +91,18 @@ pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnection
         )
         .expect("Indexing failed: ");
 }
-pub fn tokenize_file_name(file_name: &str) -> Vec<String> {
-    // Split file name into tokens based on underscores and other delimiters
-    file_name
-        .split(['_', ' ', '-'])
-        .map(|s| s.to_lowercase())
-        .filter(|s| !s.is_empty()) // Remove empty tokens
+pub fn tokenize_file_name(file_name: &str) ->  Vec<String> {
+    let re = Regex::new(r"[a-zäöü]+").unwrap();
+    let matches: Vec<String> = re.find_iter(&file_name)
+        .map(|mat| mat.as_str().to_string())
+        .collect();
+    matches
+}
+
+pub fn tokens_to_indices(tokens: Vec<String>, vocab: &HashMap<String, usize>) -> Vec<usize> {
+    tokens
+        .iter()
+        .map(|token| *vocab.get(token).unwrap_or(&0)) // Default to index 0 for unknown tokens
         .collect()
 }
 
@@ -99,24 +110,28 @@ pub fn load_vocab(path: &PathBuf) -> HashMap<String, usize> {
     let vocab_json = fs::read_to_string(path).expect("Failed to read vocab file");
     serde_json::from_str(&vocab_json).expect("Failed to parse vocab JSON")
 }
-pub fn tokens_to_indices(tokens: Vec<String>, vocab: &HashMap<String, usize>) -> Vec<usize> {
-    tokens
-        .iter()
-        .map(|token| *vocab.get(token).unwrap_or(&0)) // Default to index 0 for unknown tokens
-        .collect()
-}
-impl EmbeddingModel {
-    pub fn new(model_path: &str) -> Result<Self, Box<dyn std::error::Error>> {
-        // Load the embeddings from the saved PyTorch model
-        let embeddings = Tensor::load(model_path)?;
-        Ok(Self { embeddings })
+
+pub fn embedding(token_indices: Vec<usize>, embedding_dim: usize, vocab_len: usize) -> Vec<f32> {
+    //weights is the binary representation of the weights
+    let weights_bytes :Vec<u8> = fs::read(r"/home/magnus/RustroverProjects/TEST/src/weights").expect("Could not read weights");
+    let weights_as_f32 : Vec<f32> = cast_slice::<u8, f32>(&weights_bytes).to_owned();
+
+
+    let weights : Vec<Vec<f32>> = weights_as_f32
+        .chunks(embedding_dim)
+        .map(|chunk| chunk.to_vec())
+        .collect();
+
+    println!("Weights length {:?}", &weights.len());
+
+    let mut sum_embedding = vec![0.0f32; embedding_dim];
+
+    for &token_index in &token_indices {
+        let embedding = &weights[token_index];
+        for (sum, &val) in sum_embedding.iter_mut().zip(embedding.iter()) {
+            *sum += val;
+        }
     }
 
-    pub fn get_embedding(&self, token_index: i64) -> Result<Tensor, Box<dyn std::error::Error>> {
-        // Retrieve the embedding for a specific token index
-        if token_index >= self.embeddings.size()[0] {
-            return Err("Token index out of bounds".into());
-        }
-        Ok(self.embeddings.get(token_index))
-    }
+    sum_embedding
 }
