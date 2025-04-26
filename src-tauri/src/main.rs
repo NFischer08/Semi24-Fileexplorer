@@ -56,7 +56,7 @@ fn main() {
         .num_threads(num_cpus::get() - 1) // Reserve one core for OS
         .build_global()
         .expect("Couldn't build thread pool");
-    
+
     //TODO Schönes Match statement bitte Nino
     let data_dir = CURRENT_DIR.join("data");
     let model_dir = data_dir.join("model");

@@ -1,19 +1,19 @@
 use crate::config_handler::get_allowed_file_extensions;
-use crate::db_util::{convert_to_forward_slashes, full_emb, is_allowed_file, should_ignore_path, tokenize_file_name, tokens_to_indices, Files};
+use crate::db_util::{
+    convert_to_forward_slashes, full_emb, is_allowed_file, should_ignore_path,
+    Files,
+};
 use jwalk::WalkDir;
+use ndarray::{Array2};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use rusqlite::{params, Result};
-use std::collections::HashMap;
 use std::{collections::HashSet, path::PathBuf, time::Instant};
-use ndarray::Array2;
-use crate::manager::{VOCAB, WEIGHTS};
 
 pub fn create_database(
     connection_pool: Pool<SqliteConnectionManager>,
     path: PathBuf,
-    vocab: &HashMap<String, usize>,
 ) -> Result<(), String> {
     const BATCH_SIZE: usize = 250;
 
@@ -95,6 +95,7 @@ pub fn create_database(
         if !batch.is_empty() {
             tx.send(batch)
                 .unwrap_or_else(|_| println!("Failed to send final batch"));
+            println!("Last Batch has been send!!!")
         }
     });
     while let Ok(batch) = rx.recv() {
@@ -128,44 +129,34 @@ pub fn create_database(
                 let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)")
                     .expect("Failed to prepare insertion file");
 
-                let max_len = batch_data
-                    .iter()
-                    .map(|file_data| {
-                        let tokens = tokenize_file_name(&file_data.1);
-                        tokens_to_indices(tokens, &vocab).len()
-                    })
-                    .max()
-                    .unwrap_or(0);
-
+                //The Embedding takes up like 80% of the time per Batch
                 let embedding_dim = 256;
 
-                let vocab = VOCAB.get().unwrap();
-                let weights: &Array2<f32> = WEIGHTS.get().unwrap();
+                let batch_embeddings: Array2<f32> = {
+                    let embeddings: Vec<Vec<f32>> = batch_data
+                        .par_iter()
+                        .map(|file_data| {
+                            let file_name = &file_data.1;
+                            let embedding = full_emb(file_name);
+                            embedding
+                        })
+                        .collect();
 
-                let batch_embeddings: Vec<Vec<f32>> = batch_data
-                    .par_iter()
-                    .map(|file_data| {
-                        let file_name = &file_data.1;
-                        let token_indices = tokens_to_indices(tokenize_file_name(file_name), vocab);
-                        let selected = weights.select(ndarray::Axis(0), &token_indices);
-                        let sum_embedding = selected.sum_axis(ndarray::Axis(0));
-                        sum_embedding.to_vec()
-                    })
-                    .collect();
-                
+                    let n_samples = embeddings.len();
+                    Array2::from_shape_vec(
+                        (n_samples, embedding_dim),
+                        embeddings.into_iter().flatten().collect(),
+                    )
+                    .expect("Shape mismatch")
+                };
 
                 let embeddings_u8: Vec<Vec<u8>> = batch_embeddings
-                    .into_iter()
-                    .map(|embedding_vec_f32| {
-                        embedding_vec_f32
-                            .into_iter()
-                            .flat_map(|f| f.to_le_bytes())
-                            .collect()
+                    .outer_iter()
+                    .map(|embedding_row| {
+                        embedding_row.iter().flat_map(|f| f.to_le_bytes()).collect()
                     })
                     .collect();
-                
-                
-                // Time database insertion
+
                 for (c, file_data) in batch_data.iter().enumerate() {
                     let file = &file_data.0;
                     if c < embeddings_u8.len() {
@@ -181,7 +172,6 @@ pub fn create_database(
                     }
                 }
             }
-            // Time transaction commit
             transaction.commit().expect("Unable to commit transaction");
         }
     }

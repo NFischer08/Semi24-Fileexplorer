@@ -1,6 +1,9 @@
-use crate::db_util::{cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices};
-use crate::manager::{build_struct, AppState};
+use crate::db_util::{
+    bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices,
+};
+use crate::manager::{build_struct, AppState, VOCAB, WEIGHTS};
 use bytemuck::cast_slice;
+use ndarray::{s, Array2};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
@@ -103,20 +106,24 @@ pub fn search_database(
         if !batch_emb.is_empty() {
             sender.send(batch_emb).expect("Receiving thread: drop");
         }
-
-        //println!("Processed rows in {}ms", start_time.elapsed().as_millis());
     });
-    
-    
-    let embedded_vec_f32 = full_emb(search_term, 256);
-    
-    let search_norm: f32 = embedded_vec_f32
-        .iter()
-        .fold(0.0, |acc, &x| acc + x * x)
-        .sqrt();
 
-    // Store both String and Vec<u8> pairs
-    // Wrap in Arc<Mutex> for thread-safe mutation
+    let vocab = VOCAB.get().unwrap();
+    let weights: &Array2<f32> = WEIGHTS.get().unwrap();
+
+    let token_indices = tokens_to_indices(tokenize_file_name(search_term), vocab);
+
+    let selected = weights.select(ndarray::Axis(0), &token_indices);
+    let sum_embedding = selected.sum_axis(ndarray::Axis(0));
+
+    let embedded_vec_f32 = sum_embedding.to_vec();
+
+    let test_full_emb = full_emb(search_term);
+    println!("{:?}", test_full_emb);
+
+    let search_embedding = full_emb("test");
+    println!("Search dim: {}", search_embedding.len());
+
     let mut search_query: Vec<(String, Vec<u8>)> = Vec::new();
 
     let results_lev: Vec<(String, f32)> = receiver
@@ -150,8 +157,8 @@ pub fn search_database(
         .into_par_iter() // Iterate over Vec<(String, Vec<u8>)>
         .map(|(path, embedding)| {
             // Destructure each tuple
-            let embedding_f32 = cast_slice::<u8, f32>(&embedding);
-            let similarity = cosine_similarity(embedding_f32, search_norm, &embedded_vec_f32);
+            let embedding_f32 = bytes_to_vec(&embedding); //THIS IS CORRECT
+            let similarity = cosine_similarity(&embedding_f32, &embedded_vec_f32);
             (path, similarity) // Return new tuple
         })
         .collect(); // Collect results
@@ -171,6 +178,7 @@ fn return_entries(mut similarity_values: Vec<(String, f32)>, num_ret: usize) -> 
     similarity_values.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
     similarity_values.truncate(num_ret);
 
+    println!("Similarity values {:?}", similarity_values);
     similarity_values
         .into_par_iter()
         .filter_map(|(s, _)| {

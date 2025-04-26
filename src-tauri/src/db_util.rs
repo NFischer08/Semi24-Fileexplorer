@@ -1,19 +1,14 @@
+use crate::manager::{VOCAB, WEIGHTS};
+use ndarray::{Array2, Axis};
 use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::Result;
+use regex::Regex;
 use std::collections::HashMap;
 use std::{
     collections::HashSet,
     fs::{self},
     path::{Path, PathBuf},
 };
-use std::ptr::read;
-use std::time::Instant;
-use bytemuck::{cast, cast_slice};
-use regex::Regex;
-use tauri::Error::CurrentDir;
-use crate::manager::{CURRENT_DIR, VOCAB, WEIGHTS};
-use ndarray::{Array2, Array1, Axis};
 
 #[derive(Debug, Clone)]
 pub struct Files {
@@ -29,17 +24,17 @@ pub fn convert_to_forward_slashes(path: &Path) -> String {
         .unwrap_or_else(|| String::new())
 }
 
-pub fn cosine_similarity(
-    search_embedding: &[f32],
-    search_norm: f32,
-    candidate_embedding: &[f32],
-) -> f32 {
-    let (b2, ab) = candidate_embedding
-        .iter()
-        .zip(search_embedding.iter())
-        .fold((0.0, 0.0), |(b2, ab), (&b, &a)| (b2 + b * b, ab + a * b));
-
-    ab / (search_norm * b2.sqrt())
+pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
+    if a.len() != b.len() {
+        panic!("cosine_similarity: input vectors must have the same length");
+    }
+    let dot = a.iter().zip(b.iter()).map(|(&x, &y)| x * y).sum::<f32>();
+    let norm_a = a.iter().map(|&x| x * x).sum::<f32>().sqrt();
+    let norm_b = b.iter().map(|&y| y * y).sum::<f32>().sqrt();
+    if norm_a == 0.0 || norm_b == 0.0 {
+        return 0.0;
+    }
+    dot / (norm_a * norm_b)
 }
 
 pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bool {
@@ -88,9 +83,11 @@ pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnection
         )
         .expect("Indexing failed: ");
 }
-pub fn tokenize_file_name(file_name: &str) ->  Vec<String> {
-    let re = Regex::new(r"[a-zäöü]+").unwrap();
-    let matches: Vec<String> = re.find_iter(&file_name)
+pub fn tokenize_file_name(file_name: &str) -> Vec<String> {
+    let file_name = file_name.to_lowercase();
+    let re = Regex::new("[a-zäöü]+").unwrap();
+    let matches: Vec<String> = re
+        .find_iter(&file_name)
         .map(|mat| mat.as_str().to_string())
         .collect();
     matches
@@ -108,22 +105,24 @@ pub fn load_vocab(path: &PathBuf) -> HashMap<String, usize> {
     serde_json::from_str(&vocab_json).expect("Failed to parse vocab JSON")
 }
 
-pub fn embedding_from_ind(token_indices: Vec<usize>, embedding_dim: usize, vocab_len: usize) -> Vec<f32> {
-    // Assume WEIGHTS is a OnceCell<Array2<f32>> and already initialized
-    let weights: &Array2<f32> = WEIGHTS.get().unwrap();
-
-    // Select embeddings for the given indices and sum them
-    let sum_embedding: Array1<f32> = token_indices
-        .iter()
-        .map(|&idx| weights.row(idx))
-        .fold(Array1::<f32>::zeros(embedding_dim), |acc, row| acc + &row);
-
+pub fn embedding_from_ind(token_indices: Vec<usize>, weights: &Array2<f32>) -> Vec<f32> {
+    let selected = weights.select(Axis(0), &token_indices);
+    let sum_embedding = selected.sum_axis(Axis(0));
     sum_embedding.to_vec()
 }
 
-pub fn full_emb(file_name: &str, embedding_dim: usize) -> Vec<f32> {
-    let vocab = VOCAB.get().unwrap();
+pub fn full_emb(file_name: &str) -> Vec<f32> {
     let tokenized_file_name = tokenize_file_name(file_name);
-    let indexed_file_name = tokens_to_indices(tokenized_file_name, vocab);
-    embedding_from_ind(indexed_file_name, embedding_dim, vocab.len())
+    let indexed_file_name = tokens_to_indices(tokenized_file_name, VOCAB.get().unwrap());
+    embedding_from_ind(indexed_file_name, WEIGHTS.get().unwrap())
+}
+
+pub fn bytes_to_vec(bytes: &Vec<u8>) -> Vec<f32> {
+    bytes
+        .chunks_exact(4)
+        .map(|chunk| {
+            let arr: [u8; 4] = chunk.try_into().unwrap();
+            f32::from_le_bytes(arr)
+        })
+        .collect()
 }

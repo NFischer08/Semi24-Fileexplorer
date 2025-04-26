@@ -3,18 +3,17 @@ use crate::db_create::create_database;
 use crate::db_search::search_database;
 use crate::db_util::{initialize_database, load_vocab};
 use crate::file_information::{get_file_information, FileData, FileDataFormatted};
+use bytemuck::cast_slice;
+use ndarray::Array2;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::collections::HashMap;
-use std::{env, fs};
 use std::fs::create_dir;
 use std::path::absolute;
 use std::sync::{LazyLock, OnceLock};
+use std::{env, fs};
 use std::{fs::DirEntry, path::PathBuf};
-use std::cell::OnceCell;
-use bytemuck::cast_slice;
-use ndarray::Array2;
 use tauri::command;
 use tauri::{AppHandle, State};
 
@@ -51,12 +50,10 @@ pub fn initialize_globals() {
         // Infer the vocab size from the file length
         let vocab_size = weights_as_f32.len() / embedding_dim;
 
-        Array2::from_shape_vec(
-            (vocab_size, embedding_dim),
-            weights_as_f32.to_vec()
-        ).expect("Shape mismatch in weights")
+        Array2::from_shape_vec((vocab_size, embedding_dim), weights_as_f32.to_vec())
+            .expect("Shape mismatch in weights")
     });
-    
+
     VOCAB.get_or_init(|| {
         let mut path = CURRENT_DIR.clone();
         path.push("data/model/vocab.json");
@@ -107,9 +104,8 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
         .pragma_update(None, "wal_autocheckpoint", "1000")
         .expect("wal_autocheckpoint failed");
 
-    let vocab = VOCAB.get().unwrap();
 
-    match create_database(connection_pool, database_scan_start, vocab) {
+    match create_database(connection_pool, database_scan_start) {
         Ok(_) => {}
         Err(e) => return Err(e.to_string()),
     };
@@ -130,7 +126,6 @@ pub fn manager_basic_search(
     let connection_pool = manager_make_pooled_connection();
 
     let search_path = PathBuf::from(searchpath);
-    let vocab = VOCAB.get().unwrap();
 
     search_database(
         connection_pool,
