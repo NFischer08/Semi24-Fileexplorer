@@ -1,14 +1,15 @@
+use winapi::um::{shellapi::ShellExecuteW, winuser::SW_SHOWNORMAL};
 use crate::config_handler::{get_copy_mode, CopyMode};
 use crate::manager::CURRENT_DIR;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use copy_dir::copy_dir;
 use opener::open;
-use std::io::BufReader;
 use std::{
     fs,
-    io::{Read, Write},
+    io::{Read, Write, BufReader},
     path::{Path, PathBuf},
-    process::Command,
+    ptr,
+    os::windows::ffi::OsStrExt,
 };
 use tauri::command;
 
@@ -250,30 +251,49 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
     let path: PathBuf = clean_path(filepath);
     #[cfg(target_os = "windows")]
     {
-        match Command::new("cmd")
-            .args(&["/C", "start", "", path.to_str().unwrap()])
-            .spawn()
-        {
-            Ok(_) => Ok("File opened successfully.".to_string()),
-            Err(_) => Err("Failed to open file.".to_string()),
+        // convert path to UTF-16 for windows api
+        let wide_path: Vec<u16> = path.as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+
+        // open with operation with `openas`
+        let operation: Vec<u16> = "openas\0".encode_utf16().collect();
+
+        unsafe {
+            let result = ShellExecuteW(
+                ptr::null_mut(),           // Kein Elternfenster
+                operation.as_ptr(),        // "openas" Verb
+                wide_path.as_ptr(),        // Dateipfad
+                ptr::null(),               // Keine Parameter
+                ptr::null(),               // Standardverzeichnis
+                SW_SHOWNORMAL,            // Normales Fenster
+            );
+
+            return if (result as isize) <= 32 {
+                Err(format!("Fehler beim Öffnen des 'Öffnen mit'-Dialogs. Fehlercode: {}", result as isize))
+            } else {
+                Ok("Dialog wurde erfolgreich geöffnet.".to_string())
+            }
         }
     }
-
+    
     #[cfg(target_os = "macos")]
     {
-        match Command::new("open").arg(path).spawn() {
-            Ok(_) => Ok("File opened successfully.".to_string()),
-            Err(_) => Err("Failed to open file.".to_string()),
+        match Command::new("open")
+            .arg("-n")  // open new instance
+            .arg("/System/Library/CoreServices/Choose Application.app")
+            .arg("--args")
+            .arg(&path)
+            .spawn()
+        {
+            Ok(_) => Ok("'Öffnen mit'-Dialog wurde geöffnet.".to_string()),
+            Err(e) => Err(format!("Fehler beim Öffnen des Dialogs: {}", e))
         }
-    }
 
-    #[cfg(target_os = "linux")]
-    {
-        match Command::new("xdg-open").arg(path).spawn() {
-            Ok(_) => Ok("File opened successfully.".to_string()),
-            Err(_) => Err("Failed to open file.".to_string()),
-        }
     }
+    // incase it's not windows or macos, just open the file normally
+    open_file(filepath)
 }
 
 #[command]
