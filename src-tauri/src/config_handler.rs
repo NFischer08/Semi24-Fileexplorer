@@ -14,7 +14,14 @@ pub static FAVOURITE_FILE_EXTENSIONS: OnceLock<HashMap<String, String>> = OnceLo
 pub static COPY_MODE: OnceLock<CopyMode> = OnceLock::new();
 pub static NUMBER_RESULTS_LEVENHSTEIN: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_RESULTS_EMBEDDING: OnceLock<usize> = OnceLock::new();
+pub static SEARCH_WITH_MODEL: OnceLock<bool> = OnceLock::new();
+pub static PATHS_TO_INDEX: OnceLock<Vec<PathBuf>> = OnceLock::new();
+pub static CREATE_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
+pub static SEARCH_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
+pub static NUMBER_OF_THREADS: OnceLock<usize> = OnceLock::new();
+pub static PATHS_TO_IGNORE: OnceLock<Vec<PathBuf>> = OnceLock::new();
 
+// create structs
 #[derive(Debug, Deserialize)]
 struct Settings {
     allowed_extensions: HashSet<String>,
@@ -22,6 +29,12 @@ struct Settings {
     copy_mode: CopyMode,
     number_results_levenhstein: usize,
     number_results_embedding: usize,
+    search_with_model: bool,
+    paths_to_index: Vec<PathBuf>,
+    create_batch_size: usize,
+    search_batch_size: usize,
+    number_of_threads: usize,
+    paths_to_ignore: Vec<PathBuf>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -74,6 +87,12 @@ impl Settings {
             copy_mode: CopyMode::File,
             number_results_levenhstein: 15,
             number_results_embedding: 25,
+            search_with_model: false,
+            paths_to_index: vec![PathBuf::from("/")],
+            create_batch_size: 250,
+            search_batch_size: 1000,
+            number_of_threads: 200,
+            paths_to_ignore: Vec::new(),
         }
     }
 }
@@ -123,7 +142,7 @@ fn read_config(config_path: &PathBuf) -> Result<String, ()> {
     Ok(contents)
 }
 
-pub fn initialize_config() -> Result<(), String> {
+pub fn initialize_config() {
     // get the path to the config file
     let mut path = CURRENT_DIR.clone();
     path.push("data/config/config.json");
@@ -134,29 +153,50 @@ pub fn initialize_config() -> Result<(), String> {
         Err(_) => Settings::default(),
     };
 
-    // set every constant, if something fails, the whole program immediantly stops executing
-    match FAVOURITE_FILE_EXTENSIONS.set(config.favourite_extensions) {
-        Ok(_) => {}
-        Err(_) => return Err("couldn't set favourite extensions".to_string()),
-    }
-    match ALLOWED_FILE_EXTENSIONS.set(config.allowed_extensions) {
-        Ok(_) => {}
-        Err(_) => return Err("couldn't set allowed extensions".to_string()),
-    }
-    match COPY_MODE.set(config.copy_mode) {
-        Ok(_) => {}
-        Err(_) => return Err("couldn't set copy mode".to_string()),
-    }
-    match NUMBER_RESULTS_EMBEDDING.set(config.number_results_embedding) {
-        Ok(_) => {}
-        Err(_) => return Err("couldn't set num emb".to_string()),
-    }
-    match NUMBER_RESULTS_LEVENHSTEIN.set(config.number_results_levenhstein) {
-        Ok(_) => {}
-        Err(_) => return Err("couldn't set num lev".to_string()),
-    }
+    // set every constant, if something fails, the whole program immediantly stops executing due to panicing
+    FAVOURITE_FILE_EXTENSIONS
+        .set(config.favourite_extensions)
+        .expect("couldn't set favourite extensions");
 
-    Ok(())
+    ALLOWED_FILE_EXTENSIONS
+        .set(config.allowed_extensions)
+        .expect("couldn't set allowed extensions");
+
+    COPY_MODE
+        .set(config.copy_mode)
+        .expect("couldn't set copy mode");
+
+    NUMBER_RESULTS_EMBEDDING
+        .set(config.number_results_embedding)
+        .expect("couldn't set num emb");
+
+    NUMBER_RESULTS_LEVENHSTEIN
+        .set(config.number_results_levenhstein)
+        .expect("couldn't set num lev");
+
+    SEARCH_WITH_MODEL
+        .set(config.search_with_model)
+        .expect("couldn't set search with model");
+
+    PATHS_TO_INDEX
+        .set(config.paths_to_index)
+        .expect("couldn't set paths to index");
+
+    CREATE_BATCH_SIZE
+        .set(config.create_batch_size)
+        .expect("couldn't set create batch size");
+
+    SEARCH_BATCH_SIZE
+        .set(config.search_batch_size)
+        .expect("couldn't set search batch size");
+
+    NUMBER_OF_THREADS
+        .set(config.number_of_threads)
+        .expect("couldn't set number of threads");
+
+    PATHS_TO_IGNORE
+        .set(config.paths_to_ignore)
+        .expect("couldn't set paths to ignore");
 }
 
 // functions for retrieving the values of the constants
@@ -211,5 +251,47 @@ pub fn get_css_settings() -> ColorConfig {
     match read_config(&path) {
         Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
         Err(_) => ColorConfig::default(),
+    }
+}
+
+pub fn get_search_with_model() -> bool {
+    match SEARCH_WITH_MODEL.get() {
+        None => Settings::default().search_with_model,
+        Some(val) => val.to_owned(),
+    }
+}
+
+pub fn get_paths_to_index() -> Vec<PathBuf> {
+    match PATHS_TO_INDEX.get() {
+        None => Settings::default().paths_to_index,
+        Some(val) => val.to_owned(),
+    }
+}
+
+pub fn get_create_batch_size() -> usize {
+    match CREATE_BATCH_SIZE.get() {
+        None => Settings::default().create_batch_size,
+        Some(val) => val.to_owned(),
+    }
+}
+
+pub fn get_search_batch_size() -> usize {
+    match SEARCH_BATCH_SIZE.get() {
+        None => Settings::default().search_batch_size,
+        Some(val) => val.to_owned(),
+    }
+}
+
+pub fn get_number_of_threads() -> usize {
+    match NUMBER_OF_THREADS.get() {
+        None => Settings::default().number_of_threads,
+        Some(val) => val.to_owned(),
+    }
+}
+
+pub fn get_paths_to_ignore() -> Vec<PathBuf>  {
+    match PATHS_TO_IGNORE.get() {
+        None => Settings::default().paths_to_ignore,
+        Some(val) => val.to_owned(),   
     }
 }

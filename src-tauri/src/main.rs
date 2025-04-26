@@ -14,7 +14,7 @@ use std::fs::create_dir;
 use std::path::PathBuf;
 use std::thread;
 use file_explorer_lib::rt_db_update::start_file_watcher;
-use crate::config_handler::get_allowed_file_extensions;
+use crate::config_handler::{get_allowed_file_extensions, get_number_of_threads};
 
 fn get_all_drives() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
@@ -55,12 +55,12 @@ fn get_all_drives() -> Vec<PathBuf> {
 
 fn main() {
     rayon::ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get() - 1) // Reserve one core for OS
+        .num_threads(get_number_of_threads()) // Reserve one core for OS
         .build_global()
         .expect("Couldn't build thread pool");
 
     tch::set_num_interop_threads(1);
-    tch::set_num_threads((num_cpus::get() - 1) as i32);
+    tch::set_num_threads(get_number_of_threads() as i32);
 
     //TODO Schönes Match statement bitte Nino
     let data_dir = CURRENT_DIR.join("data");

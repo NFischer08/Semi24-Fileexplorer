@@ -17,6 +17,7 @@ use std::{
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
 use tch::{CModule, Kind};
+use crate::config_handler::get_search_batch_size;
 
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
@@ -30,7 +31,7 @@ pub fn search_database(
     state: State<AppState>,
 ) -> () {
     let pooled_connection = connection_pool.get().expect("get connection pool");
-    const BATCH_SIZE: usize = 1000; // Adjust this value as needed
+    let batch_size: usize = get_search_batch_size();
 
     let start_time = Instant::now();
 
@@ -89,15 +90,15 @@ pub fn search_database(
 
         tx.commit().expect("Failed to commit transaction");
 
-        let mut batch_emb: Vec<(String, Vec<u8>)> = Vec::with_capacity(BATCH_SIZE);
+        let mut batch_emb: Vec<(String, Vec<u8>)> = Vec::with_capacity(batch_size);
         for path_emb in path_embs {
             batch_emb.push(path_emb);
 
-            if batch_emb.len() >= BATCH_SIZE {
+            if batch_emb.len() >= batch_size {
                 sender
                     .send(std::mem::replace(
                         &mut batch_emb, // Changed from `batch` to `batch_emb`
-                        Vec::with_capacity(BATCH_SIZE),
+                        Vec::with_capacity(batch_size),
                     ))
                     .expect("Failed to send result");
             }

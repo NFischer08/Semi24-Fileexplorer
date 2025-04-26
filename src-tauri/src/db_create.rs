@@ -1,4 +1,4 @@
-use crate::config_handler::get_allowed_file_extensions;
+use crate::config_handler::{get_allowed_file_extensions, get_create_batch_size};
 use crate::db_util::{
     convert_to_forward_slashes, is_allowed_file, should_ignore_path, tokenize_file_name,
     tokens_to_indices, Files,
@@ -18,7 +18,7 @@ pub fn create_database(
     vocab: &HashMap<String, usize>,
     model: &CModule,
 ) -> Result<(), String> {
-    const BATCH_SIZE: usize = 250;
+    let batch_size: usize = get_create_batch_size();
 
     let path2 = path.clone();
     let start_time = Instant::now();
@@ -65,7 +65,7 @@ pub fn create_database(
 
     let allowed_file_extensions = get_allowed_file_extensions().clone();
     let file_walking_thread = std::thread::spawn(move || {
-        let mut batch: Vec<Files> = Vec::with_capacity(BATCH_SIZE);
+        let mut batch: Vec<Files> = Vec::with_capacity(batch_size);
         WalkDir::new(&path)
             .follow_links(false)
             .into_iter()
@@ -87,7 +87,7 @@ pub fn create_database(
                             },
                         };
                         batch.push(file);
-                        if batch.len() >= BATCH_SIZE {
+                        if batch.len() >= batch_size {
                             tx.send(std::mem::take(&mut batch))
                                 .unwrap_or_else(|_| println!("Failed to send batch"));
                         }

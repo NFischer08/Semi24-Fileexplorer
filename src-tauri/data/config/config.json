@@ -18,5 +18,11 @@
   },
   "copy_mode": "File",
   "number_results_levenhstein": 5,
-  "number_results_embedding": 15
+  "number_results_embedding": 15,
+  "search_with_model": true,
+  "paths_to_index": ["/"],
+  "create_batch_size": 250,
+  "search_batch_size": 1000,
+  "number_of_threads": 200,
+  "paths_to_ignore": []
 }
