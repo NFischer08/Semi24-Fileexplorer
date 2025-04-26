@@ -8,79 +8,57 @@ use notify::{
     EventKind::{Create, Modify, Remove},
     RecursiveMode, Watcher,
 };
-use std::{collections::HashSet, path::{Path, PathBuf}, sync::mpsc::channel, fs};
+use std::{collections::HashSet, path::{Path, PathBuf}, sync::mpsc::channel, fs, thread};
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
-use crate::context_actions::delete_file;
+use crate::config_handler::{get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS};
 use crate::manager::manager_make_pooled_connection;
 
-pub fn start_file_watcher(watch_path: PathBuf, allowed_extensions: HashSet<String>) {
+pub fn start_file_watcher() {
     // get the connection pool from manager
     let connection_pool: Pool<SqliteConnectionManager> = manager_make_pooled_connection();
 
-    // get a valid connection to db
-    let pooled_connection: PooledConnection<SqliteConnectionManager> = match connection_pool.get() {
-        Ok(pooled_connection) => pooled_connection,
-        Err(_) => {
-            println!("Couldn't get pooled connection from pool");
-            return;
-        }
-    };
+    // creates a HashSet with paths to ignore
+    let mut ignore: HashSet<&str> = get_paths_to_ignore().iter().map(|path| path.to_string_lossy().as_ref()).collect();
+    
+    // start watching for changes in all paths to index
+    for path in get_paths_to_index() {
+        let conn = match connection_pool.get() {
+            Ok(conn) => conn,
+            Err(_) => continue,
+        };
+        let ignore = ignore.clone();
+        thread::spawn(move || watch_folder(path, &conn, &ignore));
+    }
+}
 
+pub fn watch_folder(watch_path: PathBuf, pooled_connection: &PooledConnection<SqliteConnectionManager>, ignore: &HashSet<&str>) {
+    let allowed_extensions: &HashSet<String> = ALLOWED_FILE_EXTENSIONS.get().unwrap_or_else(get_allowed_file_extensions);
+    
     // Create a channel to receive filesystem events
     let (sender, receiver) = channel::<notify::Result<Event>>();
 
-    // Create a watcher and return if an error occurs
-    let mut watcher = match recommended_watcher(sender) {
-        Ok(watcher) => watcher,
-        Err(e) => {
-            println!("Error creating watcher: {:?}", e);
-            return;
-        }
-    };
+    // Create a watcher and panic if an error occurs
+    let mut watcher = recommended_watcher(sender).expect("Error: Couldn't create watcher");
 
-    // Start watching the specified path and return if an error occurs
-    match watcher.watch(&watch_path, RecursiveMode::Recursive) {
-        Ok(_) => {}
-        Err(e) => {
-            println!("Error watching path: {:?}", e);
-            return;
-        }
-    }
-
-    // creates a HashSet with paths to ignore
-    let mut ignore: HashSet<&str> = HashSet::new();
-    let mut trigger: bool = false;
-    #[cfg(target_os = "windows")]
-    {
-        ignore.insert("$Recycle.Bin");
-        ignore.insert("AppData");
-        ignore.insert("Windows\\System32");
-    }
-
-
+    // Start watching the specified path and panic if an error occurs
+    watcher.watch(&watch_path, RecursiveMode::Recursive).expect("Error: Couldn't watch path");
+    
     println!("Watching for changes in {:?}", watch_path);
     // Loop to receive events from the channel
     for res in receiver {
         match res {
             Ok(event) => {
                 // usually only one path is returned (for-loop for safety)
-                for file_path in event.paths {
+                'event: for file_path in event.paths {
                     // ignore certain paths on windows
                     #[cfg(target_os = "windows")]
                     {
                         for folder in &ignore {
                             if file_path.to_string_lossy().contains(folder) {
-                                trigger = true;
-                                break;
+                                continue 'event;
                             }
                         }
-                    }
-
-                    // skip if path which needs to be ignored is found
-                    if trigger {
-                        trigger = false;
-                        continue;
                     }
 
                     // check if the path is from interest
@@ -158,7 +136,6 @@ fn get_elements_in_dir(parent_path: PathBuf) -> Result<HashSet<PathBuf>, ()> {
             Err(_) => continue,
         };
         elements.insert(entry.path());
-
     }
 
     Ok(elements)
@@ -195,20 +172,14 @@ fn check_folder(path: PathBuf, pooled_connection: &PooledConnection<SqliteConnec
 }
 
 fn delete_from_db(pooled_connection: &PooledConnection<SqliteConnectionManager>, file_path: &PathBuf) -> () {
-    match pooled_connection.execute("DELETE FROM files WHERE file_path = ?",
-                                    (file_path.to_string_lossy(),)) {
-        Ok(_) => {},
-        Err(_) => println!("Error: Couldn't delete file in pooled connection"),
-    };
+    pooled_connection.execute("DELETE FROM files WHERE file_path = ?",
+                                    (file_path.to_string_lossy(),)).expect("Error: Couldn't delete file in pooled connection");
 }
 
 fn insert_into_db(pooled_connection: &PooledConnection<SqliteConnectionManager>, file_path: &PathBuf) -> () {
     let path = file_path.to_string_lossy();
     let name = file_path.file_name().unwrap_or("ERR".as_ref()).to_string_lossy();
     let file_type = file_path.extension().unwrap_or("ERR".as_ref()).to_string_lossy();
-    match pooled_connection.execute("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)",
-                                    (path, name, file_type), ) {
-        Ok(_) => {}
-        Err(_) => println!("Error: Couldn't delete file in pooled connection"),
-    }
+    pooled_connection.execute("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)",
+                                    (path, name, file_type), ).expect("Error: Couldn't insert file in pooled connection");
 }

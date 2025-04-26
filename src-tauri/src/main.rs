@@ -14,7 +14,7 @@ use std::fs::create_dir;
 use std::path::PathBuf;
 use std::thread;
 use file_explorer_lib::rt_db_update::start_file_watcher;
-use crate::config_handler::{get_allowed_file_extensions, get_number_of_threads};
+use crate::config_handler::get_number_of_threads;
 
 fn get_all_drives() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
@@ -92,7 +92,7 @@ fn main() {
     drives.push(PathBuf::from(r"C:\Users\maxmu"));
 
      */
-    thread::spawn(move || start_file_watcher(PathBuf::from("C:\\"), get_allowed_file_extensions()));
+    thread::spawn(move || start_file_watcher());
     thread::spawn(move || {
         drives.par_iter().for_each(|drive| {
             manager_create_database(drive.clone()).unwrap();
