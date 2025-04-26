@@ -64,36 +64,43 @@ print(f"Vocabulary exported to {vocab_file_path}")
 
 print(len(vocab))
 
-# Prepare training data (pairs of target and context word indices) in batches to reduce memory usage
-data = [(vocab[tokens[i]], vocab[tokens[i + 1]]) for i in range(len(tokens) - 1)]
 class SkipGramDataset(Dataset):
-    def __init__(self, tokens, vocab):
+    def __init__(self, tokens, vocab, window_size=2):
         self.tokens = tokens
         self.vocab = vocab
+        self.window_size = window_size
+        self.pairs = []
+        for i, target_word in enumerate(tokens):
+            # context window: [i-window_size, i+window_size], excluding i
+            start = max(0, i - window_size)
+            end = min(len(tokens), i + window_size + 1)
+            for j in range(start, end):
+                if j != i:
+                    self.pairs.append((vocab[target_word], vocab[tokens[j]]))
 
     def __len__(self):
-        return len(self.tokens) - 1
+        return len(self.pairs)
 
     def __getitem__(self, idx):
-        target = self.vocab[self.tokens[idx]]
-        context = self.vocab[self.tokens[idx + 1]]
+        target, context = self.pairs[idx]
         return torch.tensor(target, dtype=torch.long), torch.tensor(context, dtype=torch.long)
 
-batch_size = 1024  # Process data in batches to reduce memory usage
-dataset = SkipGramDataset(tokens, vocab)
+batch_size = 2048  # Process data in batches to reduce memory usage
+window_size = 4
+dataset = SkipGramDataset(tokens, vocab, window_size=window_size)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 # Training
 vocab_size = len(vocab)
 embedding_dim = 256
-model = SkipGramModel(vocab_size, embedding_dim).to(device)  # Move model to GPU
+model = SkipGramModel(vocab_size, embedding_dim).to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.AdamW(model.parameters(), lr=0.01, weight_decay=5e-4)
+optimizer = optim.AdamW(model.parameters(), lr=0.001, weight_decay=5e-4)
 
 
 print(vocab_size)
 
-for epoch in range(20):  # Training loop
+for epoch in range(10):  # Training loop
     total_loss = 0
 
     progress_bar = tqdm(dataloader, desc=f"Epoch {epoch + 1}", unit="batch")
