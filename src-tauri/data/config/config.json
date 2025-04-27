@@ -17,6 +17,6 @@
     "Diris": "dir"
   },
   "copy_mode": "File",
-  "number_results_levenhstein": 5,
+  "number_results_levenhstein": 0,
   "number_results_embedding": 15
 }
