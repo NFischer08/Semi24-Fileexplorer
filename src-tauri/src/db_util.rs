@@ -83,14 +83,27 @@ pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnection
         )
         .expect("Indexing failed: ");
 }
+pub fn normalize_token(token: &str) -> String {
+    // Match YYYY-MM-DD, YYYY:MM:DD, YYYY.MM.DD
+    let date_re = Regex::new(r"^\d{4}[-:.]\d{2}[-:.]\d{2}$").unwrap();
+    let year_re = Regex::new(r"^\d{4}$").unwrap();
+
+    if date_re.is_match(token) {
+        "DATE".to_string()
+    } else if year_re.is_match(token) {
+        "YEAR".to_string()
+    } else {
+        token.to_string()
+    }
+}
+
 pub fn tokenize_file_name(file_name: &str) -> Vec<String> {
     let file_name = file_name.to_lowercase();
-    let re = Regex::new("[a-zäöü]+").unwrap();
-    let matches: Vec<String> = re
-        .find_iter(&file_name)
-        .map(|mat| mat.as_str().to_string())
-        .collect();
-    matches
+    // Match words, dates, and years
+    let re = Regex::new(r"[a-zäöü]+|\d{4}[-:.]\d{2}[-:.]\d{2}|\d{4}").unwrap();
+    re.find_iter(&file_name)
+        .map(|mat| normalize_token(mat.as_str()))
+        .collect()
 }
 
 pub fn tokens_to_indices(tokens: Vec<String>, vocab: &HashMap<String, usize>) -> Vec<usize> {

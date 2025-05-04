@@ -104,7 +104,6 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
         .pragma_update(None, "wal_autocheckpoint", "1000")
         .expect("wal_autocheckpoint failed");
 
-
     match create_database(connection_pool, database_scan_start) {
         Ok(_) => {}
         Err(e) => return Err(e.to_string()),
