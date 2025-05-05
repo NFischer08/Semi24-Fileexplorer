@@ -59,9 +59,6 @@ fn main() {
         .build_global()
         .expect("Couldn't build thread pool");
 
-    tch::set_num_interop_threads(1);
-    tch::set_num_threads(get_number_of_threads() as i32);
-
     //TODO Schönes Match statement bitte Nino
     let data_dir = CURRENT_DIR.join("data");
     let model_dir = data_dir.join("model");

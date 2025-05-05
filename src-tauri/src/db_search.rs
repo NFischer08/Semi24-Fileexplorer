@@ -1,6 +1,9 @@
-use crate::db_util::{cosine_similarity, tokenize_file_name, tokens_to_indices};
-use crate::manager::{build_struct, AppState};
+use crate::db_util::{
+    bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices,
+};
+use crate::manager::{build_struct, AppState, VOCAB, WEIGHTS};
 use bytemuck::cast_slice;
+use ndarray::{s, Array2};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
@@ -16,31 +19,33 @@ use std::{
 };
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
-use tch::{CModule, Kind};
 use crate::config_handler::get_search_batch_size;
 
+/// Searches for similar File names in the Database via Levenhstein and a custome skip-gram model,
+/// it uses connection_pool, search_term, search_path, search_file_type, num_results_lev, num_results_emb and state
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
     search_term: &str,
     search_path: PathBuf,
     search_file_type: &str,
-    model: &CModule,
-    vocab: &HashMap<String, usize>,
     num_results_embeddings: usize,
     num_results_levenhstein: usize,
     state: State<AppState>,
 ) -> () {
+    // Getting a Pooled Connetion
     let pooled_connection = connection_pool.get().expect("get connection pool");
     let batch_size: usize = get_search_batch_size();
 
     let start_time = Instant::now();
 
+    //Setting Search Path to "" for searching everythin
     let search_path_str = if cfg!(windows) && search_path.to_str().unwrap_or("") == "/" {
         String::new()
     } else {
         search_path.to_str().unwrap_or("").to_string()
     };
 
+    //Making sure relecant Collums are Indexed
     pooled_connection
         .execute(
             "CREATE INDEX IF NOT EXISTS idx_file_path ON files(file_path)",
@@ -54,10 +59,13 @@ pub fn search_database(
         )
         .expect("Indexing: ");
 
+    //Making sure there are no Spaces in file_types
     let search_file_type = search_file_type.replace(" ", "");
 
+    //Creating channel
     let (sender, receiver) = crossbeam_channel::unbounded();
 
+    //Creating Thread that gets relevant Data from the Database, it already sorts for file_type and Path via the SQL Statement
     let query_thread = std::thread::spawn(move || {
         let mut pooled_connection = connection_pool.get().expect("Failed to get connection");
         let mut tx = pooled_connection
@@ -76,6 +84,7 @@ pub fn search_database(
                 )
                 .expect("Failed to prepare statement");
 
+            //Getting the rows file_path and name_embeddings
             let search_pattern = format!("{}%", search_path_str);
             stmt.query_map(params![search_pattern, search_file_type], |row| {
                 Ok((
@@ -90,7 +99,10 @@ pub fn search_database(
 
         tx.commit().expect("Failed to commit transaction");
 
+        //Pre AlLocating the Memory for batch_emb
         let mut batch_emb: Vec<(String, Vec<u8>)> = Vec::with_capacity(batch_size);
+
+        //Splitting the Data into Batches which are sent to processing
         for path_emb in path_embs {
             batch_emb.push(path_emb);
 
@@ -104,41 +116,34 @@ pub fn search_database(
             }
         }
 
+        //Sending last Batch
         if !batch_emb.is_empty() {
             sender.send(batch_emb).expect("Receiving thread: drop");
         }
-
-        //println!("Processed rows in {}ms", start_time.elapsed().as_millis());
     });
 
-    let tokenized_searchterm = tokenize_file_name(search_term);
-    let indiced_searchterm: Vec<i64> = tokens_to_indices(tokenized_searchterm, &vocab)
-        .into_iter()
-        .map(|x| x as i64)
-        .collect();
+    // Doing prerequisites for embedding the search_term
+    let token_indices = tokens_to_indices(tokenize_file_name(search_term), VOCAB.get().unwrap());
 
-    let search_tensor = tch::Tensor::from_slice(&indiced_searchterm)
-        .to_kind(Kind::Int64)
-        .unsqueeze(0);
+    // Gets the Embeddings via the Index in the Weights Array
+    let selected = WEIGHTS
+        .get()
+        .unwrap()
+        .select(ndarray::Axis(0), &token_indices);
 
-    let embedded_tensor = model
-        .method_ts("get_embedding", &[search_tensor])
-        .expect("Batch embedding lookup failed");
+    // Adding the Embedding together for the tokens
+    let sum_embedding = selected.sum_axis(ndarray::Axis(0));
 
-    let embedded_f32 = embedded_tensor.to_kind(Kind::Float); // Ensure Float32 type
+    // Averaging the embedding
+    let count = token_indices.len() as f32;
+    let avg_embedding = &sum_embedding / count;
 
-    let embedded_vec_f32: Vec<f32> =
-        Vec::try_from(embedded_f32.flatten(0, -1)).expect("Can't convert vector to f32");
+    // Creating the Vec
+    let embedded_vec_f32 = avg_embedding.to_vec();
 
-    let search_norm: f32 = embedded_vec_f32
-        .iter()
-        .fold(0.0, |acc, &x| acc + x * x)
-        .sqrt();
-
-    // Store both String and Vec<u8> pairs
-    // Wrap in Arc<Mutex> for thread-safe mutation
     let mut search_query: Vec<(String, Vec<u8>)> = Vec::new();
 
+    // Computes the Levenhstein distance / similarity as well as builds up a Vec of every batch
     let results_lev: Vec<(String, f32)> = receiver
         .into_iter() // Convert to parallel iterator
         .flat_map(|batch| {
@@ -158,39 +163,53 @@ pub fn search_database(
         })
         .collect();
 
+    // Transform the results into DireEntrys, sorts them and only give back the num_results_lev best results
     let ret_lev_dir = return_entries(results_lev, num_results_levenhstein);
+
+    // Transforms the results into FileDataFormatted which the FrontEnd uses
     let ret_lev = build_struct(ret_lev_dir);
+
+    // Sends the result to the FrontEnd via a Tauri Signal
     state.handle.emit("search-finnished", &ret_lev).unwrap();
     println!(
         "levenhstein-finnished {:?}",
         start_time.elapsed().as_millis()
     );
 
+    // Computes the Embedding similarity / Cosine Similarity
     let results_emb: Vec<(String, f32)> = search_query
         .into_par_iter() // Iterate over Vec<(String, Vec<u8>)>
         .map(|(path, embedding)| {
             // Destructure each tuple
-            let embedding_f32 = cast_slice::<u8, f32>(&embedding);
-            let similarity = cosine_similarity(embedding_f32, search_norm, &embedded_vec_f32);
+            let embedding_f32 = bytes_to_vec(&embedding); //THIS IS CORRECT
+            let similarity = cosine_similarity(&embedding_f32, &embedded_vec_f32);
             (path, similarity) // Return new tuple
         })
         .collect(); // Collect results
 
     query_thread.join().expect("Query thread panicked");
 
+    // Transform the results into DireEntrys, sorts them and only give back the num_results_emb best results
     let ret_emb_dir = return_entries(results_emb, num_results_embeddings);
+
+    // Transforms the results into FileDataFormatted which the FrontEnd uses
     let ret_emb = build_struct(ret_emb_dir);
+
+    // Adds the results embedding and levenhstein together
     let ret = [ret_lev, ret_emb].concat();
+
+    // Sends final results to FrontEnd
     state.handle.emit("search-finnished", &ret).unwrap();
     println!("embedding-finnished {:?}", start_time.elapsed().as_millis());
-
     println!("search took: {:?}", start_time.elapsed().as_millis());
 }
 
+/// Support Funciton for searching which only gives back the best results in form of DirEntries
 fn return_entries(mut similarity_values: Vec<(String, f32)>, num_ret: usize) -> Vec<DirEntry> {
     similarity_values.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
     similarity_values.truncate(num_ret);
 
+    println!("Similarity values {:?}", similarity_values);
     similarity_values
         .into_par_iter()
         .filter_map(|(s, _)| {

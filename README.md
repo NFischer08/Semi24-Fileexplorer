@@ -1,91 +1,76 @@
-# Projekt: Dateiverwaltung mit Tauri
-Dieses Projekt implementiert eine einfache Dateiverwaltungs-Anwendung, die mit [Tauri]() entwickelt wurde. Die Anwendung ermöglicht es, Dateien und Ordner eines angegebenen Pfades zu laden, deren Eigenschaften anzuzeigen, und dabei eine reibungslose Benutzererfahrung bereitzustellen.
-## Projektübersicht
-Die Anwendung basiert auf einer Kombination aus **Rust** und **JavaScript (ES6)**. Dabei wird Tauri genutzt, um eine native Desktop-Anwendung zu erstellen. Informationen über Dateien und Ordner werden mit dem Tauri-Kommando-System verwaltet, während eine interaktive Benutzeroberfläche mit HTML, CSS und JavaScript umgesetzt wurde.
-Die Hauptfunktionen umfassen:
-- Abrufen und Anzeigen von Dateien und Ordnern eines angegebenen Dateipfads.
-- Ausgabe von Dateiattributen:
-    - **Dateiname**
-    - **Letztes Änderungsdatum**
-    - **Dateityp**
-    - **Dateigröße**
+# A File Explorer with fast and efficient search
 
-- Fehlerbehandlung und visuelle Rückmeldung bei fehlerhaften Aktionen.
+short description
 
-## To-Do Liste
-- Search Algorithm:
-    - **Threadpool**
-    - **Datenbank**
-    - **Vectorspaces**
+## Features
 
-## Projektstruktur
-Das Projekt wird in zwei Hauptteilen untergliedert:
-### 1. **Frontend** (HTML, CSS, JavaScript)
-Hier wird die Benutzeroberfläche definiert. Es gibt Eingabefelder für die Dateipfadeingabe, Buttons zur Navigation und ein Tabellenformat zur Anzeige von Datei- und Ordnerinformationen.
-### 2. **Backend** (Tauri und Rust)
-Das Backend verarbeitet Anfragen, ruft Dateiinformationen ab und stellt sie dem Frontend zur Verfügung. Mit der `invoke`-Funktion von Tauri wird die Brücke zwischen JavaScript und Rust geschlagen.
-## Voraussetzungen
-Um das Projekt zu bauen und auszuführen, stellen Sie sicher, dass die folgenden Anforderungen vorliegen:
-- [Rust]()
-- [Node.js]()
-- Tauri CLI:
-``` bash
-  cargo install tauri-cli
-```
-## Installation und Ausführung
-1. **Repository klonen**:
-``` bash
-   git clone <github.com/Paulonus28/Semi24-Fileexplorer/>
-   cd <PROJEKTORDNER>
-```
-1. **Abhängigkeiten installieren**: Führen Sie den folgenden Befehl aus, um alle notwendigen Pakete zu installieren:
-``` bash
-   npm install
-```
-1. **Entwicklungssitzung starten**: Um die Anwendung in der Entwicklungsumgebung auszuführen, nutzen Sie:
-``` bash
-   npm run tauri dev
-```
-1. **Produktion bauen**: Um ein ausführbares Paket zu erstellen, führen Sie Folgendes aus:
-``` bash
-   npm run tauri build
-```
-## Nutzung
-1. Starten Sie die Anwendung.
-2. Geben Sie den gewünschten Verzeichnispfad in das Eingabefeld ein.
-3. Klicken Sie auf den Button, um Dateien und Ordner zu laden.
-4. Die Anwendung zeigt eine Liste mit den folgenden Informationen an:
-    - **Dateiname**
-    - **Letzte Änderung**
-    - **Dateityp**
-    - **Dateigröße**
+- Fast and efficient file system navigation
+- Multi-threaded search algorithm
+- Vector space-based file indexing
+- SQLite database integration for search optimization
+- Cross-platform support (Windows, macOS, Linux)
+- Modern and responsive user interface
 
-5. Bei Fehlern, z. B. ungültigen Pfaden, wird eine Fehlermeldung angezeigt.
+## Installation
 
-### Beispiel: Dateianzeige
-Falls der eingegebene Pfad gültig ist, zeigt die Anwendung die Dateien und Ordner in einer Tabelle an. Jede Zeile enthält Spalten mit den entsprechenden Datei-Attributen.
-### Fehlerbehandlung
-Falls ein ungültiger Pfad oder ein anderer Fehler auftritt, wird eine benutzerfreundliche Fehlermeldung unterhalb der Tabelle angezeigt.
-## Technologien
-In diesem Projekt kommen folgende Technologien und Bibliotheken zum Einsatz:
-- **Rust**: Zur Erstellung des Backends.
-- **Tauri**: Für plattformübergreifende Desktop-Integration.
-- **JavaScript (ES6)**: Zur Steuerung und Manipulation des Frontends.
-- **HTML & CSS**: Für die Benutzeroberfläche.
-- **Chrono**: Für die Handhabung von Datumsformaten im Backend.
-- **serde** und **serde_json**: Für die JSON-Serialisierung und -Deserialisierung.
+If your system isn't supported, you have to build the application from source code.
 
-## Verwendete Rust-Kisten (Dependencies)
-Die wichtigsten Rust-Bibliotheken in diesem Projekt:
-- `serde` (Version: 1.0.217): Serialisierung und Deserialisierung von Daten.
-- `serde_json` (Version: 1.0.134): Umgang mit JSON-Dateien.
-- `chrono` (Version: 0.4.39): Handhabung von Zeit- und Datumsformaten.
-- `tauri` (Version: 2.1.1): Hauptframework.
-- `tauri-plugin-shell`: Zur Unterstützung von Shell-Befehlen im Tauri-Projekt.
+### Option 1: Using the Executable
 
-## Beiträge
-Beiträge, Fehlerberichte und Verbesserungsvorschläge sind willkommen! Reichen Sie diese über die **Issues-Sektion** in diesem Repository ein.
-## Lizenz
-Dieses Projekt steht unter der **MIT-Lizenz**. Weitere Informationen finden Sie in der im Repository enthaltenen `LICENSE`-Datei.
+1. Download the latest release from the Releases page
+2. Run the installer
+3. Launch the application from your system's application menu or by double-clicking it
 
-Vielen Dank, dass Sie dieses Projekt verwenden! 😊
+### Option 2: Building from Source Code
+
+1. Install Rust:
+   ```bash
+   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+   ```
+
+2. Install Tauri CLI:
+   ```bash
+   cargo install tauri-cli
+   ```
+
+3. Clone the repository:
+   ```bash
+   git clone https://github.com/NFischer08/Semi24-Fileexplorer
+   cd Semi24-Fileexplorer
+   ```
+   
+4. Run
+
+   |        in development mode         |      in release mode      |
+   |:----------------------------------:|:-------------------------:|
+   | ``` cargo tauri dev --no-watch ``` | ``` cargo tauri build ``` |
+
+## Project configuration
+There are two config files (`~/data/config/..`):
+1. config.json
+2. color-config.json
+
+## Contributing
+
+Since this is a personal school project, we are not interested in any contributions.
+
+## Contributors
+- [Nino Fischer](https://github.com/NFischer08)
+- [Jessica Nolle](https://github.com/Haloooo212)
+- [Magnus Schultheis](https://github.com/magnus-52)
+
+## License
+
+his project is licensed under the Creative Commons Attribution-NonCommercial 4.0 International License (CC BY-NC 4.0).
+
+This means you are free to:
+- Share: Copy and redistribute the material in any medium or format
+- Adapt: Remix, transform, and build upon the material
+
+Under the following terms:
+- Attribution: You must give appropriate credit, provide a link to the license, and indicate if changes were made.
+- NonCommercial: You may not use the material for commercial purposes without explicit permission from the copyright holders.
+
+For commercial use, please contact the project maintainers.
+
+For more details, see the [LICENSE](LICENSE) file in the repository.
