@@ -346,10 +346,10 @@ document.getElementById('context-cut').addEventListener('click', () => {
   }
 });
 
-document.getElementById('context-open_with').addEventListener('click', () => {
+document.getElementById('context-open').addEventListener('click', () => {
   if (selectedFile) {
-    console.log(`Opening file: ${selectedFile} with`);
-    const result = invoke('open_file_with', { filepath: selectedFile});
+    console.log(`Opening file: ${selectedFile}`);
+    const result = invoke('open_file', { filepath: selectedFile});
     console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
