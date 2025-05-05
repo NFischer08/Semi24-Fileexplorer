@@ -17,12 +17,11 @@ from collections import Counter
 from torch.utils.data import Dataset, DataLoader
 import PyQt5
 import matplotlib
-matplotlib.use('Qt5Agg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from sklearn.manifold import TSNE
 
-
-VOCAB_SIZE = 500
+VOCAB_SIZE = 5000
 
 print(torch.cuda.is_available())
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -116,11 +115,11 @@ vocab_size = len(vocab)
 embedding_dim = 256
 model = SkipGramModel(vocab_size, embedding_dim).to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.AdamW(model.parameters(), lr=0.005, weight_decay=5e-4)
+optimizer = optim.Adam(model.parameters(), lr=0.005)
 
 print(f"Training with vocabulary size: {vocab_size}")
 
-for epoch in range(50):
+for epoch in range(30):
     total_loss = 0
     progress_bar = tqdm(dataloader, desc=f"Epoch {epoch + 1}", unit="batch")
     for targets, contexts in progress_bar:
@@ -142,10 +141,9 @@ weights = model.output.weight
 weights = weights.to("cpu").detach().numpy()
 weights.tofile("weights")
 weights_as_bytes = weights.tobytes()
-torch.save(model.state_dict(), "model.pt")
 
 # Number of words to plot (top-N most frequent)
-N = 500  # Adjust as needed for clarity
+N = 25  # Adjust as needed for clarity
 
 # Get embeddings and labels
 embedding_weights = model.embeddings.weight.data.cpu().numpy()
@@ -154,18 +152,21 @@ indices = [vocab[word] for word in words]
 embeddings_subset = embedding_weights[indices]
 
 # t-SNE for dimensionality reduction
-tsne = TSNE(n_components=2, random_state=42, perplexity=30, init='pca')
+tsne = TSNE(n_components=2, random_state=42, perplexity=10, init='pca')
 embeddings_2d = tsne.fit_transform(embeddings_subset)
 
 # Plot
 plt.figure(figsize=(16, 12))
-plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], alpha=0.6)
+plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], alpha=0.6, s=140)
 
 for i, word in enumerate(words):
-    plt.annotate(word, (embeddings_2d[i, 0], embeddings_2d[i, 1]), fontsize=9, alpha=0.7)
+    plt.annotate(word, (embeddings_2d[i, 0], embeddings_2d[i, 1]), fontsize=22, alpha=0.7)
 
-plt.title("t-SNE visualization of word embeddings")
-plt.xlabel("Dimension 1")
-plt.ylabel("Dimension 2")
+plt.title("Visualisierung der Worteinbettungen", fontsize=26)
+plt.xlabel("Dimension 1", fontsize=22)
+plt.ylabel("Dimension 2", fontsize=22)
+plt.xticks(fontsize=18)
+plt.yticks(fontsize=18)
 plt.tight_layout()
+plt.savefig("Visualization-Embeddings.png")
 plt.show()
