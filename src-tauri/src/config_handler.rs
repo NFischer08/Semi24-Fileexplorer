@@ -30,11 +30,11 @@ struct Settings {
     number_results_levenhstein: usize,
     number_results_embedding: usize,
     search_with_model: bool,
-    paths_to_index: Vec<PathBuf>,
+    paths_to_index: Vec<String>,
     create_batch_size: usize,
     search_batch_size: usize,
     number_of_threads: usize,
-    paths_to_ignore: Vec<PathBuf>,
+    paths_to_ignore: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -88,7 +88,7 @@ impl Settings {
             number_results_levenhstein: 15,
             number_results_embedding: 25,
             search_with_model: false,
-            paths_to_index: vec![PathBuf::from("/")],
+            paths_to_index: vec![String::from("/")],
             create_batch_size: 250,
             search_batch_size: 1000,
             number_of_threads: 200,
@@ -179,7 +179,7 @@ pub fn initialize_config() {
         .expect("couldn't set search with model");
 
     PATHS_TO_INDEX
-        .set(config.paths_to_index)
+        .set(config.paths_to_index.iter().map(|path| PathBuf::from(path)).collect())
         .expect("couldn't set paths to index");
 
     CREATE_BATCH_SIZE
@@ -195,7 +195,7 @@ pub fn initialize_config() {
         .expect("couldn't set number of threads");
 
     PATHS_TO_IGNORE
-        .set(config.paths_to_ignore)
+        .set(config.paths_to_ignore.iter().map(|path| PathBuf::from(path)).collect())
         .expect("couldn't set paths to ignore");
 }
 
@@ -263,7 +263,7 @@ pub fn get_search_with_model() -> bool {
 
 pub fn get_paths_to_index() -> Vec<PathBuf> {
     match PATHS_TO_INDEX.get() {
-        None => Settings::default().paths_to_index,
+        None => Settings::default().paths_to_index.iter().map(|path| PathBuf::from(path)).collect(),
         Some(val) => val.to_owned(),
     }
 }
@@ -291,7 +291,7 @@ pub fn get_number_of_threads() -> usize {
 
 pub fn get_paths_to_ignore() -> Vec<PathBuf> {
     match PATHS_TO_IGNORE.get() {
-        None => Settings::default().paths_to_ignore,
+        None => Settings::default().paths_to_ignore.iter().map(|path| PathBuf::from(path)).collect(),
         Some(val) => val.to_owned(),
     }
 }
