@@ -8,7 +8,7 @@ pub mod db_util;
 pub mod file_information;
 pub mod manager;
 
-use crate::config_handler::get_number_of_threads;
+use crate::config_handler::{get_number_of_threads, PATHS_TO_INDEX};
 use crate::manager::initialize_globals;
 use file_explorer_lib::manager::{manager_create_database, CURRENT_DIR};
 use file_explorer_lib::rt_db_update::start_file_watcher;
@@ -35,7 +35,7 @@ fn get_all_drives() -> Vec<PathBuf> {
 
     #[cfg(target_os = "linux")]
     {
-        vec![PathBuf::from("/")]
+        vec![PathBuf::from("/home")]
     }
 
     #[cfg(target_os = "macos")]
@@ -86,6 +86,8 @@ fn main() {
     }
 
     let drives = get_all_drives();
+
+    let paths_to_index = PATHS_TO_INDEX.get_or_init(|| drives);
     /*
     let mut drives: Vec<PathBuf> = Vec::new();
     drives.push(PathBuf::from(r"C:\Users\maxmu"));
@@ -93,8 +95,8 @@ fn main() {
      */
 
     thread::spawn(move || {
-        drives.par_iter().for_each(|drive| {
-            manager_create_database(drive.clone()).unwrap();
+        paths_to_index.par_iter().for_each(|path| {
+            manager_create_database(path.clone()).unwrap();
         });
     });
     thread::spawn(move || start_file_watcher());

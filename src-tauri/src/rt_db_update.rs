@@ -15,6 +15,7 @@ use notify::{
 };
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::params;
 use std::{
     collections::HashSet,
     fs,
@@ -67,6 +68,8 @@ pub fn watch_folder(
     let mut watcher = recommended_watcher(sender).expect("Error: Couldn't create watcher");
 
     // Start watching the specified path and panic if an error occurs
+    println!("Watching {:?}", watch_path);
+
     watcher
         .watch(&watch_path, RecursiveMode::Recursive)
         .expect("Error: Couldn't watch path");
@@ -181,13 +184,22 @@ fn check_folder(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
 ) -> Result<(), ()> {
     // read currently existing files in dir
-    let mut current_files: HashSet<PathBuf> = match get_elements_in_dir(path) {
+    let mut current_files: HashSet<PathBuf> = match get_elements_in_dir(path.clone()) {
         Ok(paths) => paths,
         Err(_) => return Err(()),
     };
 
     // read currently existing files in db for that dir
     let mut db_files: HashSet<PathBuf> = HashSet::new(); // TODO: get all files and folders in dir
+    let mut stmt = pooled_connection
+        .prepare("SELECT file_path FROM files WHERE file_path LIKE ?1")
+        .expect("Failed to prepare statement");
+    let paths_iter = stmt
+        .query_map(params![path.to_str()], |row| row.get::<_, String>(0))
+        .expect("Failed to get file paths");
+    let paths_in_dir: Vec<String> = paths_iter.filter_map(Result::ok).collect();
+
+    println!("{:?}", paths_in_dir);
 
     // ignore the common elements
     let common_el: HashSet<PathBuf> = current_files.intersection(&db_files).cloned().collect();

@@ -6,12 +6,9 @@ use opener::open;
 use std::{
     fs,
     io::{BufReader, Read, Write},
-    os::windows::ffi::OsStrExt,
     path::{Path, PathBuf},
-    ptr,
 };
 use tauri::command;
-use winapi::um::{shellapi::ShellExecuteW, winuser::SW_SHOWNORMAL};
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
@@ -248,7 +245,7 @@ pub fn open_file_with(filepath: String) -> Result<String, String> {
 }
 
 fn open_file_with_complicated(filepath: String) -> Result<String, String> {
-    let path: PathBuf = clean_path(filepath);
+    let path: PathBuf = clean_path(filepath.clone());
     #[cfg(target_os = "windows")]
     {
         // convert path to UTF-16 for windows api
