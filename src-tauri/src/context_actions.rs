@@ -8,7 +8,10 @@ use std::{
     io::{BufReader, Read, Write},
     path::{Path, PathBuf},
 };
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
 use tauri::command;
+use crate::rt_db_update::delete_from_db;
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
@@ -228,7 +231,14 @@ pub fn delete_file(filepath: String) -> Result<String, String> {
 
     // delete dir / file
     if path.is_dir() {
-        //fs::remove_dir_all(path).map_err(|e| e.to_string())?;
+        //fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
+        // get the connection pool from manager
+        let connection_pool: Pool<SqliteConnectionManager> = manager_make_pooled_connection();
+        // get a valid connection to db and remove just deleted folder from db
+        match connection_pool.get() {
+            Ok(conn) => delete_from_db(&conn, &path),
+            Err(_) => {},
+        }
         println!("Deleted directory '{}'", path.display());
     } else if path.is_file() {
         //fs::remove_file(path).map_err(|e| e.to_string())?;
@@ -237,63 +247,6 @@ pub fn delete_file(filepath: String) -> Result<String, String> {
         return Err(String::from("File doesn't exist."));
     }
     Ok("File deleted successfully.".to_string())
-}
-
-#[command]
-pub fn open_file_with(filepath: String) -> Result<String, String> {
-    open_file_with_complicated(filepath)
-}
-
-fn open_file_with_complicated(filepath: String) -> Result<String, String> {
-    let path: PathBuf = clean_path(filepath.clone());
-    #[cfg(target_os = "windows")]
-    {
-        // convert path to UTF-16 for windows api
-        let wide_path: Vec<u16> = path
-            .as_os_str()
-            .encode_wide()
-            .chain(std::iter::once(0))
-            .collect();
-
-        // open with operation with `openas`
-        let operation: Vec<u16> = "openas\0".encode_utf16().collect();
-
-        unsafe {
-            let result = ShellExecuteW(
-                ptr::null_mut(),    // Kein Elternfenster
-                operation.as_ptr(), // "openas" Verb
-                wide_path.as_ptr(), // Dateipfad
-                ptr::null(),        // Keine Parameter
-                ptr::null(),        // Standardverzeichnis
-                SW_SHOWNORMAL,      // Normales Fenster
-            );
-
-            return if (result as isize) <= 32 {
-                Err(format!(
-                    "Fehler beim Öffnen des 'Öffnen mit'-Dialogs. Fehlercode: {}",
-                    result as isize
-                ))
-            } else {
-                Ok("Dialog wurde erfolgreich geöffnet.".to_string())
-            };
-        }
-    }
-
-    #[cfg(target_os = "macos")]
-    {
-        match Command::new("open")
-            .arg("-n") // open new instance
-            .arg("/System/Library/CoreServices/Choose Application.app")
-            .arg("--args")
-            .arg(&path)
-            .spawn()
-        {
-            Ok(_) => Ok("'Öffnen mit'-Dialog wurde geöffnet.".to_string()),
-            Err(e) => Err(format!("Fehler beim Öffnen des Dialogs: {}", e)),
-        }
-    }
-    // incase it's not windows or macos, just open the file normally
-    open_file(filepath)
 }
 
 #[command]

@@ -2,13 +2,20 @@ const { invoke } = __TAURI__.core;
 const { listen } = __TAURI__.event;
 
 let filePathHistory = ["/"];
+let filePathHistoryIndex = 0;
 
 async function loadFilesAndFolders() {
   let filepath = document.getElementById('file-path-input').value; // get current filepath
-  if (filePathHistory[filePathHistory.length] !== filepath) {
-    filePathHistory.push(filepath);  // Pfad in die History eintragen
-    console.log(filePathHistory);
+  if (filePathHistory[filePathHistoryIndex] !== filepath) {
+    if (filePathHistory.length - 1 !== filePathHistoryIndex) {
+      while (filePathHistory.length - 1 !== filePathHistoryIndex) {
+        console.log(filePathHistory.pop());
+      }
+    }
+    filePathHistory.push(filepath);  // add path to history
+    filePathHistoryIndex += 1; // increment index do it stays at the last element
   }
+  console.log(filePathHistory, filePathHistoryIndex);
 
   const errorMessageElement = document.getElementById('error-message'); // get the errorMessageElement
   errorMessageElement.classList.add('hidden'); // hide error in case there was one
@@ -276,17 +283,26 @@ document.getElementById('search-term-input').addEventListener('keypress', (event
 // backwards buttons
 document.getElementById('back-button').addEventListener('click', async () => {
   try {
-    const len = filePathHistory.length;
     // check for lenth of 2 or more, because it can't go back if its already in root folder
-    if (len < 2) {
+    if (filePathHistoryIndex === 0) {
       return;
     }
-    document.getElementById('file-path-input').value = filePathHistory[len - 2]; // -2 because -1 is current folder => -2 is previous
-    filePathHistory.pop(); // remove current path
-    filePathHistory.pop(); // remove the one before since it will be added manually
+    filePathHistoryIndex -= 1;
+    document.getElementById('file-path-input').value = filePathHistory[filePathHistoryIndex];
     await loadFilesAndFolders();
   } catch (error) {} // no need to handle error since it just prevents user from going back
 });
+
+document.getElementById('forward-button').addEventListener('click', async () => {
+  try {
+    if (filePathHistoryIndex === filePathHistory.length - 1) {
+      return;
+    }
+    filePathHistoryIndex += 1;
+    document.getElementById('file-path-input').value = filePathHistory[filePathHistoryIndex];
+    await loadFilesAndFolders();
+  } catch (error) {}
+})
 
 // context Menu
 const contextMenu = document.getElementById('context-menu');
@@ -346,10 +362,10 @@ document.getElementById('context-cut').addEventListener('click', () => {
   }
 });
 
-document.getElementById('context-open_with').addEventListener('click', () => {
+document.getElementById('context-open').addEventListener('click', () => {
   if (selectedFile) {
-    console.log(`Opening file: ${selectedFile} with`);
-    const result = invoke('open_file_with', { filepath: selectedFile});
+    console.log(`Opening file: ${selectedFile}`);
+    const result = invoke('open_file', { filepath: selectedFile});
     console.log(result);
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
