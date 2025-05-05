@@ -1,4 +1,3 @@
-use winapi::um::{shellapi::ShellExecuteW, winuser::SW_SHOWNORMAL};
 use crate::config_handler::{get_copy_mode, CopyMode};
 use crate::manager::CURRENT_DIR;
 use clipboard::{ClipboardContext, ClipboardProvider};
@@ -6,12 +5,13 @@ use copy_dir::copy_dir;
 use opener::open;
 use std::{
     fs,
-    io::{Read, Write, BufReader},
+    io::{BufReader, Read, Write},
+    os::windows::ffi::OsStrExt,
     path::{Path, PathBuf},
     ptr,
-    os::windows::ffi::OsStrExt,
 };
 use tauri::command;
+use winapi::um::{shellapi::ShellExecuteW, winuser::SW_SHOWNORMAL};
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
@@ -252,7 +252,8 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
         // convert path to UTF-16 for windows api
-        let wide_path: Vec<u16> = path.as_os_str()
+        let wide_path: Vec<u16> = path
+            .as_os_str()
             .encode_wide()
             .chain(std::iter::once(0))
             .collect();
@@ -262,35 +263,37 @@ fn open_file_with_complicated(filepath: String) -> Result<String, String> {
 
         unsafe {
             let result = ShellExecuteW(
-                ptr::null_mut(),           // Kein Elternfenster
-                operation.as_ptr(),        // "openas" Verb
-                wide_path.as_ptr(),        // Dateipfad
-                ptr::null(),               // Keine Parameter
-                ptr::null(),               // Standardverzeichnis
-                SW_SHOWNORMAL,            // Normales Fenster
+                ptr::null_mut(),    // Kein Elternfenster
+                operation.as_ptr(), // "openas" Verb
+                wide_path.as_ptr(), // Dateipfad
+                ptr::null(),        // Keine Parameter
+                ptr::null(),        // Standardverzeichnis
+                SW_SHOWNORMAL,      // Normales Fenster
             );
 
             return if (result as isize) <= 32 {
-                Err(format!("Fehler beim Öffnen des 'Öffnen mit'-Dialogs. Fehlercode: {}", result as isize))
+                Err(format!(
+                    "Fehler beim Öffnen des 'Öffnen mit'-Dialogs. Fehlercode: {}",
+                    result as isize
+                ))
             } else {
                 Ok("Dialog wurde erfolgreich geöffnet.".to_string())
-            }
+            };
         }
     }
-    
+
     #[cfg(target_os = "macos")]
     {
         match Command::new("open")
-            .arg("-n")  // open new instance
+            .arg("-n") // open new instance
             .arg("/System/Library/CoreServices/Choose Application.app")
             .arg("--args")
             .arg(&path)
             .spawn()
         {
             Ok(_) => Ok("'Öffnen mit'-Dialog wurde geöffnet.".to_string()),
-            Err(e) => Err(format!("Fehler beim Öffnen des Dialogs: {}", e))
+            Err(e) => Err(format!("Fehler beim Öffnen des Dialogs: {}", e)),
         }
-
     }
     // incase it's not windows or macos, just open the file normally
     open_file(filepath)

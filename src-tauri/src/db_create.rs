@@ -24,7 +24,7 @@ pub fn create_database(
     let start_time = Instant::now();
 
     // Starting Channel
-    let (tx, rx) = crossbeam_channel::bounded(BATCH_SIZE * 5);
+    let (tx, rx) = crossbeam_channel::bounded(batch_size * 5);
 
     // Creates a Thread that genrates Hashset of every Name as well as Path from the Database
     let existing_files_thread = std::thread::spawn({

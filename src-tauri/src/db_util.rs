@@ -126,7 +126,6 @@ pub fn embedding_from_ind(token_indices: Vec<usize>, weights: &Array2<f32>) -> V
     avg_embedding.to_vec()
 }
 
-
 pub fn full_emb(file_name: &str) -> Vec<f32> {
     let tokenized_file_name = tokenize_file_name(file_name);
     let indexed_file_name = tokens_to_indices(tokenized_file_name, VOCAB.get().unwrap());

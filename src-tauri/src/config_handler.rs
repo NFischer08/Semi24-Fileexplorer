@@ -289,9 +289,9 @@ pub fn get_number_of_threads() -> usize {
     }
 }
 
-pub fn get_paths_to_ignore() -> Vec<PathBuf>  {
+pub fn get_paths_to_ignore() -> Vec<PathBuf> {
     match PATHS_TO_IGNORE.get() {
         None => Settings::default().paths_to_ignore,
-        Some(val) => val.to_owned(),   
+        Some(val) => val.to_owned(),
     }
 }

@@ -1,3 +1,8 @@
+use crate::config_handler::{
+    get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS,
+};
+use crate::db_util::full_emb;
+use crate::manager::manager_make_pooled_connection;
 use notify::{
     self,
     event::{
@@ -8,19 +13,26 @@ use notify::{
     EventKind::{Create, Modify, Remove},
     RecursiveMode, Watcher,
 };
-use std::{collections::HashSet, path::{Path, PathBuf}, sync::mpsc::channel, fs, thread};
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
-use crate::config_handler::{get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS};
-use crate::manager::manager_make_pooled_connection;
+use std::{
+    collections::HashSet,
+    fs,
+    path::{Path, PathBuf},
+    sync::mpsc::channel,
+    thread,
+};
 
 pub fn start_file_watcher() {
     // get the connection pool from manager
     let connection_pool: Pool<SqliteConnectionManager> = manager_make_pooled_connection();
 
     // creates a HashSet with paths to ignore
-    let mut ignore: HashSet<&str> = get_paths_to_ignore().iter().map(|path| path.to_string_lossy().as_ref()).collect();
-    
+    let ignore: HashSet<String> = get_paths_to_ignore()
+        .iter()
+        .map(|path| path.to_string_lossy().into_owned())
+        .collect();
+
     // start watching for changes in all paths to index
     for path in get_paths_to_index() {
         let conn = match connection_pool.get() {
@@ -28,13 +40,26 @@ pub fn start_file_watcher() {
             Err(_) => continue,
         };
         let ignore = ignore.clone();
-        thread::spawn(move || watch_folder(path, &conn, &ignore));
+        thread::spawn(move || {
+            watch_folder(
+                path,
+                &conn,
+                &ignore.iter().map(|path| path.as_str()).collect(),
+            )
+        });
     }
 }
 
-pub fn watch_folder(watch_path: PathBuf, pooled_connection: &PooledConnection<SqliteConnectionManager>, ignore: &HashSet<&str>) {
-    let allowed_extensions: &HashSet<String> = ALLOWED_FILE_EXTENSIONS.get().unwrap_or_else(get_allowed_file_extensions);
-    
+pub fn watch_folder(
+    watch_path: PathBuf,
+    pooled_connection: &PooledConnection<SqliteConnectionManager>,
+    ignore: &HashSet<&str>,
+) {
+    let allowed_extensions: &HashSet<String> = match ALLOWED_FILE_EXTENSIONS.get() {
+        Some(allowed_extensions) => allowed_extensions,
+        None => &get_allowed_file_extensions(),
+    };
+
     // Create a channel to receive filesystem events
     let (sender, receiver) = channel::<notify::Result<Event>>();
 
@@ -42,8 +67,10 @@ pub fn watch_folder(watch_path: PathBuf, pooled_connection: &PooledConnection<Sq
     let mut watcher = recommended_watcher(sender).expect("Error: Couldn't create watcher");
 
     // Start watching the specified path and panic if an error occurs
-    watcher.watch(&watch_path, RecursiveMode::Recursive).expect("Error: Couldn't watch path");
-    
+    watcher
+        .watch(&watch_path, RecursiveMode::Recursive)
+        .expect("Error: Couldn't watch path");
+
     println!("Watching for changes in {:?}", watch_path);
     // Loop to receive events from the channel
     for res in receiver {
@@ -54,7 +81,7 @@ pub fn watch_folder(watch_path: PathBuf, pooled_connection: &PooledConnection<Sq
                     // ignore certain paths on windows
                     #[cfg(target_os = "windows")]
                     {
-                        for folder in &ignore {
+                        for folder in ignore {
                             if file_path.to_string_lossy().contains(folder) {
                                 continue 'event;
                             }
@@ -62,11 +89,13 @@ pub fn watch_folder(watch_path: PathBuf, pooled_connection: &PooledConnection<Sq
                     }
 
                     // check if the path is from interest
-                    if file_path.is_dir() ||
-                    file_path
-                        .extension() // unpack extension and check if it is in the allowed extensions
-                        .map(|ext| allowed_extensions.contains(&ext.to_string_lossy().to_string()))
-                        .unwrap_or(false)
+                    if file_path.is_dir()
+                        || file_path
+                            .extension() // unpack extension and check if it is in the allowed extensions
+                            .map(|ext| {
+                                allowed_extensions.contains(&ext.to_string_lossy().to_string())
+                            })
+                            .unwrap_or(false)
                     {
                         // get actual event kind and handle it
                         match event.kind {
@@ -95,15 +124,21 @@ pub fn watch_folder(watch_path: PathBuf, pooled_connection: &PooledConnection<Sq
                                         To => {
                                             if file_path.is_dir() {
                                                 // get parent path and check it
-                                                let ppath = file_path.parent().unwrap_or(Path::new("/")).to_path_buf();
-                                                check_folder(ppath, &pooled_connection).unwrap_or_default()
+                                                let ppath = file_path
+                                                    .parent()
+                                                    .unwrap_or(Path::new("/"))
+                                                    .to_path_buf();
+                                                check_folder(ppath, &pooled_connection)
+                                                    .unwrap_or_default()
                                             } else {
                                                 // insert file into db
                                                 insert_into_db(&pooled_connection, &file_path);
                                             }
-                                        },
+                                        }
                                         // Linux: `Both` why? Idk, what it means? Idk :(
-                                        _ => println!("Something else {:?}, ({:?})", file_path, mode) // proper implementing needed if it isnt a normal case
+                                        _ => {
+                                            println!("Something else {:?}, ({:?})", file_path, mode)
+                                        } // proper implementing needed if it isnt a normal case
                                     }
                                 }
                                 _ => {}
@@ -141,7 +176,10 @@ fn get_elements_in_dir(parent_path: PathBuf) -> Result<HashSet<PathBuf>, ()> {
     Ok(elements)
 }
 
-fn check_folder(path: PathBuf, pooled_connection: &PooledConnection<SqliteConnectionManager>) -> Result<(), ()> {
+fn check_folder(
+    path: PathBuf,
+    pooled_connection: &PooledConnection<SqliteConnectionManager>,
+) -> Result<(), ()> {
     // read currently existing files in dir
     let mut current_files: HashSet<PathBuf> = match get_elements_in_dir(path) {
         Ok(paths) => paths,
@@ -171,15 +209,43 @@ fn check_folder(path: PathBuf, pooled_connection: &PooledConnection<SqliteConnec
     Ok(())
 }
 
-fn delete_from_db(pooled_connection: &PooledConnection<SqliteConnectionManager>, file_path: &PathBuf) -> () {
-    pooled_connection.execute("DELETE FROM files WHERE file_path = ?",
-                                    (file_path.to_string_lossy(),)).expect("Error: Couldn't delete file in pooled connection");
+fn delete_from_db(
+    pooled_connection: &PooledConnection<SqliteConnectionManager>,
+    file_path: &PathBuf,
+) -> () {
+    pooled_connection
+        .execute(
+            "DELETE FROM files WHERE file_path = ?",
+            (file_path.to_string_lossy(),),
+        )
+        .expect("Error: Couldn't delete file in pooled connection");
 }
 
-fn insert_into_db(pooled_connection: &PooledConnection<SqliteConnectionManager>, file_path: &PathBuf) -> () {
-    let path = file_path.to_string_lossy();
-    let name = file_path.file_name().unwrap_or("ERR".as_ref()).to_string_lossy();
-    let file_type = file_path.extension().unwrap_or("ERR".as_ref()).to_string_lossy();
-    pooled_connection.execute("INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?)",
-                                    (path, name, file_type), ).expect("Error: Couldn't insert file in pooled connection");
+fn insert_into_db(
+    pooled_connection: &PooledConnection<SqliteConnectionManager>,
+    file_path: &PathBuf,
+) -> () {
+    let path = file_path.to_string_lossy().to_string();
+    let name = file_path
+        .file_stem()
+        .unwrap_or("ERR".as_ref())
+        .to_string_lossy()
+        .to_string();
+    let file_type = Some(
+        file_path
+            .extension()
+            .unwrap_or("ERR".as_ref())
+            .to_string_lossy()
+            .to_string(),
+    );
+    let embedding: Vec<u8> = full_emb(&name)
+        .iter()
+        .flat_map(|f| f.to_le_bytes())
+        .collect();
+    pooled_connection
+        .execute(
+            "INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?, ?)",
+            (path, name, file_type, embedding),
+        )
+        .expect("Error: Couldn't insert file in pooled connection");
 }

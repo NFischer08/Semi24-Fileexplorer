@@ -8,13 +8,14 @@ pub mod db_util;
 pub mod file_information;
 pub mod manager;
 
+use crate::config_handler::get_number_of_threads;
+use crate::manager::initialize_globals;
 use file_explorer_lib::manager::{manager_create_database, CURRENT_DIR};
+use file_explorer_lib::rt_db_update::start_file_watcher;
 use rayon::prelude::*;
 use std::fs::create_dir;
 use std::path::PathBuf;
 use std::thread;
-use file_explorer_lib::rt_db_update::start_file_watcher;
-use crate::config_handler::get_number_of_threads;
 
 fn get_all_drives() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
@@ -54,6 +55,7 @@ fn get_all_drives() -> Vec<PathBuf> {
 }
 
 fn main() {
+    initialize_globals();
     rayon::ThreadPoolBuilder::new()
         .num_threads(get_number_of_threads()) // Reserve one core for OS
         .build_global()
@@ -89,12 +91,13 @@ fn main() {
     drives.push(PathBuf::from(r"C:\Users\maxmu"));
 
      */
-    thread::spawn(move || start_file_watcher());
+
     thread::spawn(move || {
         drives.par_iter().for_each(|drive| {
             manager_create_database(drive.clone()).unwrap();
         });
     });
+    thread::spawn(move || start_file_watcher());
 
     file_explorer_lib::run();
 }

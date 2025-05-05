@@ -23,7 +23,7 @@ pub fn run() {
             app.manage(AppState {
                 handle: app.handle().clone(),
             });
-            initialize_config().unwrap();
+            initialize_config();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -23,6 +23,6 @@
   "paths_to_index": ["/"],
   "create_batch_size": 250,
   "search_batch_size": 1000,
-  "number_of_threads": 200,
+  "number_of_threads": 20,
   "paths_to_ignore": []
 }

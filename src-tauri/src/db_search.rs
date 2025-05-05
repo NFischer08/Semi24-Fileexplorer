@@ -1,6 +1,5 @@
-use crate::db_util::{
-    bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices,
-};
+use crate::config_handler::get_search_batch_size;
+use crate::db_util::{bytes_to_vec, cosine_similarity, tokenize_file_name, tokens_to_indices};
 use crate::manager::{build_struct, AppState, VOCAB, WEIGHTS};
 use bytemuck::cast_slice;
 use ndarray::{s, Array2};
@@ -19,7 +18,6 @@ use std::{
 };
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
-use crate::config_handler::get_search_batch_size;
 
 /// Searches for similar File names in the Database via Levenhstein and a custome skip-gram model,
 /// it uses connection_pool, search_term, search_path, search_file_type, num_results_lev, num_results_emb and state
