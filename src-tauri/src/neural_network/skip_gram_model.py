@@ -16,6 +16,7 @@ from tqdm import tqdm
 from collections import Counter
 from torch.utils.data import Dataset, DataLoader
 import PyQt5
+import random
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -105,7 +106,8 @@ class SkipGramDataset(Dataset):
         target, context = self.pairs[idx]
         return torch.tensor(target, dtype=torch.long), torch.tensor(context, dtype=torch.long)
 
-batch_size = 8192
+
+batch_size = 32768
 window_size = 2
 dataset = SkipGramDataset(filtered_tokens, vocab, window_size=window_size)
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
@@ -119,7 +121,7 @@ optimizer = optim.Adam(model.parameters(), lr=0.005)
 
 print(f"Training with vocabulary size: {vocab_size}")
 
-for epoch in range(30):
+for epoch in range(80):
     total_loss = 0
     progress_bar = tqdm(dataloader, desc=f"Epoch {epoch + 1}", unit="batch")
     for targets, contexts in progress_bar:
@@ -151,8 +153,18 @@ words = list(vocab.keys())[:N]
 indices = [vocab[word] for word in words]
 embeddings_subset = embedding_weights[indices]
 
+# Number of words to plot (top-N most frequent)
+N = 25  # Number of words to plot
+
+# Get embeddings and labels
+embedding_weights = model.embeddings.weight.data.cpu().numpy()
+
+# Select words 101 to 125 (Python is zero-indexed, so 100:125)
+words = list(vocab.keys())[1000:1000+N]
+indices = [vocab[word] for word in words]
+
 # t-SNE for dimensionality reduction
-tsne = TSNE(n_components=2, random_state=42, perplexity=10, init='pca')
+tsne = TSNE(n_components=2, random_state=42, perplexity=20, init='pca')
 embeddings_2d = tsne.fit_transform(embeddings_subset)
 
 # Plot
@@ -160,13 +172,13 @@ plt.figure(figsize=(16, 12))
 plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], alpha=0.6, s=140)
 
 for i, word in enumerate(words):
-    plt.annotate(word, (embeddings_2d[i, 0], embeddings_2d[i, 1]), fontsize=22, alpha=0.7)
+    plt.annotate(word, (embeddings_2d[i, 0], embeddings_2d[i, 1]), fontsize=28, alpha=0.7)
 
-plt.title("Visualisierung der Worteinbettungen", fontsize=26)
-plt.xlabel("Dimension 1", fontsize=22)
-plt.ylabel("Dimension 2", fontsize=22)
-plt.xticks(fontsize=18)
-plt.yticks(fontsize=18)
+plt.title("Visualisierung der Worteinbettungen", fontsize=32)
+plt.xlabel("Dimension 1", fontsize=28)
+plt.ylabel("Dimension 2", fontsize=28)
+plt.xticks(fontsize=24)
+plt.yticks(fontsize=24)
 plt.tight_layout()
 plt.savefig("Visualization-Embeddings.png")
 plt.show()

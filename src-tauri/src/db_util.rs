@@ -121,8 +121,11 @@ pub fn load_vocab(path: &PathBuf) -> HashMap<String, usize> {
 pub fn embedding_from_ind(token_indices: Vec<usize>, weights: &Array2<f32>) -> Vec<f32> {
     let selected = weights.select(Axis(0), &token_indices);
     let sum_embedding = selected.sum_axis(Axis(0));
-    sum_embedding.to_vec()
+    let count = token_indices.len() as f32;
+    let avg_embedding = &sum_embedding / count;
+    avg_embedding.to_vec()
 }
+
 
 pub fn full_emb(file_name: &str) -> Vec<f32> {
     let tokenized_file_name = tokenize_file_name(file_name);

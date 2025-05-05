@@ -133,9 +133,13 @@ pub fn search_database(
     // Adding the Embedding together for the tokens
     let sum_embedding = selected.sum_axis(ndarray::Axis(0));
 
-    // Creating the Vec
-    let embedded_vec_f32 = sum_embedding.to_vec();
+    // Averaging the embedding
+    let count = token_indices.len() as f32;
+    let avg_embedding = &sum_embedding / count;
 
+    // Creating the Vec
+    let embedded_vec_f32 = avg_embedding.to_vec();
+    
     let mut search_query: Vec<(String, Vec<u8>)> = Vec::new();
 
     // Computes the Levenhstein distance / similarity as well as builds up a Vec of every batch
