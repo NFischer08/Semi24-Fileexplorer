@@ -209,7 +209,8 @@ fn check_folder(
     Ok(())
 }
 
-fn delete_from_db(
+/// deletes a given file path from the db (therefor taking connection to it)
+pub fn delete_from_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     file_path: &PathBuf,
 ) -> () {

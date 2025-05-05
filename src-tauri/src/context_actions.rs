@@ -1,5 +1,5 @@
 use crate::config_handler::{get_copy_mode, CopyMode};
-use crate::manager::CURRENT_DIR;
+use crate::manager::{manager_make_pooled_connection, CURRENT_DIR};
 use clipboard::{ClipboardContext, ClipboardProvider};
 use copy_dir::copy_dir;
 use opener::open;
@@ -8,7 +8,10 @@ use std::{
     io::{BufReader, Read, Write},
     path::{Path, PathBuf},
 };
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
 use tauri::command;
+use crate::rt_db_update::delete_from_db;
 
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
@@ -228,7 +231,14 @@ pub fn delete_file(filepath: String) -> Result<String, String> {
 
     // delete dir / file
     if path.is_dir() {
-        //fs::remove_dir_all(path).map_err(|e| e.to_string())?;
+        //fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
+        // get the connection pool from manager
+        let connection_pool: Pool<SqliteConnectionManager> = manager_make_pooled_connection();
+        // get a valid connection to db and remove just deleted folder from db
+        match connection_pool.get() {
+            Ok(conn) => delete_from_db(&conn, &path),
+            Err(_) => {},
+        }
         println!("Deleted directory '{}'", path.display());
     } else if path.is_file() {
         //fs::remove_file(path).map_err(|e| e.to_string())?;
