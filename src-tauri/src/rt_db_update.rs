@@ -2,7 +2,7 @@ use crate::config_handler::{
     get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS,
 };
 use crate::db_util::full_emb;
-use crate::manager::manager_make_pooled_connection;
+use crate::manager::manager_make_connection_pool;
 use notify::{
     self,
     event::{
@@ -26,7 +26,7 @@ use std::{
 
 pub fn start_file_watcher() {
     // get the connection pool from manager
-    let connection_pool: Pool<SqliteConnectionManager> = manager_make_pooled_connection();
+    let connection_pool: Pool<SqliteConnectionManager> = manager_make_connection_pool();
 
     // creates a HashSet with paths to ignore
     let ignore: HashSet<String> = get_paths_to_ignore()

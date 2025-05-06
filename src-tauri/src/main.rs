@@ -7,10 +7,11 @@ pub mod db_search;
 pub mod db_util;
 pub mod file_information;
 pub mod manager;
+pub mod rt_db_update;
 
 use crate::config_handler::{get_number_of_threads, PATHS_TO_INDEX};
 use crate::manager::initialize_globals;
-use file_explorer_lib::manager::{manager_create_database, CURRENT_DIR};
+use file_explorer_lib::manager::{manager_populate_database, CURRENT_DIR};
 use file_explorer_lib::rt_db_update::start_file_watcher;
 use rayon::prelude::*;
 use std::fs::create_dir;
@@ -96,7 +97,7 @@ fn main() {
 
     thread::spawn(move || {
         paths_to_index.par_iter().for_each(|path| {
-            manager_create_database(path.clone()).unwrap();
+            manager_populate_database(path.clone()).unwrap();
         });
     });
     thread::spawn(move || start_file_watcher());

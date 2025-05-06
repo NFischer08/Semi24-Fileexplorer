@@ -1,16 +1,11 @@
 use crate::config_handler::get_search_batch_size;
 use crate::db_util::{bytes_to_vec, cosine_similarity, tokenize_file_name, tokens_to_indices};
 use crate::manager::{build_struct, AppState, VOCAB, WEIGHTS};
-use bytemuck::cast_slice;
-use ndarray::{s, Array2};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
-use rusqlite::{params, MappedRows, Result, Row};
-use std::any::Any;
+use rusqlite::{params, Result};
 use std::cmp::Ordering;
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use std::{
     fs::{self, DirEntry},
     path::{Path, PathBuf},
@@ -66,7 +61,7 @@ pub fn search_database(
     //Creating Thread that gets relevant Data from the Database, it already sorts for file_type and Path via the SQL Statement
     let query_thread = std::thread::spawn(move || {
         let mut pooled_connection = connection_pool.get().expect("Failed to get connection");
-        let mut tx = pooled_connection
+        let tx = pooled_connection
             .transaction()
             .expect("Failed to begin transaction");
 
@@ -137,7 +132,7 @@ pub fn search_database(
     let avg_embedding = &sum_embedding / count;
 
     // Creating the Vec
-    let embedded_vec_f32 = avg_embedding.to_vec();
+    let embedded_vec_f32 = sum_embedding.to_vec();
 
     let mut search_query: Vec<(String, Vec<u8>)> = Vec::new();
 

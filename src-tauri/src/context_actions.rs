@@ -1,5 +1,5 @@
 use crate::config_handler::{get_copy_mode, CopyMode};
-use crate::manager::CURRENT_DIR;
+use crate::manager::{manager_make_connection_pool, CURRENT_DIR};
 use clipboard::{ClipboardContext, ClipboardProvider};
 use copy_dir::copy_dir;
 use opener::open;
@@ -233,7 +233,7 @@ pub fn delete_file(filepath: String) -> Result<String, String> {
     if path.is_dir() {
         //fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
         // get the connection pool from manager
-        let connection_pool: Pool<SqliteConnectionManager> = manager_make_pooled_connection();
+        let connection_pool: Pool<SqliteConnectionManager> = manager_make_connection_pool();
         // get a valid connection to db and remove just deleted folder from db
         match connection_pool.get() {
             Ok(conn) => delete_from_db(&conn, &path),
