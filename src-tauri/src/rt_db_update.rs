@@ -1,8 +1,10 @@
+use rusqlite::params;
 use crate::config_handler::{
     get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS,
 };
 use crate::db_util::full_emb;
 use crate::manager::manager_make_connection_pool;
+use crate::manager::{manager_create_database, manager_make_pooled_connection};
 use notify::{
     self,
     event::{
@@ -15,7 +17,6 @@ use notify::{
 };
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::params;
 use std::{
     collections::HashSet,
     fs,
@@ -24,15 +25,17 @@ use std::{
     thread,
 };
 
+/// gets all paths which need to be watched from config and starts watching each path
+/// as well as that it initializes the db connection
 pub fn start_file_watcher() {
-    // get the connection pool from manager
-    let connection_pool: Pool<SqliteConnectionManager> = manager_make_connection_pool();
-
     // creates a HashSet with paths to ignore
     let ignore: HashSet<String> = get_paths_to_ignore()
         .iter()
         .map(|path| path.to_string_lossy().into_owned())
         .collect();
+
+    // get the connection pool from manager
+    let connection_pool: Pool<SqliteConnectionManager> = manager_make_pooled_connection();
 
     // start watching for changes in all paths to index
     for path in get_paths_to_index() {
@@ -51,6 +54,7 @@ pub fn start_file_watcher() {
     }
 }
 
+/// watches a specific folder for changes and reports any changes to the db to keep it up to date
 pub fn watch_folder(
     watch_path: PathBuf,
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
@@ -68,8 +72,6 @@ pub fn watch_folder(
     let mut watcher = recommended_watcher(sender).expect("Error: Couldn't create watcher");
 
     // Start watching the specified path and panic if an error occurs
-    println!("Watching {:?}", watch_path);
-
     watcher
         .watch(&watch_path, RecursiveMode::Recursive)
         .expect("Error: Couldn't watch path");
@@ -107,9 +109,9 @@ pub fn watch_folder(
                                 insert_into_db(&pooled_connection, &file_path);
 
                                 if file_path.is_dir() {
-                                    todo!()
                                     // update db function starting at `file_path`
                                     // folder content is needed to be checked recursively
+                                    let _ = manager_create_database(file_path);
                                 }
                             }
                             Remove(_) => {
@@ -157,7 +159,8 @@ pub fn watch_folder(
     println!("File watcher stopped");
 }
 
-fn get_elements_in_dir(parent_path: PathBuf) -> Result<HashSet<PathBuf>, ()> {
+/// gets all elements from a given folder
+fn get_elements_in_dir(parent_path: &PathBuf) -> Result<HashSet<PathBuf>, ()> {
     // create a new empty HashSet
     let mut elements: HashSet<PathBuf> = HashSet::new();
 
@@ -179,27 +182,40 @@ fn get_elements_in_dir(parent_path: PathBuf) -> Result<HashSet<PathBuf>, ()> {
     Ok(elements)
 }
 
+/// checks a folder for its contents and compares it with the db to keep it up to date
 fn check_folder(
     path: PathBuf,
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
 ) -> Result<(), ()> {
     // read currently existing files in dir
-    let mut current_files: HashSet<PathBuf> = match get_elements_in_dir(path.clone()) {
+    let mut current_files: HashSet<PathBuf> = match get_elements_in_dir(&path) {
         Ok(paths) => paths,
         Err(_) => return Err(()),
     };
 
     // read currently existing files in db for that dir
-    let mut db_files: HashSet<PathBuf> = HashSet::new(); // TODO: get all files and folders in dir
-    let mut stmt = pooled_connection
-        .prepare("SELECT file_path FROM files WHERE file_path LIKE ?1")
-        .expect("Failed to prepare statement");
-    let paths_iter = stmt
-        .query_map(params![path.to_str()], |row| row.get::<_, String>(0))
-        .expect("Failed to get file paths");
-    let paths_in_dir: Vec<String> = paths_iter.filter_map(Result::ok).collect();
+    let pattern = format!("{}%", path.to_str().unwrap().replace("\\", "/"));
+    let mut stmt = pooled_connection.prepare(
+        "SELECT file_path FROM files WHERE file_path LIKE ?1"
+    ).expect("Failed to prepare statement");
 
-    println!("{:?}", paths_in_dir);
+    let paths_iter = stmt.query_map(
+        params![pattern],
+        |row| row.get::<_, String>(0)
+    ).expect("Failed to get file paths");
+
+    let db_files_all: Vec<PathBuf> = paths_iter.filter_map(Result::ok).map(|path| PathBuf::from(path)).collect();
+    let mut db_files: HashSet<PathBuf> = HashSet::new();
+
+    let path_slashes_amount: usize = path.components().count();
+    for file in db_files_all {
+        // Prüfe ob der Pfad tatsächlich ein Unterpfad des Elternpfads ist
+        if file.clone().components().count() == path_slashes_amount + 1 {
+            db_files.insert(file);
+        }
+    }
+
+    println!("db files: {:?}", db_files);
 
     // ignore the common elements
     let common_el: HashSet<PathBuf> = current_files.intersection(&db_files).cloned().collect();
@@ -210,12 +226,19 @@ fn check_folder(
 
     // files which now left in the `current_files` HashSet need to be inserted into the db since they are missing
     for file in current_files {
-        insert_into_db(&pooled_connection, &file)
+        if file.is_dir() {
+            let _ = manager_create_database(file);
+        } else {
+            insert_into_db(&pooled_connection, &file)
+        }
     }
 
     // files which are still in the db, but dont exist anymore need to be removed
     for file in db_files {
-        delete_from_db(&pooled_connection, &file);
+        let pattern = format!("{}%", file.to_str().unwrap().replace("\\", "/"));
+        pooled_connection.execute(
+            "DELETE FROM files WHERE file_path LIKE ?1", (pattern,)
+        ).expect("Failed to execute statement");
     }
 
     Ok(())
@@ -226,19 +249,22 @@ pub fn delete_from_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     file_path: &PathBuf,
 ) -> () {
+    println!("DELETE {:?} FROM DB", file_path);
     pooled_connection
         .execute(
             "DELETE FROM files WHERE file_path = ?",
-            (file_path.to_string_lossy(),),
+            (file_path.to_string_lossy().replace("\\", "/"),),
         )
         .expect("Error: Couldn't delete file in pooled connection");
 }
 
+/// inserts a given file path into the db (therefor taking connection to it)
 fn insert_into_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     file_path: &PathBuf,
 ) -> () {
-    let path = file_path.to_string_lossy().to_string();
+    println!("INSERT {:?} IN DB", file_path);
+    let path = file_path.to_string_lossy().to_string().replace("\\", "/");
     let name = file_path
         .file_stem()
         .unwrap_or("ERR".as_ref())
@@ -257,8 +283,8 @@ fn insert_into_db(
         .collect();
     pooled_connection
         .execute(
-            "INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?, ?)",
-            (path, name, file_type, embedding),
+            "INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)",
+            (name, path, file_type, embedding),
         )
         .expect("Error: Couldn't insert file in pooled connection");
 }

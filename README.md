@@ -1,10 +1,10 @@
 # A File Explorer with fast and efficient search
 
-short description
+In this project, we have implemented a file explorer with fast and efficient search. The application is written in Rust and uses the Tauri framework. The main featuares are:
 
 ## Features
 
-- Fast and efficient file system navigation
+- File system navigation
 - Multi-threaded search algorithm
 - Vector space-based file indexing
 - SQLite database integration for search optimization
@@ -53,11 +53,17 @@ There are two config files (`~/data/config/..`):
 ## Contributing
 
 Since this is a personal school project, we are not interested in any contributions.
+However, if you have any questions or suggestions, feel free to contact us.
+Reporting any issues is also appreciated.
 
 ## Contributors
+This project was created by:
 - [Nino Fischer](https://github.com/NFischer08)
 - [Jessica Nolle](https://github.com/Haloooo212)
 - [Magnus Schultheis](https://github.com/magnus-52)
+
+... as a _Seminarfach_-project at the [Albert-Schweitzer grammer school Erfurt specializing in computer science, natural science and mathematics](https://web.asgspez.de/).
+View our coressponding cientific paper: [scientific paper](Seminarfacharbeit.pdf) (German)
 
 ## License
 

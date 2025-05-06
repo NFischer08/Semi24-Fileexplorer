@@ -8,7 +8,7 @@ pub mod file_information;
 pub mod manager;
 pub mod rt_db_update;
 
-use crate::manager::AppState;
+use crate::manager::{initialize_globals, AppState};
 use config_handler::{get_css_settings, get_fav_file_extensions, initialize_config};
 use context_actions::{
     copy_file, cut_file, delete_file, open_file, paste_file, rename_file,
@@ -23,7 +23,8 @@ pub fn run() {
             app.manage(AppState {
                 handle: app.handle().clone(),
             });
-            initialize_config();
+            //initialize_config();
+            initialize_globals();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

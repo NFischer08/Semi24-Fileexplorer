@@ -44,7 +44,9 @@ pub enum CopyMode {
 }
 
 impl Settings {
+    /// creates some default values incase its not able to read the json file properly
     fn default() -> Settings {
+        initialize_config(); // TODO
         let allowed_extensions: HashSet<String> = [
             // Text and documents
             "txt", "pdf", "doc", "docx", "rtf", "odt", "tex", "md", "epub",
@@ -126,6 +128,7 @@ impl ColorConfig {
     }
 }
 
+/// opens a file and returns it contents
 fn read_config(config_path: &PathBuf) -> Result<String, ()> {
     // Open the file
     let mut file = match File::open(config_path) {
@@ -139,10 +142,13 @@ fn read_config(config_path: &PathBuf) -> Result<String, ()> {
         Ok(_) => (),
         Err(_) => return Err(()),
     }
+    println!("Successfully read config file");
     Ok(contents)
 }
 
+/// reads the config file and initialises the constants
 pub fn initialize_config() {
+    println!("Initializing config");
     // get the path to the config file
     let mut path = CURRENT_DIR.clone();
     path.push("data/config/config.json");
@@ -253,19 +259,6 @@ pub fn get_number_results_embedding() -> usize {
     }
 }
 
-#[command]
-pub fn get_css_settings() -> ColorConfig {
-    // get the path to the color config file
-    let mut path = CURRENT_DIR.clone();
-    path.push("data/config/color-config.json");
-
-    // read it contents and parse it to the struct, or use the default values
-    match read_config(&path) {
-        Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
-        Err(_) => ColorConfig::default(),
-    }
-}
-
 pub fn get_search_with_model() -> bool {
     match SEARCH_WITH_MODEL.get() {
         None => Settings::default().search_with_model,
@@ -313,5 +306,19 @@ pub fn get_paths_to_ignore() -> Vec<PathBuf> {
             .map(|path| PathBuf::from(path))
             .collect(),
         Some(val) => val.to_owned(),
+    }
+}
+
+/// retireves the css config settings to send them to the frontend
+#[command]
+pub fn get_css_settings() -> ColorConfig {
+    // get the path to the color config file
+    let mut path = CURRENT_DIR.clone();
+    path.push("data/config/color-config.json");
+
+    // read it contents and parse it to the struct, or use the default values
+    match read_config(&path) {
+        Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
+        Err(_) => ColorConfig::default(),
     }
 }
