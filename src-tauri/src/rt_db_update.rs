@@ -193,10 +193,28 @@ fn check_folder(
     };
 
     // read currently existing files in db for that dir
-    let mut stmt = pooled_connection.prepare("SELECT file_path FROM files WHERE file_path LIKE ?1").expect("Failed to prepare statement");
-    let paths_iter = stmt.query_map(params![path.to_str()], |row| row.get::<_, String>(0)).expect("Failed to get file paths");
-    let paths_in_dir: Vec<String> = paths_iter.filter_map(Result::ok).collect();
-    let mut db_files: HashSet<PathBuf> = paths_in_dir.iter().map(|path| PathBuf::from(path)).collect();
+    let pattern = format!("{}%", path.to_str().unwrap().replace("\\", "/"));
+    let mut stmt = pooled_connection.prepare(
+        "SELECT file_path FROM files WHERE file_path LIKE ?1"
+    ).expect("Failed to prepare statement");
+
+    let paths_iter = stmt.query_map(
+        params![pattern],
+        |row| row.get::<_, String>(0)
+    ).expect("Failed to get file paths");
+
+    let db_files_all: Vec<PathBuf> = paths_iter.filter_map(Result::ok).map(|path| PathBuf::from(path)).collect();
+    let mut db_files: HashSet<PathBuf> = HashSet::new();
+    
+    let path_slashes_amount: usize = path.components().count();    
+    for file in db_files_all {
+        // Prüfe ob der Pfad tatsächlich ein Unterpfad des Elternpfads ist
+        if file.clone().components().count() == path_slashes_amount + 1 {
+            db_files.insert(file);
+        }
+    }
+
+    println!("db files: {:?}", db_files);
 
     // ignore the common elements
     let common_el: HashSet<PathBuf> = current_files.intersection(&db_files).cloned().collect();
@@ -207,12 +225,19 @@ fn check_folder(
 
     // files which now left in the `current_files` HashSet need to be inserted into the db since they are missing
     for file in current_files {
-        insert_into_db(&pooled_connection, &file)
+        if file.is_dir() {
+            let _ = manager_create_database(file);
+        } else {
+            insert_into_db(&pooled_connection, &file)
+        }
     }
 
     // files which are still in the db, but dont exist anymore need to be removed
     for file in db_files {
-        delete_from_db(&pooled_connection, &file);
+        let pattern = format!("{}%", file.to_str().unwrap().replace("\\", "/"));
+        pooled_connection.execute(
+            "DELETE FROM files WHERE file_path LIKE ?1", (pattern,)
+        ).expect("Failed to execute statement");
     }
 
     Ok(())
@@ -223,10 +248,11 @@ pub fn delete_from_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     file_path: &PathBuf,
 ) -> () {
+    println!("DELETE {:?} FROM DB", file_path);
     pooled_connection
         .execute(
             "DELETE FROM files WHERE file_path = ?",
-            (file_path.to_string_lossy(),),
+            (file_path.to_string_lossy().replace("\\", "/"),),
         )
         .expect("Error: Couldn't delete file in pooled connection");
 }
@@ -236,7 +262,8 @@ fn insert_into_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     file_path: &PathBuf,
 ) -> () {
-    let path = file_path.to_string_lossy().to_string();
+    println!("INSERT {:?} IN DB", file_path);
+    let path = file_path.to_string_lossy().to_string().replace("\\", "/");
     let name = file_path
         .file_stem()
         .unwrap_or("ERR".as_ref())
@@ -255,8 +282,8 @@ fn insert_into_db(
         .collect();
     pooled_connection
         .execute(
-            "INSERT INTO files (file_name, file_path, file_type, embedding) VALUES (?, ?, ?, ?)",
-            (path, name, file_type, embedding),
+            "INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)",
+            (name, path, file_type, embedding),
         )
         .expect("Error: Couldn't insert file in pooled connection");
 }

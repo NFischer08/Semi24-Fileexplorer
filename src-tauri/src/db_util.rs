@@ -1,5 +1,5 @@
 use crate::config_handler::get_paths_to_ignore;
-use crate::manager::{VOCAB, WEIGHTS};
+use crate::manager::{initialize_globals, VOCAB, WEIGHTS};
 use ndarray::{Array2, Axis};
 use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -141,6 +141,7 @@ pub fn embedding_from_ind(token_indices: Vec<usize>, weights: &Array2<f32>) -> V
 
 /// Makes embedding simple via using the other functions
 pub fn full_emb(file_name: &str) -> Vec<f32> {
+    initialize_globals(); // TODO
     let tokenized_file_name = tokenize_file_name(file_name);
     let indexed_file_name = tokens_to_indices(tokenized_file_name, VOCAB.get().unwrap());
     embedding_from_ind(indexed_file_name, WEIGHTS.get().unwrap())

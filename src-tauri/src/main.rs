@@ -18,7 +18,6 @@ use std::fs::create_dir;
 use std::thread;
 
 fn main() {
-    initialize_globals();
     rayon::ThreadPoolBuilder::new()
         .num_threads(get_number_of_threads()) // Reserve one core for OS
         .build_global()

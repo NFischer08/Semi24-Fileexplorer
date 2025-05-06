@@ -46,6 +46,7 @@ pub enum CopyMode {
 impl Settings {
     /// creates some default values incase its not able to read the json file properly
     fn default() -> Settings {
+        initialize_config(); // TODO
         let allowed_extensions: HashSet<String> = [
             // Text and documents
             "txt", "pdf", "doc", "docx", "rtf", "odt", "tex", "md", "epub",
@@ -141,11 +142,13 @@ fn read_config(config_path: &PathBuf) -> Result<String, ()> {
         Ok(_) => (),
         Err(_) => return Err(()),
     }
+    println!("Successfully read config file");
     Ok(contents)
 }
 
 /// reads the config file and initialises the constants
 pub fn initialize_config() {
+    println!("Initializing config");
     // get the path to the config file
     let mut path = CURRENT_DIR.clone();
     path.push("data/config/config.json");
