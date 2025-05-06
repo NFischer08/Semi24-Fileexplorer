@@ -1,5 +1,4 @@
 use crate::config_handler::{get_copy_mode, CopyMode};
-use crate::manager::{CURRENT_DIR, manager_make_pooled_connection};
 use crate::manager::{manager_make_connection_pool, CURRENT_DIR};
 use clipboard::{ClipboardContext, ClipboardProvider};
 use copy_dir::copy_dir;

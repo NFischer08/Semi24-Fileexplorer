@@ -3,8 +3,7 @@ use crate::config_handler::{
     get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS,
 };
 use crate::db_util::full_emb;
-use crate::manager::manager_make_connection_pool;
-use crate::manager::{manager_create_database, manager_make_pooled_connection};
+use crate::manager::{manager_populate_database, manager_make_connection_pool};
 use notify::{
     self,
     event::{
@@ -35,7 +34,7 @@ pub fn start_file_watcher() {
         .collect();
 
     // get the connection pool from manager
-    let connection_pool: Pool<SqliteConnectionManager> = manager_make_pooled_connection();
+    let connection_pool: Pool<SqliteConnectionManager> = manager_make_connection_pool();
 
     // start watching for changes in all paths to index
     for path in get_paths_to_index() {
@@ -111,7 +110,7 @@ pub fn watch_folder(
                                 if file_path.is_dir() {
                                     // update db function starting at `file_path`
                                     // folder content is needed to be checked recursively
-                                    let _ = manager_create_database(file_path);
+                                    let _ = manager_populate_database(file_path);
                                 }
                             }
                             Remove(_) => {
@@ -227,7 +226,7 @@ fn check_folder(
     // files which now left in the `current_files` HashSet need to be inserted into the db since they are missing
     for file in current_files {
         if file.is_dir() {
-            let _ = manager_create_database(file);
+            let _ = manager_populate_database(file);
         } else {
             insert_into_db(&pooled_connection, &file)
         }
