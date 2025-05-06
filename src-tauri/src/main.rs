@@ -7,6 +7,7 @@ pub mod db_search;
 pub mod db_util;
 pub mod file_information;
 pub mod manager;
+pub mod rt_db_update;
 
 use crate::config_handler::get_number_of_threads;
 use crate::manager::initialize_globals;
