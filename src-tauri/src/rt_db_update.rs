@@ -32,7 +32,7 @@ pub fn start_file_watcher() {
         .iter()
         .map(|path| path.to_string_lossy().into_owned())
         .collect();
-    
+
     // get the connection pool from manager
     let connection_pool: Pool<SqliteConnectionManager> = manager_make_pooled_connection();
 

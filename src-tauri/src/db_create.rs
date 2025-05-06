@@ -1,14 +1,11 @@
 use crate::config_handler::{get_allowed_file_extensions, get_create_batch_size};
-use crate::db_util::{
-    convert_to_forward_slashes, full_emb, is_allowed_file, should_ignore_path, Files,
-};
+use crate::db_util::{convert_to_forward_slashes, full_emb, is_allowed_file, Files};
 use jwalk::WalkDir;
 use ndarray::Array2;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::prelude::*;
 use rusqlite::{params, Result};
-use std::hash::Hash;
 use std::{collections::HashSet, path::PathBuf, time::Instant};
 
 /// This Function takes in a connection pool as well as a Path as Input
@@ -81,9 +78,7 @@ pub fn create_database(
                 if let Ok(entry) = entry_result {
                     let path = entry.path();
                     //Checking that the Path is not ignored and doesn't need to be added and that it is either a directory or an allowed file extension
-                    if !should_ignore_path(&path)
-                        && (path.is_dir() || is_allowed_file(&path, &allowed_file_extensions))
-                    {
+                    if path.is_dir() || is_allowed_file(&path, &allowed_file_extensions) {
                         let path_slashes = convert_to_forward_slashes(&path);
                         let file = Files {
                             id: 0,

@@ -91,7 +91,7 @@ impl Settings {
             paths_to_index: vec![String::from("/")],
             create_batch_size: 250,
             search_batch_size: 1000,
-            number_of_threads: 200,
+            number_of_threads: 12,
             paths_to_ignore: Vec::new(),
         }
     }
@@ -179,7 +179,13 @@ pub fn initialize_config() {
         .expect("couldn't set search with model");
 
     PATHS_TO_INDEX
-        .set(config.paths_to_index.iter().map(|path| PathBuf::from(path)).collect())
+        .set(
+            config
+                .paths_to_index
+                .iter()
+                .map(|path| PathBuf::from(path))
+                .collect(),
+        )
         .expect("couldn't set paths to index");
 
     CREATE_BATCH_SIZE
@@ -195,7 +201,13 @@ pub fn initialize_config() {
         .expect("couldn't set number of threads");
 
     PATHS_TO_IGNORE
-        .set(config.paths_to_ignore.iter().map(|path| PathBuf::from(path)).collect())
+        .set(
+            config
+                .paths_to_ignore
+                .iter()
+                .map(|path| PathBuf::from(path))
+                .collect(),
+        )
         .expect("couldn't set paths to ignore");
 }
 
@@ -263,7 +275,11 @@ pub fn get_search_with_model() -> bool {
 
 pub fn get_paths_to_index() -> Vec<PathBuf> {
     match PATHS_TO_INDEX.get() {
-        None => Settings::default().paths_to_index.iter().map(|path| PathBuf::from(path)).collect(),
+        None => Settings::default()
+            .paths_to_index
+            .iter()
+            .map(|path| PathBuf::from(path))
+            .collect(),
         Some(val) => val.to_owned(),
     }
 }
@@ -291,7 +307,11 @@ pub fn get_number_of_threads() -> usize {
 
 pub fn get_paths_to_ignore() -> Vec<PathBuf> {
     match PATHS_TO_IGNORE.get() {
-        None => Settings::default().paths_to_ignore.iter().map(|path| PathBuf::from(path)).collect(),
+        None => Settings::default()
+            .paths_to_ignore
+            .iter()
+            .map(|path| PathBuf::from(path))
+            .collect(),
         Some(val) => val.to_owned(),
     }
 }
