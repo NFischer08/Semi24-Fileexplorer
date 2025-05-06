@@ -1,12 +1,17 @@
 const { invoke } = __TAURI__.core;
 const { listen } = __TAURI__.event;
 
+// history with file paths for navigation buttons
 let filePathHistory = ["/"];
 let filePathHistoryIndex = 0;
 
+// displays all files and folders from a path given in the appropriate input field
 async function loadFilesAndFolders() {
   let filepath = document.getElementById('file-path-input').value; // get current filepath
+
+  // check if the current element isnt in the history yet
   if (filePathHistory[filePathHistoryIndex] !== filepath) {
+    // incase there are some elements behind the position of the index they need to be removed first
     if (filePathHistory.length - 1 !== filePathHistoryIndex) {
       while (filePathHistory.length - 1 !== filePathHistoryIndex) {
         console.log(filePathHistory.pop());
@@ -15,7 +20,6 @@ async function loadFilesAndFolders() {
     filePathHistory.push(filepath);  // add path to history
     filePathHistoryIndex += 1; // increment index do it stays at the last element
   }
-  console.log(filePathHistory, filePathHistoryIndex);
 
   const errorMessageElement = document.getElementById('error-message'); // get the errorMessageElement
   errorMessageElement.classList.add('hidden'); // hide error in case there was one
@@ -67,6 +71,8 @@ async function loadFilesAndFolders() {
     errorMessageElement.classList.remove('hidden'); // display it
   }
 }
+
+// start the search process in the backend and sending needed values with it
 function initSearch() {
   const search_term = document.getElementById('search-term-input').value; // get the search term
   const search_path = document.getElementById('file-path-input').value; // get the current path
@@ -81,6 +87,7 @@ function initSearch() {
   invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path, searchfiletype: filetypes }); // start search process; values will be send back via event
 }
 
+// wait for the search results from the backend and call the display function
 listen('search-finnished', (event) => {
   try {
     const entries = event.payload;
@@ -98,7 +105,7 @@ listen('search-finnished', (event) => {
   console.error('Listener setup failed:', err);
 });
 
-
+// display the search results for the user (therefor taking the entries)
 function displaySearchResults(entries) {
   const errorMessageElement = document.getElementById('error-message'); // get errorMessageElement
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
@@ -159,7 +166,6 @@ function displaySearchResults(entries) {
 document.addEventListener('DOMContentLoaded', async () => {
   await loadCSSSettings()
   await displayFavSettings();
-  await loadFilesAndFolders();
   await loadFilesAndFolders();
 });
 
@@ -283,21 +289,25 @@ document.getElementById('search-term-input').addEventListener('keypress', (event
 // backwards buttons
 document.getElementById('back-button').addEventListener('click', async () => {
   try {
-    // check for lenth of 2 or more, because it can't go back if its already in root folder
+    // check if the index is valid
     if (filePathHistoryIndex === 0) {
       return;
     }
+    // decrement it and display the new path
     filePathHistoryIndex -= 1;
     document.getElementById('file-path-input').value = filePathHistory[filePathHistoryIndex];
     await loadFilesAndFolders();
   } catch (error) {} // no need to handle error since it just prevents user from going back
 });
 
+// forward button
 document.getElementById('forward-button').addEventListener('click', async () => {
   try {
+    // check if the index is on a valid poosition
     if (filePathHistoryIndex === filePathHistory.length - 1) {
       return;
     }
+    // increment it and display the new path
     filePathHistoryIndex += 1;
     document.getElementById('file-path-input').value = filePathHistory[filePathHistoryIndex];
     await loadFilesAndFolders();
@@ -377,7 +387,7 @@ document.getElementById('context-rename').addEventListener('click', () => {
   }
 });
 
-// TODO: I don't understand it!
+// rename logic (displaying and logic behind the rename field)
 document.addEventListener("DOMContentLoaded", () => {
   const renameTrigger = document.getElementById("context-rename");
   const renameModal = document.getElementById("rename-modal");
@@ -385,28 +395,27 @@ document.addEventListener("DOMContentLoaded", () => {
   const renameForm = document.getElementById("rename-form");
   const newFilenameInput = document.getElementById("new-filename");
 
-  // Öffne das Modal bei Klick auf "Rename"
+  // connect rename button with the action to display the rename form
   renameTrigger.addEventListener("click", () => {
     document.getElementById("settings-modal").classList.add('hidden');
-    renameModal.classList.remove("hidden");
-    newFilenameInput.value = ""; // Texteingabe zurücksetzen
-    newFilenameInput.focus(); // Fokussiert die Eingabe
+    renameModal.classList.remove("hidden"); // display rename form
+    newFilenameInput.value = ""; // reset input field for the new file name
+    newFilenameInput.focus(); // and focus it
   });
 
-  // Schließen des Modals
+  // connect close button with close
   closeRenameModal.addEventListener("click", () => {
     renameModal.classList.add("hidden");
   });
 
-  // Umbenennen bei Abschicken des Formulars
+  // connect submit logic with rename form
   renameForm.addEventListener("submit",async (e) => {
     e.preventDefault();
     const newFilename = newFilenameInput.value.trim();
     if (newFilename || !newFilename.contains("/")) { // make sure its a valid new name - neither / nor empty
       try {
-        const result = invoke('rename_file', {filepath: selectedFile, newFilename: newFilename});
-        console.log(`Renaming to: ${newFilename}`); // Hier erfolgt der Umbenennungsprozess
-        console.log(result);
+        // rename the file (by using backend) and reload the path
+        invoke('rename_file', {filepath: selectedFile, newFilename: newFilename});
         renameModal.classList.add("hidden");
         await loadFilesAndFolders();
       } catch (error) {

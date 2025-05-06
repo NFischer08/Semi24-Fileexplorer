@@ -6,13 +6,14 @@ use opener::open;
 use std::{
     fs,
     io::{BufReader, Read, Write},
-    path::{Path, PathBuf},
+    path::PathBuf,
 };
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use tauri::command;
 use crate::rt_db_update::delete_from_db;
 
+/// copy a file either to the clipboard or as a file in the tmp folder
 #[command]
 pub fn copy_file(filepath: String) -> Result<String, String> {
     // get needed values
@@ -108,6 +109,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
     ))
 }
 
+/// paste a file either to the clipboard or as a file in the tmp folder
 #[command]
 pub fn paste_file(destination: String) -> Result<String, String> {
     // get needed values
@@ -182,19 +184,20 @@ pub fn paste_file(destination: String) -> Result<String, String> {
     Ok(String::from("Successfully copied file!"))
 }
 
+/// cut a file by combinding copy and delete
 #[command]
 pub fn cut_file(filepath: String) -> Result<String, String> {
     match copy_file(filepath.to_owned()) {
         Ok(_) => {}
-        Err(error) => return Err(error), // returnt Error, wenn kopieren nicht klappt -> nicht wird gelöscht!
+        Err(error) => return Err(error), 
     };
     match delete_file(filepath) {
-        //nicht lieber erstmal überprüfen, ob die auch wieder gespeichert wurde? Nino: wenns nicht klappt wird ein Error returnt!
         Ok(_) => Ok("Cut successfully!".to_string()),
         Err(error) => Err(error),
     }
 }
 
+/// rename a old file path to the new one
 #[command]
 pub fn rename_file(filepath: String, new_filename: &str) -> Result<String, String> {
     // Clean the path
@@ -220,6 +223,7 @@ pub fn rename_file(filepath: String, new_filename: &str) -> Result<String, Strin
     Ok("Renamed successfully!".to_string())
 }
 
+/// delete the given file path from fs and db
 #[command]
 pub fn delete_file(filepath: String) -> Result<String, String> {
     let path: PathBuf = clean_path(filepath);
@@ -249,6 +253,7 @@ pub fn delete_file(filepath: String) -> Result<String, String> {
     Ok("File deleted successfully.".to_string())
 }
 
+/// open the file for the user
 #[command]
 pub fn open_file(filepath: String) -> Result<String, String> {
     let path: PathBuf = clean_path(filepath);
@@ -258,43 +263,19 @@ pub fn open_file(filepath: String) -> Result<String, String> {
     }
 }
 
-/// Bereinigt einen eingegebenen Dateipfad (String) für konsistentes und fehlerfreies Arbeiten.
-///
-/// - Ersetzt Backslashes (`\`) mit Slashes (`/`) zur Vereinheitlichung.
-/// - Entfernt aufeinanderfolgende Slashes (`//` → `/`).
-/// - Gibt am Ende einen `PathBuf` zurück.
+/// cleans and formats a given path (`String`) to a (`PathBuf`)
 fn clean_path(filepath: String) -> PathBuf {
-    // 1. Beseitige aufeinanderfolgende Slashes und Backslahes
-    let recomposed = normalize_slashes(&filepath);
-
-    // 2. Konvertiere zu einem sauberen `PathBuf`
-    let path = Path::new(&recomposed);
-
-    // Falls der Pfad leer ist oder nur Slash enthält -> kann eig. nicht passieren
-    if path.as_os_str().is_empty() {
-        PathBuf::from(".")
-    } else {
-        path.to_path_buf()
-    }
-}
-
-/// Hilfsfunktion: Entfernt aufeinanderfolgende Slashes.
-fn normalize_slashes(path: &str) -> String {
-    let mut result = String::new();
+    // remove double slashes and backslashes
+    let filepath: &str = &filepath.replace("\\", "/");
+    let mut clean_path: String = String::new();
     let mut prev_char = '\0';
-    let path: &str = &path.replace("\\", "/");
-
-    for ch in path.chars() {
+    
+    for ch in filepath.chars() {
         if ch != '/' || prev_char != '/' {
-            result.push(ch);
+            clean_path.push(ch);
         }
         prev_char = ch;
     }
-    // removing unused / at the end
-    //let length = result.len();
-    //if result[length -1..length] == "/".to_string() {
-    //    result.remove(length);
-    //}
-
-    result
+    
+    PathBuf::from(clean_path)
 }
