@@ -205,8 +205,8 @@ fn check_folder(
 
     let db_files_all: Vec<PathBuf> = paths_iter.filter_map(Result::ok).map(|path| PathBuf::from(path)).collect();
     let mut db_files: HashSet<PathBuf> = HashSet::new();
-    
-    let path_slashes_amount: usize = path.components().count();    
+
+    let path_slashes_amount: usize = path.components().count();
     for file in db_files_all {
         // Prüfe ob der Pfad tatsächlich ein Unterpfad des Elternpfads ist
         if file.clone().components().count() == path_slashes_amount + 1 {
@@ -248,7 +248,6 @@ pub fn delete_from_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     file_path: &PathBuf,
 ) -> () {
-    println!("DELETE {:?} FROM DB", file_path);
     pooled_connection
         .execute(
             "DELETE FROM files WHERE file_path = ?",
@@ -262,7 +261,6 @@ fn insert_into_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     file_path: &PathBuf,
 ) -> () {
-    println!("INSERT {:?} IN DB", file_path);
     let path = file_path.to_string_lossy().to_string().replace("\\", "/");
     let name = file_path
         .file_stem()

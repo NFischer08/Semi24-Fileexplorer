@@ -7,6 +7,7 @@ let filePathHistoryIndex = 0;
 
 // displays all files and folders from a path given in the appropriate input field
 async function loadFilesAndFolders() {
+  document.getElementById('loading-spinner').classList.add('hidden');
   let filepath = document.getElementById('file-path-input').value; // get current filepath
 
   // check if the current element isnt in the history yet
@@ -74,6 +75,7 @@ async function loadFilesAndFolders() {
 
 // start the search process in the backend and sending needed values with it
 function initSearch() {
+  document.getElementById('loading-spinner').classList.remove('hidden');
   const search_term = document.getElementById('search-term-input').value; // get the search term
   const search_path = document.getElementById('file-path-input').value; // get the current path
 
@@ -107,6 +109,7 @@ listen('search-finnished', (event) => {
 
 // display the search results for the user (therefor taking the entries)
 function displaySearchResults(entries) {
+  document.getElementById('loading-spinner').classList.add('hidden');
   const errorMessageElement = document.getElementById('error-message'); // get errorMessageElement
   errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
 
