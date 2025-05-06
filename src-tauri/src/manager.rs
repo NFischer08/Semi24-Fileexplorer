@@ -39,6 +39,8 @@ pub static THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .unwrap()
 });
 
+
+/// Initializes VOCAB and WEIGHTS to be their respective files
 pub fn initialize_globals() {
     WEIGHTS.get_or_init(|| {
         let embedding_dim = 256;
@@ -62,6 +64,7 @@ pub fn initialize_globals() {
     });
 }
 
+/// Builds up thhe FileDataFormatted Struct from DireEntries
 pub fn build_struct(entries: Vec<DirEntry>) -> Vec<FileDataFormatted> {
     entries
         .into_iter()
@@ -69,7 +72,8 @@ pub fn build_struct(entries: Vec<DirEntry>) -> Vec<FileDataFormatted> {
         .collect()
 }
 
-pub fn manager_make_pooled_connection() -> Pool<SqliteConnectionManager> {
+/// Creates the connection pool to the Database which is called files.sqlite3
+pub fn manager_make_connection_pool() -> Pool<SqliteConnectionManager> {
     let mut path = CURRENT_DIR.clone();
     path.push("data/db");
     if PathBuf::from(&path).try_exists().expect("Reason") {
@@ -86,9 +90,10 @@ pub fn manager_make_pooled_connection() -> Pool<SqliteConnectionManager> {
     }
 }
 
-pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), String> {
+/// Populates the database with the files which are under the Path given
+pub fn manager_populate_database(database_scan_start: PathBuf) -> Result<(), String> {
     initialize_globals();
-    let connection_pool = manager_make_pooled_connection();
+    let connection_pool = manager_make_connection_pool();
 
     initialize_database(&connection_pool.get().expect("Initializing failed: "));
 
@@ -112,7 +117,8 @@ pub fn manager_create_database(database_scan_start: PathBuf) -> Result<(), Strin
     Ok(())
 }
 
-// searchfiletype is the Filetype Ending without the Dot, for Directorys it must be dir
+/// starts the search with a search term, location, extensions and sends it to FrontEnd via an Event
+/// searchfiletype is the Filetype Ending without the Dot, for Directorys it must be dir
 #[command(async)]
 pub fn manager_basic_search(
     searchterm: &str,
@@ -122,7 +128,7 @@ pub fn manager_basic_search(
 ) -> () {
     initialize_globals();
     println!("search started !");
-    let connection_pool = manager_make_pooled_connection();
+    let connection_pool = manager_make_connection_pool();
 
     let search_path = PathBuf::from(searchpath);
 

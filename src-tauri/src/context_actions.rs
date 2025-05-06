@@ -1,5 +1,5 @@
 use crate::config_handler::{get_copy_mode, CopyMode};
-use crate::manager::{CURRENT_DIR, manager_make_pooled_connection};
+use crate::manager::{manager_make_connection_pool, CURRENT_DIR};
 use clipboard::{ClipboardContext, ClipboardProvider};
 use copy_dir::copy_dir;
 use opener::open;
@@ -189,7 +189,7 @@ pub fn paste_file(destination: String) -> Result<String, String> {
 pub fn cut_file(filepath: String) -> Result<String, String> {
     match copy_file(filepath.to_owned()) {
         Ok(_) => {}
-        Err(error) => return Err(error), 
+        Err(error) => return Err(error),
     };
     match delete_file(filepath) {
         Ok(_) => Ok("Cut successfully!".to_string()),
@@ -237,7 +237,7 @@ pub fn delete_file(filepath: String) -> Result<String, String> {
     if path.is_dir() {
         //fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
         // get the connection pool from manager
-        let connection_pool: Pool<SqliteConnectionManager> = manager_make_pooled_connection();
+        let connection_pool: Pool<SqliteConnectionManager> = manager_make_connection_pool();
         // get a valid connection to db and remove just deleted folder from db
         match connection_pool.get() {
             Ok(conn) => delete_from_db(&conn, &path),
@@ -269,13 +269,13 @@ fn clean_path(filepath: String) -> PathBuf {
     let filepath: &str = &filepath.replace("\\", "/");
     let mut clean_path: String = String::new();
     let mut prev_char = '\0';
-    
+
     for ch in filepath.chars() {
         if ch != '/' || prev_char != '/' {
             clean_path.push(ch);
         }
         prev_char = ch;
     }
-    
+
     PathBuf::from(clean_path)
 }

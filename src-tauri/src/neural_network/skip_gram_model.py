@@ -27,7 +27,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 VOCAB_SIZE = 25_000
 UNK_TOKEN = "UNK"
 
-file_path = "eng-simple_wikipedia_2021_10K/eng-simple_wikipedia_2021_10K-sentences.txt"
+file_path = "eng-simple_wikipedia_2021_300K/eng-simple_wikipedia_2021_300K-sentences.txt"
 
 def normalize_token(token):
     if re.fullmatch(r"\d{4}([-:.])\d{2}\1\d{2}", token):
@@ -150,15 +150,15 @@ print("Using device:", device)
 
 batch_size = 4096
 window_size = 2
-n_neg = 2
+n_neg = 5
 embedding_dim = 256
-epochs = 50
+epochs = 250
 
 dataset = SkipGramNegDataset(tokens_idx, vocab, vocab_counter, window_size=window_size, unk_idx=unk_idx, device='cpu')
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=12, prefetch_factor=4, pin_memory=True, persistent_workers=True)
 
 model = SkipGramNegSampling(len(vocab), embedding_dim).to(device)
-optimizer = optim.SGD(model.parameters(), lr=0.005, momentum=0.9)
+optimizer = optim.SGD(model.parameters(), lr=0.05, momentum=0.9)
 
 # Get the negative sampling distribution tensor ONCE and move to GPU
 word_prob_tensor = torch.tensor(dataset.word_prob, dtype=torch.float32, device=device)
@@ -237,11 +237,11 @@ def get_nearest_neighbors(word, embedding_weights, vocab, top_k=10, exclude_unk=
     return [(inv_vocab[i], sim) for i, sim in neighbors]
 
 # Sample words to check
-sample_words = ["king", "queen", "man", "woman", "city", "dog", "computer", "music", "war", "school"]
+sample_words = ["king", "queen", "man", "woman", "city", "dog", "computer", "music", "war", "school", "people"]
 print("\nIntrinsic Evaluation: Nearest Neighbors\n")
 for word in sample_words:
     print(f"Word: '{word}'")
-    neighbors = get_nearest_neighbors(word, embedding_weights, vocab, top_k=7)
+    neighbors = get_nearest_neighbors(word, embedding_weights, vocab, top_k=5)
     for neighbor, sim in neighbors:
         print(f"  {neighbor:15s} (similarity: {sim:.4f})")
     print("-" * 40)
