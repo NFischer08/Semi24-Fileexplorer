@@ -255,7 +255,7 @@ fn insert_into_db(
         .collect();
     pooled_connection
         .execute(
-            "INSERT INTO files (file_name, file_path, file_type) VALUES (?, ?, ?, ?)",
+            "INSERT INTO files (file_name, file_path, file_type, embedding) VALUES (?, ?, ?, ?)",
             (path, name, file_type, embedding),
         )
         .expect("Error: Couldn't insert file in pooled connection");
