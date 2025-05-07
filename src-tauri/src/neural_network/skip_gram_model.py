@@ -27,7 +27,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 VOCAB_SIZE = 50_000
 UNK_TOKEN = "UNK"
 
-file_path = "eng-simple_wikipedia_2021_300K/eng-simple_wikipedia_2021_300K-sentences.txt"
+file_path = "eng_wikipedia_2016_1M/eng_wikipedia_2016_1M-sentences.txt"
 
 def normalize_token(token):
     if re.fullmatch(r"\d{4}([-:.])\d{2}\1\d{2}", token):
@@ -152,7 +152,7 @@ batch_size = 8192
 window_size = 5
 n_neg = 10
 embedding_dim = 300
-epochs = 15
+epochs = 20
 
 dataset = SkipGramNegDataset(tokens_idx, vocab, vocab_counter, window_size=window_size, unk_idx=unk_idx, device='cpu')
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=12, prefetch_factor=4, pin_memory=True, persistent_workers=True)
@@ -189,6 +189,9 @@ embedding_weights = model.target_embeddings.weight.data.cpu().numpy()
 embedding_weights.tofile("weights")
 print("Embeddings saved to word_embeddings")
 print(f"UNK proportion: {tokens_idx.count(unk_idx) / len(tokens_idx):.4f}")
+
+for name, param in model.named_parameters():
+    print(name, param)
 
 # Visualization (pick N words from the middle of the vocab, skip UNK if in range)
 N = 35

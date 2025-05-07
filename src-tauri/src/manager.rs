@@ -36,7 +36,7 @@ pub static THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
 /// Initializes VOCAB and WEIGHTS to be their respective files
 pub fn initialize_globals() {
     WEIGHTS.get_or_init(|| {
-        let embedding_dim = 256;
+        let embedding_dim = 300;
         let mut path = CURRENT_DIR.clone();
         path.push("data/model/weights");
         let weights_bytes: Vec<u8> = fs::read(&path).expect("Could not read weights");
@@ -57,7 +57,7 @@ pub fn initialize_globals() {
     });
 }
 
-/// Builds up thhe FileDataFormatted Struct from DireEntries
+/// Builds up the FileDataFormatted Struct from DireEntries
 pub fn build_struct(entries: Vec<DirEntry>) -> Vec<FileDataFormatted> {
     entries
         .into_iter()

@@ -143,7 +143,7 @@ pub fn create_database(
                 //The Embedding takes up like 80% of the time per Batch
 
                 //Embedding_dim is the Amount of f32 in an Single Vec / Embedding
-                let embedding_dim = 256;
+                let embedding_dim = 300;
 
                 //Embeds the Batch and writes it as a Matrix
                 let batch_embeddings: Array2<f32> = {
