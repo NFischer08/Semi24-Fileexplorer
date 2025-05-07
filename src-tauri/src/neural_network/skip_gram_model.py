@@ -23,11 +23,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 # -------------------------------
 # 1. Data Preparation
 # -------------------------------
-
+# Parameters
 VOCAB_SIZE = 50_000
 UNK_TOKEN = "UNK"
 
-file_path = "eng_wikipedia_2016_1M/eng_wikipedia_2016_1M-sentences.txt"
+file_path = "deu_wikipedia_2021_10K/deu_wikipedia_2021_10K-sentences.txt"
 
 def normalize_token(token):
     if re.fullmatch(r"\d{4}([-:.])\d{2}\1\d{2}", token):
@@ -62,7 +62,7 @@ tokens_idx = [vocab.get(t, unk_idx) for t in tokens]
 print(f"Vocabulary size: {len(vocab)}")
 
 # Save vocab for reference
-with open("vocab.json", "w", encoding="utf-8") as vocab_file:
+with open("deu_vocab.json", "w", encoding="utf-8") as vocab_file:
     json.dump(vocab, vocab_file, ensure_ascii=False, indent=4)
 
 # -------------------------------
@@ -186,65 +186,6 @@ for epoch in range(epochs):
 # 5. Save Embeddings and Visualize
 # -------------------------------
 embedding_weights = model.target_embeddings.weight.data.cpu().numpy()
-embedding_weights.tofile("weights")
-print("Embeddings saved to word_embeddings")
-print(f"UNK proportion: {tokens_idx.count(unk_idx) / len(tokens_idx):.4f}")
+embedding_weights.tofile("deu_weights")
+print("Embeddings saved")
 
-for name, param in model.named_parameters():
-    print(name, param)
-
-# Visualization (pick N words from the middle of the vocab, skip UNK if in range)
-N = 35
-words = list(vocab.keys())[1000:1000+N]
-words = [w for w in words if w != UNK_TOKEN]
-indices = [vocab[word] for word in words]
-embeddings_subset = embedding_weights[indices]
-
-tsne = TSNE(n_components=2, random_state=42, perplexity=20, init='pca')
-embeddings_2d = tsne.fit_transform(embeddings_subset)
-
-plt.figure(figsize=(16, 12))
-plt.scatter(embeddings_2d[:, 0], embeddings_2d[:, 1], alpha=0.6, s=140)
-for i, word in enumerate(words):
-    plt.annotate(word, (embeddings_2d[i, 0], embeddings_2d[i, 1]), fontsize=28, alpha=0.7)
-plt.title("Visualisierung der Worteinbettungen", fontsize=32)
-plt.xlabel("Dimension 1", fontsize=28)
-plt.ylabel("Dimension 2", fontsize=28)
-plt.xticks(fontsize=24)
-plt.yticks(fontsize=24)
-plt.tight_layout()
-plt.savefig("Visualization-Embeddings.png")
-plt.show()
-
-
-def get_nearest_neighbors(word, embedding_weights, vocab, top_k=10, exclude_unk=True):
-    if word not in vocab:
-        print(f"Word '{word}' not in vocabulary.")
-        return []
-    idx = vocab[word]
-    word_vec = embedding_weights[idx].reshape(1, -1)
-    similarities = cosine_similarity(word_vec, embedding_weights)[0]
-    # Exclude the word itself and optionally UNK
-    sorted_indices = np.argsort(-similarities)
-    neighbors = []
-    for i in sorted_indices:
-        if i == idx:
-            continue
-        if exclude_unk and i == vocab[UNK_TOKEN]:
-            continue
-        neighbors.append((i, similarities[i]))
-        if len(neighbors) >= top_k:
-            break
-    # Map indices back to words
-    inv_vocab = {i: w for w, i in vocab.items()}
-    return [(inv_vocab[i], sim) for i, sim in neighbors]
-
-# Sample words to check
-sample_words = ["king", "queen", "man", "woman", "city", "dog", "computer", "music", "war", "school", "people"]
-print("\nIntrinsic Evaluation: Nearest Neighbors\n")
-for word in sample_words:
-    print(f"Word: '{word}'")
-    neighbors = get_nearest_neighbors(word, embedding_weights, vocab, top_k=5)
-    for neighbor, sim in neighbors:
-        print(f"  {neighbor:15s} (similarity: {sim:.4f})")
-    print("-" * 40)
