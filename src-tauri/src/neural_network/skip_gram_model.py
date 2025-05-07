@@ -24,7 +24,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # 1. Data Preparation
 # -------------------------------
 
-VOCAB_SIZE = 25_000
+VOCAB_SIZE = 50_000
 UNK_TOKEN = "UNK"
 
 file_path = "eng-simple_wikipedia_2021_300K/eng-simple_wikipedia_2021_300K-sentences.txt"
@@ -69,7 +69,7 @@ with open("vocab.json", "w", encoding="utf-8") as vocab_file:
 # 2. Dataset with Negative Sampling and UNK
 # -------------------------------
 class SkipGramNegDataset(Dataset):
-    def __init__(self, tokens_idx, vocab, vocab_counter, window_size=2, unk_idx=None, subsample_t=1e-5, device='cpu'):
+    def __init__(self, tokens_idx, vocab, vocab_counter, window_size=2, unk_idx=None, subsample_t=1e-4, device='cpu'):
         self.vocab = vocab
         self.window_size = window_size
         self.unk_idx = unk_idx
@@ -148,17 +148,17 @@ class SkipGramNegSampling(nn.Module):
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
 
-batch_size = 4096
-window_size = 2
-n_neg = 5
-embedding_dim = 256
-epochs = 250
+batch_size = 8192
+window_size = 5
+n_neg = 10
+embedding_dim = 300
+epochs = 15
 
 dataset = SkipGramNegDataset(tokens_idx, vocab, vocab_counter, window_size=window_size, unk_idx=unk_idx, device='cpu')
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=12, prefetch_factor=4, pin_memory=True, persistent_workers=True)
 
 model = SkipGramNegSampling(len(vocab), embedding_dim).to(device)
-optimizer = optim.SGD(model.parameters(), lr=0.05, momentum=0.9)
+optimizer = optim.Adam(model.parameters(), lr=0.003)
 
 # Get the negative sampling distribution tensor ONCE and move to GPU
 word_prob_tensor = torch.tensor(dataset.word_prob, dtype=torch.float32, device=device)
