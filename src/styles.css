@@ -65,6 +65,10 @@ html, body {
     overflow: auto;
 }
 
+.hidden {
+    display: none;
+}
+
 #fileTable {
     width: 100%;
     margin-top: 20px;
