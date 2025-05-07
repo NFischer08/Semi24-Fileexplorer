@@ -1,4 +1,6 @@
-use crate::config_handler::{get_number_results_embedding, get_number_results_levenhstein, CURRENT_DIR};
+use crate::config_handler::{
+    get_number_results_embedding, get_number_results_levenhstein, CURRENT_DIR,
+};
 use crate::db_create::create_database;
 use crate::db_search::search_database;
 use crate::db_util::{initialize_database, load_vocab};
@@ -9,9 +11,9 @@ use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::collections::HashMap;
+use std::fs;
 use std::fs::create_dir;
 use std::sync::{LazyLock, OnceLock};
-use std::{fs};
 use std::{fs::DirEntry, path::PathBuf};
 use tauri::command;
 use tauri::{AppHandle, State};
@@ -30,7 +32,6 @@ pub static THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
         .build()
         .unwrap()
 });
-
 
 /// Initializes VOCAB and WEIGHTS to be their respective files
 pub fn initialize_globals() {

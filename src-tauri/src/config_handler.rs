@@ -1,3 +1,4 @@
+use num_cpus;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::{HashMap, HashSet};
@@ -32,7 +33,7 @@ pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
 
 // create structs
 #[derive(Debug, Deserialize)]
-struct Settings {
+struct RawSettings {
     allowed_extensions: HashSet<String>,
     favourite_extensions: HashMap<String, String>,
     copy_mode: CopyMode,
@@ -44,11 +45,28 @@ struct Settings {
     search_batch_size: usize,
     number_of_threads: usize,
     paths_to_ignore: Vec<String>,
+    path_to_weights: String,
+    path_to_vocab: String,
+}
+
+#[derive(Clone, Debug)]
+struct Settings {
+    allowed_extensions: HashSet<String>,
+    favourite_extensions: HashMap<String, String>,
+    copy_mode: CopyMode,
+    number_results_levenhstein: usize,
+    number_results_embedding: usize,
+    search_with_model: bool,
+    paths_to_index: Vec<PathBuf>,
+    create_batch_size: usize,
+    search_batch_size: usize,
+    number_of_threads: usize,
+    paths_to_ignore: Vec<PathBuf>,
     path_to_weights: PathBuf,
     path_to_vocab: PathBuf,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 pub enum CopyMode {
     Clipboard,
     File,
@@ -57,7 +75,6 @@ pub enum CopyMode {
 impl Settings {
     /// creates some default values incase its not able to read the json file properly
     fn default() -> Settings {
-        initialize_config(); // TODO
         let allowed_extensions: HashSet<String> = [
             // Text and documents
             "txt", "pdf", "doc", "docx", "rtf", "odt", "tex", "md", "epub",
@@ -93,7 +110,6 @@ impl Settings {
         .iter()
         .map(|&(key, value)| (String::from(key), String::from(value)))
         .collect();
-        
 
         Settings {
             allowed_extensions,
@@ -102,10 +118,10 @@ impl Settings {
             number_results_levenhstein: 15,
             number_results_embedding: 25,
             search_with_model: false,
-            paths_to_index: vec![String::from("/")],
+            paths_to_index: vec![PathBuf::from("/")],
             create_batch_size: 250,
             search_batch_size: 1000,
-            number_of_threads: 12,
+            number_of_threads: num_cpus::get() - 1,
             paths_to_ignore: Vec::new(),
             path_to_weights: CURRENT_DIR.clone().join("data/model/weights"),
             path_to_vocab: CURRENT_DIR.clone().join("data/model/vocab.json"),
@@ -163,14 +179,70 @@ fn read_config(config_path: &PathBuf) -> Result<String, ()> {
 /// reads the config file and initialises the constants
 pub fn initialize_config() {
     println!("Initializing config");
+    let default_settings = Settings::default();
     // get the path to the config file
     let mut path = CURRENT_DIR.clone();
     path.push("data/config/config.json");
 
     // read the config file and parse it into the Settings struct (use default values when an error occurs)
-    let config = match read_config(&path) {
-        Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| Settings::default()),
-        Err(_) => Settings::default(),
+    let config: Settings = match read_config(&path) {
+        Ok(config) => {
+            let raw_settings: serde_json::error::Result<RawSettings> =
+                serde_json::from_str(&config);
+            // parse the raw settings to real Settings
+            match raw_settings {
+                Ok(settings) => {
+                    let path_to_weights: PathBuf = PathBuf::from(settings.path_to_weights);
+                    let path_to_vocab: PathBuf = PathBuf::from(settings.path_to_vocab);
+                    let paths_to_index: Vec<PathBuf> = settings
+                        .paths_to_index
+                        .iter()
+                        .map(|path| PathBuf::from(path))
+                        .filter(|path| path.exists())
+                        .collect();
+                    let paths_to_ignore: Vec<PathBuf> = settings
+                        .paths_to_ignore
+                        .iter()
+                        .map(|path| PathBuf::from(path))
+                        .filter(|path| path.exists())
+                        .collect();
+
+                    Settings {
+                        allowed_extensions: settings.allowed_extensions,
+                        favourite_extensions: settings.favourite_extensions,
+                        copy_mode: settings.copy_mode,
+                        number_results_levenhstein: settings.number_results_levenhstein,
+                        number_results_embedding: settings.number_results_embedding,
+                        search_with_model: settings.search_with_model,
+                        paths_to_index: if paths_to_index.is_empty() {
+                            default_settings.paths_to_index
+                        } else {
+                            paths_to_index
+                        },
+                        create_batch_size: settings.create_batch_size,
+                        search_batch_size: settings.search_batch_size,
+                        number_of_threads: settings.number_of_threads,
+                        paths_to_ignore: if paths_to_ignore.is_empty() {
+                            default_settings.paths_to_ignore
+                        } else {
+                            paths_to_ignore
+                        },
+                        path_to_weights: if path_to_weights.exists() {
+                            path_to_weights
+                        } else {
+                            default_settings.path_to_weights
+                        },
+                        path_to_vocab: if path_to_vocab.exists() {
+                            path_to_vocab
+                        } else {
+                            default_settings.path_to_vocab
+                        },
+                    }
+                }
+                Err(_) => default_settings,
+            }
+        }
+        Err(_) => default_settings,
     };
 
     // set every constant, if something fails, the whole program immediantly stops executing due to panicing
@@ -199,13 +271,7 @@ pub fn initialize_config() {
         .expect("couldn't set search with model");
 
     PATHS_TO_INDEX
-        .set(
-            config
-                .paths_to_index
-                .iter()
-                .map(|path| PathBuf::from(path))
-                .collect(),
-        )
+        .set(config.paths_to_index)
         .expect("couldn't set paths to index");
 
     CREATE_BATCH_SIZE
@@ -221,15 +287,9 @@ pub fn initialize_config() {
         .expect("couldn't set number of threads");
 
     PATHS_TO_IGNORE
-        .set(
-            config
-                .paths_to_ignore
-                .iter()
-                .map(|path| PathBuf::from(path))
-                .collect(),
-        )
+        .set(config.paths_to_ignore)
         .expect("couldn't set paths to ignore");
-    
+
     PATH_TO_WEIGHTS
         .set(config.path_to_weights)
         .expect("couldn't set path to weights");
@@ -259,11 +319,7 @@ pub fn get_allowed_file_extensions() -> HashSet<String> {
 pub fn get_copy_mode() -> CopyMode {
     match COPY_MODE.get() {
         None => Settings::default().copy_mode,
-        Some(val) => match val {
-            // needed to dereference it
-            CopyMode::Clipboard => CopyMode::Clipboard,
-            CopyMode::File => CopyMode::File,
-        },
+        Some(val) => val.to_owned(),
     }
 }
 
@@ -290,11 +346,7 @@ pub fn get_search_with_model() -> bool {
 
 pub fn get_paths_to_index() -> Vec<PathBuf> {
     match PATHS_TO_INDEX.get() {
-        None => Settings::default()
-            .paths_to_index
-            .iter()
-            .map(|path| PathBuf::from(path))
-            .collect(),
+        None => Settings::default().paths_to_index,
         Some(val) => val.to_owned(),
     }
 }
@@ -322,34 +374,22 @@ pub fn get_number_of_threads() -> usize {
 
 pub fn get_paths_to_ignore() -> Vec<PathBuf> {
     match PATHS_TO_IGNORE.get() {
-        None => Settings::default()
-            .paths_to_ignore
-            .iter()
-            .map(|path| PathBuf::from(path))
-            .collect(),
+        None => Settings::default().paths_to_ignore,
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_path_to_weights() -> PathBuf {
     match PATH_TO_WEIGHTS.get() {
-        None => Settings::default()
-            .path_to_weights,
-        Some(path) => if path.exists() {path.to_owned()} else {
-            //Settings::default().path_to_weights TODO Nino pls implement this, it crashes and the line under is only temporary fix
-            CURRENT_DIR.clone().join("data/model/weights")
-        },
+        None => Settings::default().path_to_weights,
+        Some(path) => path.to_owned(),
     }
 }
 
 pub fn get_path_to_vocab() -> PathBuf {
     match PATH_TO_VOCAB.get() {
-        None => Settings::default()
-            .path_to_vocab,
-        Some(path) => if path.exists() {path.to_owned()} else {
-            //Settings::default().path_to_vocab TODO Nino pls implement this, it crashes and the line under is only temporary fix
-            CURRENT_DIR.clone().join("data/model/vocab.json")
-        },
+        None => Settings::default().path_to_vocab,
+        Some(path) => path.to_owned(),
     }
 }
 

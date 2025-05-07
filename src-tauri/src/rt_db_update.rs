@@ -1,9 +1,8 @@
-use rusqlite::params;
 use crate::config_handler::{
     get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS,
 };
 use crate::db_util::full_emb;
-use crate::manager::{manager_populate_database, manager_make_connection_pool};
+use crate::manager::{manager_make_connection_pool, manager_populate_database};
 use notify::{
     self,
     event::{
@@ -16,6 +15,7 @@ use notify::{
 };
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
+use rusqlite::params;
 use std::{
     collections::HashSet,
     fs,
@@ -75,7 +75,6 @@ pub fn watch_folder(
         .watch(&watch_path, RecursiveMode::Recursive)
         .expect("Error: Couldn't watch path");
 
-    println!("Watching for changes in {:?}", watch_path);
     // Loop to receive events from the channel
     for res in receiver {
         match res {
@@ -194,16 +193,18 @@ fn check_folder(
 
     // read currently existing files in db for that dir
     let pattern = format!("{}%", path.to_str().unwrap().replace("\\", "/"));
-    let mut stmt = pooled_connection.prepare(
-        "SELECT file_path FROM files WHERE file_path LIKE ?1"
-    ).expect("Failed to prepare statement");
+    let mut stmt = pooled_connection
+        .prepare("SELECT file_path FROM files WHERE file_path LIKE ?1")
+        .expect("Failed to prepare statement");
 
-    let paths_iter = stmt.query_map(
-        params![pattern],
-        |row| row.get::<_, String>(0)
-    ).expect("Failed to get file paths");
+    let paths_iter = stmt
+        .query_map(params![pattern], |row| row.get::<_, String>(0))
+        .expect("Failed to get file paths");
 
-    let db_files_all: Vec<PathBuf> = paths_iter.filter_map(Result::ok).map(|path| PathBuf::from(path)).collect();
+    let db_files_all: Vec<PathBuf> = paths_iter
+        .filter_map(Result::ok)
+        .map(|path| PathBuf::from(path))
+        .collect();
     let mut db_files: HashSet<PathBuf> = HashSet::new();
 
     let path_slashes_amount: usize = path.components().count();
@@ -213,8 +214,6 @@ fn check_folder(
             db_files.insert(file);
         }
     }
-
-    println!("db files: {:?}", db_files);
 
     // ignore the common elements
     let common_el: HashSet<PathBuf> = current_files.intersection(&db_files).cloned().collect();
@@ -235,9 +234,9 @@ fn check_folder(
     // files which are still in the db, but dont exist anymore need to be removed
     for file in db_files {
         let pattern = format!("{}%", file.to_str().unwrap().replace("\\", "/"));
-        pooled_connection.execute(
-            "DELETE FROM files WHERE file_path LIKE ?1", (pattern,)
-        ).expect("Failed to execute statement");
+        pooled_connection
+            .execute("DELETE FROM files WHERE file_path LIKE ?1", (pattern,))
+            .expect("Failed to execute statement");
     }
 
     Ok(())

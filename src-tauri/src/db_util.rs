@@ -5,16 +5,14 @@ use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
 use regex::Regex;
 use std::collections::HashMap;
+use std::sync::LazyLock;
 use std::{
     collections::HashSet,
     fs::{self},
     path::{Path, PathBuf},
 };
-use std::sync::LazyLock;
 
-pub static PATHS_TO_IGNORE :LazyLock<Vec<PathBuf>> = LazyLock::new(
-    get_paths_to_ignore
-);
+pub static PATHS_TO_IGNORE: LazyLock<Vec<PathBuf>> = LazyLock::new(get_paths_to_ignore);
 
 #[derive(Debug, Clone)]
 pub struct Files {

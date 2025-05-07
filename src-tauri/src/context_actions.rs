@@ -1,17 +1,17 @@
 use crate::config_handler::{get_copy_mode, CopyMode, CURRENT_DIR};
-use crate::manager::{manager_make_connection_pool};
+use crate::manager::manager_make_connection_pool;
+use crate::rt_db_update::delete_from_db;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use copy_dir::copy_dir;
 use opener::open;
+use r2d2::Pool;
+use r2d2_sqlite::SqliteConnectionManager;
 use std::{
     fs,
     io::{BufReader, Read, Write},
     path::PathBuf,
 };
-use r2d2::Pool;
-use r2d2_sqlite::SqliteConnectionManager;
 use tauri::command;
-use crate::rt_db_update::delete_from_db;
 
 /// copy a file either to the clipboard or as a file in the tmp folder
 #[command]
@@ -241,7 +241,7 @@ pub fn delete_file(filepath: String) -> Result<String, String> {
         // get a valid connection to db and remove just deleted folder from db
         match connection_pool.get() {
             Ok(conn) => delete_from_db(&conn, &path),
-            Err(_) => {},
+            Err(_) => {}
         }
         println!("Deleted directory '{}'", path.display());
     } else if path.is_file() {
