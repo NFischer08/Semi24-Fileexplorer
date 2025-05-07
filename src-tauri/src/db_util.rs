@@ -10,6 +10,11 @@ use std::{
     fs::{self},
     path::{Path, PathBuf},
 };
+use std::sync::LazyLock;
+
+pub static PATHS_TO_IGNORE :LazyLock<Vec<PathBuf>> = LazyLock::new(
+    get_paths_to_ignore
+);
 
 #[derive(Debug, Clone)]
 pub struct Files {
@@ -43,8 +48,7 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 /// Returns true if it is an allowed Path and false if the Path should be ignored
 /// or the file extension should be ignored
 pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bool {
-    let paths_to_ignore: Vec<PathBuf> = get_paths_to_ignore();
-    for paths in paths_to_ignore {
+    for paths in PATHS_TO_IGNORE.clone() {
         if path == paths {
             return false;
         }
