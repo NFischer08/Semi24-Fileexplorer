@@ -1,4 +1,4 @@
-use crate::config_handler::{get_number_results_embedding, get_number_results_levenhstein};
+use crate::config_handler::{get_number_results_embedding, get_number_results_levenhstein, CURRENT_DIR};
 use crate::db_create::create_database;
 use crate::db_search::search_database;
 use crate::db_util::{initialize_database, load_vocab};
@@ -10,9 +10,8 @@ use r2d2_sqlite::SqliteConnectionManager;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use std::collections::HashMap;
 use std::fs::create_dir;
-use std::path::absolute;
 use std::sync::{LazyLock, OnceLock};
-use std::{env, fs};
+use std::{fs};
 use std::{fs::DirEntry, path::PathBuf};
 use tauri::command;
 use tauri::{AppHandle, State};
@@ -24,13 +23,6 @@ pub(crate) struct AppState {
 
 pub static WEIGHTS: OnceLock<Array2<f32>> = OnceLock::new();
 pub static VOCAB: OnceLock<HashMap<String, usize>> = OnceLock::new();
-
-pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    env::current_dir()
-        .and_then(absolute)
-        .expect("Failed to resolve absolute path")
-    // VERY IMPORTANT when using .push() don't start with a /, if you do it will override the path with C: + "Your Input"
-});
 
 pub static THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
     ThreadPoolBuilder::new()

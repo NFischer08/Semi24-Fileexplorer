@@ -9,15 +9,16 @@ pub mod file_information;
 pub mod manager;
 pub mod rt_db_update;
 
-use crate::config_handler::{get_number_of_threads, get_paths_to_index};
-use crate::manager::initialize_globals;
-use file_explorer_lib::manager::{manager_populate_database, CURRENT_DIR};
+use crate::config_handler::{get_number_of_threads, get_paths_to_index, CURRENT_DIR};
+use file_explorer_lib::manager::{manager_populate_database};
 use file_explorer_lib::rt_db_update::start_file_watcher;
 use rayon::prelude::*;
 use std::fs::create_dir;
 use std::thread;
 
 fn main() {
+    
+    
     rayon::ThreadPoolBuilder::new()
         .num_threads(get_number_of_threads()) // Reserve one core for OS
         .build_global()
@@ -55,6 +56,5 @@ fn main() {
         });
     });
     thread::spawn(move || start_file_watcher());
-
     file_explorer_lib::run();
 }

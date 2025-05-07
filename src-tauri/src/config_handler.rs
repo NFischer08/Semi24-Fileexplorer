@@ -1,11 +1,11 @@
-use crate::manager::CURRENT_DIR;
 use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::{HashMap, HashSet};
+use std::env;
 use std::fs::File;
 use std::io::Read;
-use std::path::PathBuf;
-use std::sync::OnceLock;
+use std::path::{absolute, PathBuf};
+use std::sync::{LazyLock, OnceLock};
 use tauri::command;
 
 // create each constant
@@ -20,6 +20,15 @@ pub static CREATE_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static SEARCH_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_OF_THREADS: OnceLock<usize> = OnceLock::new();
 pub static PATHS_TO_IGNORE: OnceLock<Vec<PathBuf>> = OnceLock::new();
+pub static PATH_TO_WEIGHTS: OnceLock<PathBuf> = OnceLock::new();
+pub static PATH_TO_VOCAB: OnceLock<PathBuf> = OnceLock::new();
+// This should stay Lazy because it ensures that it can be used at all time
+pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
+    env::current_dir()
+        .and_then(absolute)
+        .expect("Failed to resolve absolute path")
+    // VERY IMPORTANT when using .push() don't start with a /, if you do it will override the path with C: + "Your Input"
+});
 
 // create structs
 #[derive(Debug, Deserialize)]
@@ -35,6 +44,8 @@ struct Settings {
     search_batch_size: usize,
     number_of_threads: usize,
     paths_to_ignore: Vec<String>,
+    path_to_weights: PathBuf,
+    path_to_vocab: PathBuf,
 }
 
 #[derive(Debug, Deserialize)]
@@ -82,6 +93,7 @@ impl Settings {
         .iter()
         .map(|&(key, value)| (String::from(key), String::from(value)))
         .collect();
+        
 
         Settings {
             allowed_extensions,
@@ -95,6 +107,8 @@ impl Settings {
             search_batch_size: 1000,
             number_of_threads: 12,
             paths_to_ignore: Vec::new(),
+            path_to_weights: CURRENT_DIR.clone().join("data/model/weights"),
+            path_to_vocab: CURRENT_DIR.clone().join("data/model/vocab.json"),
         }
     }
 }
@@ -215,6 +229,14 @@ pub fn initialize_config() {
                 .collect(),
         )
         .expect("couldn't set paths to ignore");
+    
+    PATH_TO_WEIGHTS
+        .set(config.path_to_weights)
+        .expect("couldn't set path to weights");
+
+    PATH_TO_VOCAB
+        .set(config.path_to_vocab)
+        .expect("couldn't set path to vocab");
 }
 
 // functions for retrieving the values of the constants
@@ -306,6 +328,28 @@ pub fn get_paths_to_ignore() -> Vec<PathBuf> {
             .map(|path| PathBuf::from(path))
             .collect(),
         Some(val) => val.to_owned(),
+    }
+}
+
+pub fn get_path_to_weights() -> PathBuf {
+    match PATH_TO_WEIGHTS.get() {
+        None => Settings::default()
+            .path_to_weights,
+        Some(path) => if path.exists() {path.to_owned()} else {
+            //Settings::default().path_to_weights TODO Nino pls implement this, it crashes and the line under is only temporary fix
+            CURRENT_DIR.clone().join("data/model/weights")
+        },
+    }
+}
+
+pub fn get_path_to_vocab() -> PathBuf {
+    match PATH_TO_VOCAB.get() {
+        None => Settings::default()
+            .path_to_vocab,
+        Some(path) => if path.exists() {path.to_owned()} else {
+            //Settings::default().path_to_vocab TODO Nino pls implement this, it crashes and the line under is only temporary fix
+            CURRENT_DIR.clone().join("data/model/vocab.json")
+        },
     }
 }
 
