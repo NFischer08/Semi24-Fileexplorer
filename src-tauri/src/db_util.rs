@@ -32,7 +32,8 @@ pub fn convert_to_forward_slashes(path: &Path) -> String {
 /// calculates the cosine similarity between two embeddings
 pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() {
-        panic!("cosine_similarity: input vectors must have the same length");
+        eprintln!("Cosine similarity has been used wrong !!!");
+        return 0.0
     }
     let dot = a.iter().zip(b.iter()).map(|(&x, &y)| x * y).sum::<f32>();
     let norm_a = a.iter().map(|&x| x * x).sum::<f32>().sqrt();

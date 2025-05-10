@@ -1,5 +1,5 @@
-use crate::config_handler::get_search_batch_size;
-use crate::db_util::{bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices};
+use crate::config_handler::{get_path_to_vocab, get_search_batch_size};
+use crate::db_util::{bytes_to_vec, cosine_similarity, full_emb, load_vocab, tokenize_file_name, tokens_to_indices};
 use crate::manager::{build_struct, AppState, VOCAB, WEIGHTS};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -11,6 +11,7 @@ use std::{
     path::{Path, PathBuf},
     time::Instant,
 };
+use rusqlite::fallible_iterator::FallibleIterator;
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
 
@@ -88,7 +89,7 @@ pub fn search_database(
             .expect("Query execution failed")
             .collect::<Result<Vec<_>, _>>()
             .expect("Result collection failed")
-        }; // TODO improve Perf of code Section above, takes up more than half of search
+        };
 
         tx.commit().expect("Failed to commit transaction");
 
@@ -165,6 +166,16 @@ pub fn search_database(
         .collect(); // Collect results
 
     query_thread.join().expect("Query thread panicked");
+
+    let tokenized_file_name = tokenize_file_name(search_term);
+    let tokens_indices = tokens_to_indices(tokenized_file_name, VOCAB.get().unwrap()) ;
+
+    // Checks if Model doesn't undersand anything in search term
+    let mut num_results_embeddings = num_results_embeddings;
+    if tokens_indices.iter().all(|i| *i == 0) {
+        println!("Search Term isn't in Vocab");
+        num_results_embeddings = 0;
+    }
 
     // Transform the results into DireEntrys, sorts them and only give back the num_results_emb best results
     let ret_emb_dir = return_entries(results_emb, num_results_embeddings);
