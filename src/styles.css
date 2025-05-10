@@ -69,6 +69,10 @@ html, body {
     display: none;
 }
 
+.error {
+    height: 10vh;
+}
+
 #fileTable {
     width: 100%;
     margin-top: 20px;
