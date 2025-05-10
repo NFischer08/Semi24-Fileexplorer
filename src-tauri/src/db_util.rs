@@ -1,5 +1,5 @@
 use crate::config_handler::get_paths_to_ignore;
-use crate::manager::{initialize_globals, VOCAB, WEIGHTS};
+use crate::manager::{VOCAB, WEIGHTS};
 use ndarray::{Array2, Axis};
 use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -26,7 +26,7 @@ pub struct Files {
 pub fn convert_to_forward_slashes(path: &Path) -> String {
     path.to_str()
         .map(|s| s.replace('\\', "/"))
-        .unwrap_or_else(String::new)
+        .unwrap_or_default()
 }
 
 /// calculates the cosine similarity between two embeddings
@@ -46,12 +46,12 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
 /// Returns true if it is an allowed Path and false if the Path should be ignored
 /// or the file extension should be ignored
 pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -> bool {
-    for paths in PATHS_TO_IGNORE.clone() {
-        if path == paths {
+    for ignore_path in PATHS_TO_IGNORE.iter() {
+        if path.starts_with(ignore_path) {
             return false;
         }
     }
-
+    
     // Checks if the extension of the Path is in the allowed_file_extensions Hashset
     path.extension()
         .and_then(|s| s.to_str())
@@ -143,7 +143,6 @@ pub fn embedding_from_ind(token_indices: Vec<usize>, weights: &Array2<f32>) -> V
 
 /// Makes embedding simple via using the other functions
 pub fn full_emb(file_name: &str) -> Vec<f32> {
-    initialize_globals(); // TODO
     let tokenized_file_name = tokenize_file_name(file_name);
     let indexed_file_name = tokens_to_indices(tokenized_file_name, VOCAB.get().unwrap());
     embedding_from_ind(indexed_file_name, WEIGHTS.get().unwrap())

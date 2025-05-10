@@ -132,7 +132,7 @@ pub fn search_database(
     let avg_embedding = &sum_embedding / count;
 
     // Creating the Vec
-    let embedded_vec_f32 = sum_embedding.to_vec();
+    let embedded_vec_f32 = avg_embedding.to_vec();
 
     let mut search_query: Vec<(String, Vec<u8>)> = Vec::new();
 
