@@ -81,13 +81,10 @@ pub fn watch_folder(
             Ok(event) => {
                 // usually only one path is returned (for-loop for safety)
                 'event: for file_path in event.paths {
-                    // ignore certain paths on windows
-                    #[cfg(target_os = "windows")]
-                    {
-                        for folder in ignore {
-                            if file_path.to_string_lossy().contains(folder) {
-                                continue 'event;
-                            }
+                    // ignore certain paths
+                    for folder in ignore {
+                        if file_path.to_string_lossy().contains(folder) {
+                            continue 'event;
                         }
                     }
 
@@ -138,10 +135,10 @@ pub fn watch_folder(
                                                 insert_into_db(pooled_connection, &file_path);
                                             }
                                         }
-                                        // Linux: `Both` why? Idk, what it means? Idk :(
+                                        // Other cases should not occur / are not from interest since they mean something didnt go as planned
                                         _ => {
                                             println!("Something else {:?}, ({:?})", file_path, mode)
-                                        } // proper implementing needed if it isnt a normal case
+                                        }
                                     }
                                 }
                                 _ => {}

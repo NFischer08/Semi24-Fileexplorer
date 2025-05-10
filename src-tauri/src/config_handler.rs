@@ -1,12 +1,7 @@
 use num_cpus;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::collections::{HashMap, HashSet};
-use std::env;
-use std::fs::File;
-use std::io::Read;
-use std::path::{absolute, PathBuf};
-use std::sync::{LazyLock, OnceLock};
+use std::{collections::{HashMap, HashSet}, fs::{self, File}, env, io::Read, path::{absolute, PathBuf}, sync::{LazyLock, OnceLock}};
 use tauri::command;
 
 // create each constant
@@ -52,8 +47,8 @@ struct RawSettings {
     embedding_dimensions: usize,
 }
 
-#[derive(Clone, Debug)]
-struct Settings {
+#[derive(Clone, Debug, Serialize)]
+pub struct Settings {
     allowed_extensions: HashSet<String>,
     favourite_extensions: HashMap<String, String>,
     copy_mode: CopyMode,
@@ -70,14 +65,14 @@ struct Settings {
     embedding_dimensions: usize,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum CopyMode {
     Clipboard,
     File,
 }
 impl Settings {
     /// creates some default values incase its not able to read the json file properly
-    fn default() -> Settings {
+    pub(crate) fn default() -> Settings {
         let allowed_extensions: HashSet<String> = [
             // Text and documents
             "txt", "pdf", "doc", "docx", "rtf", "odt", "tex", "md", "epub",
@@ -159,6 +154,19 @@ impl ColorConfig {
             modal_background: String::from("#1f1f1f"),
             modal_hover: String::from("#2f2f2f"),
         }
+    }
+}
+
+/// creates the config file if it doesnt exist
+pub fn build_config<T: serde::Serialize>(path: &PathBuf, settings: &T) -> Result<(), ()> {
+    let json = match serde_json::to_string_pretty(&settings) {
+        Ok(json) => json,
+        Err(_) => return Err(()),
+    };
+    
+    match fs::write(path, json) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(()),
     }
 }
 
