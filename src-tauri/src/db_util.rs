@@ -19,7 +19,7 @@ pub struct Files {
     pub(crate) id: i32,
     pub(crate) file_name: String,
     pub(crate) file_path: String,
-    pub(crate) file_type: Option<String>,
+    pub(crate) file_type: String,
 }
 
 /// Converts "\\" into "/" so that Windows and Unix systems have same path structure
@@ -53,10 +53,12 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
     }
     
     // Checks if the extension of the Path is in the allowed_file_extensions Hashset
-    path.extension()
-        .and_then(|s| s.to_str())
-        .map(|ext| allowed_file_extensions.contains(ext))
-        .unwrap_or(false)
+    path.is_dir()
+        || path
+            .extension()
+            .and_then(|s| s.to_str())
+            .map(|ext| allowed_file_extensions.contains(ext))
+            .unwrap_or(false)
 }
 
 /// Generates the Database if it doesn't already exists and makes sure that path is indexed

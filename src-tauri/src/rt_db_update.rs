@@ -59,9 +59,8 @@ pub fn watch_folder(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     ignore: &HashSet<&str>,
 ) {
-    
     println!("ignore: {:?}", ignore);
-    
+
     let allowed_extensions: &HashSet<String> = match ALLOWED_FILE_EXTENSIONS.get() {
         Some(allowed_extensions) => allowed_extensions,
         None => &get_allowed_file_extensions(),
@@ -258,10 +257,7 @@ pub fn delete_from_db(
 }
 
 /// inserts a given file path into the db (therefor taking connection to it)
-fn insert_into_db(
-    pooled_connection: &PooledConnection<SqliteConnectionManager>,
-    file_path: &Path,
-) {
+fn insert_into_db(pooled_connection: &PooledConnection<SqliteConnectionManager>, file_path: &Path) {
     let path = file_path.to_string_lossy().to_string().replace("\\", "/");
     let name = file_path
         .file_stem()

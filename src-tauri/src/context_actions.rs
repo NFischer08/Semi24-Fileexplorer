@@ -239,7 +239,9 @@ pub fn delete_file(filepath: String) -> Result<String, String> {
         // get the connection pool from manager
         let connection_pool: Pool<SqliteConnectionManager> = manager_make_connection_pool();
         // get a valid connection to db and remove just deleted folder from db
-        if let Ok(conn) = connection_pool.get() { delete_from_db(&conn, &path) }
+        if let Ok(conn) = connection_pool.get() {
+            delete_from_db(&conn, &path)
+        }
         println!("Deleted directory '{}'", path.display());
     } else if path.is_file() {
         //fs::remove_file(path).map_err(|e| e.to_string())?;

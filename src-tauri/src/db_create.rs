@@ -1,4 +1,6 @@
-use crate::config_handler::{get_allowed_file_extensions, get_create_batch_size, get_embedding_dimensions};
+use crate::config_handler::{
+    get_allowed_file_extensions, get_create_batch_size, get_embedding_dimensions,
+};
 use crate::db_util::{convert_to_forward_slashes, full_emb, is_allowed_file, Files};
 use jwalk::WalkDir;
 use ndarray::Array2;
@@ -43,10 +45,8 @@ pub fn create_database(
                 })
                 .expect("Failed to query result.");
 
-            for row in rows {
-                if let Ok((name, path)) = row {
-                    existing_files.insert((name, path));
-                }
+            for (name, path) in rows.flatten() {
+                existing_files.insert((name, path));
             }
             existing_files
         }
@@ -78,16 +78,19 @@ pub fn create_database(
                 if let Ok(entry) = entry_result {
                     let path = entry.path();
                     //Checking that the Path is not ignored and doesn't need to be added and that it is either a directory or an allowed file extension
-                    if path.is_dir() || is_allowed_file(&path, &allowed_file_extensions) {
+                    if is_allowed_file(&path, &allowed_file_extensions) {
                         let path_slashes = convert_to_forward_slashes(&path);
                         let file = Files {
                             id: 0,
                             file_name: entry.file_name().to_string_lossy().into_owned(),
                             file_path: path_slashes,
                             file_type: if path.is_dir() {
-                                Some("dir".to_string())
+                                String::from("dir")
                             } else {
-                                path.extension().and_then(|s| s.to_str()).map(String::from)
+                                path.extension()
+                                    .and_then(|s| s.to_str())
+                                    .map(String::from)
+                                    .unwrap_or_else(|| String::from("file"))
                             },
                         };
                         //Sends Batch as soon as it's Batch_Size or higher
@@ -142,7 +145,6 @@ pub fn create_database(
 
                 //The Embedding takes up like 80% of the time per Batch
 
-
                 //Embeds the Batch and writes it as a Matrix
                 let batch_embeddings: Array2<f32> = {
                     let embeddings: Vec<Vec<f32>> = batch_data
@@ -176,13 +178,8 @@ pub fn create_database(
                     if c < embeddings_u8.len() {
                         let vec = &embeddings_u8[c];
                         insert_stmt
-                            .execute(params![
-                                file.file_name,
-                                file.file_path,
-                                file.file_type.as_deref().map::<&str, _>(|s| s),
-                                vec
-                            ])
-                            .expect("Could not insert file");
+                            .execute(params![file.file_name, file.file_path, file.file_type, vec])
+                            .unwrap_or_else(|_| panic!("Could not insert file {:?}", file));
                     }
                 }
             }

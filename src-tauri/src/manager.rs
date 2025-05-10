@@ -1,4 +1,7 @@
-use crate::config_handler::{get_embedding_dimensions, get_number_results_embedding, get_number_results_levenhstein, get_path_to_vocab, get_path_to_weights, CURRENT_DIR};
+use crate::config_handler::{
+    get_embedding_dimensions, get_number_results_embedding, get_number_results_levenhstein,
+    get_path_to_vocab, get_path_to_weights, CURRENT_DIR,
+};
 use crate::db_create::create_database;
 use crate::db_search::search_database;
 use crate::db_util::{initialize_database, load_vocab};
@@ -7,14 +10,13 @@ use bytemuck::cast_slice;
 use ndarray::Array2;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rayon::{ThreadPool, ThreadPoolBuilder};
-use std::collections::HashMap;
-use std::fs;
-use std::fs::create_dir;
-use std::sync::{LazyLock, OnceLock};
-use std::{fs::DirEntry, path::PathBuf};
-use tauri::command;
-use tauri::{AppHandle, State};
+use std::{
+    collections::HashMap,
+    fs::{self, create_dir, DirEntry},
+    path::PathBuf,
+    sync::OnceLock,
+};
+use tauri::{command, AppHandle, State};
 
 #[derive(Debug)]
 pub struct AppState {
@@ -28,7 +30,8 @@ pub fn initialize_globals() {
     WEIGHTS.get_or_init(|| {
         let embedding_dim = get_embedding_dimensions();
 
-        let weights_bytes: Vec<u8> = fs::read(get_path_to_weights()).expect("Could not read weights");
+        let weights_bytes: Vec<u8> =
+            fs::read(get_path_to_weights()).expect("Could not read weights");
         let weights_as_f32: &[f32] = cast_slice(&weights_bytes);
 
         // Infer the vocab size from the file length
@@ -38,9 +41,7 @@ pub fn initialize_globals() {
             .expect("Shape mismatch in weights")
     });
 
-    VOCAB.get_or_init(|| {
-        load_vocab(&get_path_to_vocab())
-    });
+    VOCAB.get_or_init(|| load_vocab(&get_path_to_vocab()));
 }
 
 /// Builds up the FileDataFormatted Struct from DireEntries
@@ -59,7 +60,6 @@ pub fn manager_make_connection_pool() -> Pool<SqliteConnectionManager> {
         path.push("files.sqlite3");
         let manager = SqliteConnectionManager::file(path);
         Pool::new(manager).expect("Failed to create pool.")
-        
     } else {
         create_dir(PathBuf::from(&path)).expect("Failed to create Dir");
         path.push("files.sqlite3");

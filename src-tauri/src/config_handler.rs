@@ -1,7 +1,14 @@
 use num_cpus;
 use serde::{Deserialize, Serialize};
 use serde_json;
-use std::{collections::{HashMap, HashSet}, fs::{self, File}, env, io::Read, path::{absolute, PathBuf}, sync::{LazyLock, OnceLock}};
+use std::{
+    collections::{HashMap, HashSet},
+    env,
+    fs::{self, File},
+    io::Read,
+    path::{absolute, PathBuf},
+    sync::{LazyLock, OnceLock},
+};
 use tauri::command;
 
 // create each constant
@@ -72,9 +79,9 @@ pub enum CopyMode {
     Clipboard,
     File,
 }
-impl Settings {
+impl Default for Settings {
     /// creates some default values incase its not able to read the json file properly
-    pub(crate) fn default() -> Settings {
+    fn default() -> Self {
         let allowed_extensions: HashSet<String> = [
             // Text and documents
             "txt", "pdf", "doc", "docx", "rtf", "odt", "tex", "md", "epub",
@@ -143,8 +150,8 @@ pub struct ColorConfig {
     modal_hover: String,
 }
 
-impl ColorConfig {
-    pub fn default() -> ColorConfig {
+impl Default for ColorConfig {
+    fn default() -> Self {
         ColorConfig {
             background: String::from("#2f2f2f"),
             font: String::from("#f6f6f6"),
@@ -165,7 +172,7 @@ pub fn build_config<T: serde::Serialize>(path: &PathBuf, settings: &T) -> Result
         Ok(json) => json,
         Err(_) => return Err(()),
     };
-    
+
     match fs::write(path, json) {
         Ok(_) => Ok(()),
         Err(_) => Err(()),
@@ -325,7 +332,7 @@ pub fn get_fav_file_extensions() -> HashMap<String, String> {
         None => {
             print_warning("FAVOURITE_FILE_EXTENSIONS");
             Settings::default().favourite_extensions
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
@@ -336,17 +343,17 @@ pub fn get_allowed_file_extensions() -> HashSet<String> {
         None => {
             print_warning("ALLOWED_FILE_EXTENSIONS");
             Settings::default().allowed_extensions
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_copy_mode() -> CopyMode {
     match COPY_MODE.get() {
-        None =>  {
+        None => {
             print_warning("COPY_MODE");
             Settings::default().copy_mode
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
@@ -356,7 +363,7 @@ pub fn get_number_results_levenhstein() -> usize {
         None => {
             print_warning("NUMBER_RESULTS_LEVENHSTEIN");
             Settings::default().number_results_levenhstein
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
@@ -366,7 +373,7 @@ pub fn get_number_results_embedding() -> usize {
         None => {
             print_warning("NUMBER_RESULTS_EMBEDDING");
             Settings::default().number_results_embedding
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
@@ -376,7 +383,7 @@ pub fn get_search_with_model() -> bool {
         None => {
             print_warning("SEARCH_WITH_MODEL");
             Settings::default().search_with_model
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
@@ -386,7 +393,7 @@ pub fn get_paths_to_index() -> Vec<PathBuf> {
         None => {
             print_warning("PATHS_TO_INDEX");
             Settings::default().paths_to_index
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
@@ -396,7 +403,7 @@ pub fn get_create_batch_size() -> usize {
         None => {
             print_warning("CREATE_BATCH_SIZE");
             Settings::default().create_batch_size
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
@@ -406,7 +413,7 @@ pub fn get_search_batch_size() -> usize {
         None => {
             print_warning("SEARCH_BATCH_SIZE");
             Settings::default().search_batch_size
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
@@ -416,7 +423,7 @@ pub fn get_number_of_threads() -> usize {
         None => {
             print_warning("NUMBER_OF_THREADS");
             Settings::default().number_of_threads
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
@@ -426,7 +433,7 @@ pub fn get_paths_to_ignore() -> Vec<PathBuf> {
         None => {
             print_warning("PATHS_TO_IGNORE");
             Settings::default().paths_to_ignore
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
@@ -436,7 +443,7 @@ pub fn get_path_to_weights() -> PathBuf {
         None => {
             print_warning("PATH_TO_WEIGHTS");
             Settings::default().path_to_weights
-        },
+        }
         Some(path) => path.to_owned(),
     }
 }
@@ -446,7 +453,7 @@ pub fn get_path_to_vocab() -> PathBuf {
         None => {
             print_warning("PATH_TO_VOCAB");
             Settings::default().path_to_vocab
-        },
+        }
         Some(path) => path.to_owned(),
     }
 }
@@ -456,11 +463,10 @@ pub fn get_embedding_dimensions() -> usize {
         None => {
             print_warning("EMBEDDING_DIMENSIONS");
             Settings::default().embedding_dimensions
-        },
+        }
         Some(val) => val.to_owned(),
     }
 }
-
 
 /// retireves the css config settings to send them to the frontend
 #[command]
@@ -476,5 +482,8 @@ pub fn get_css_settings() -> ColorConfig {
     }
 }
 fn print_warning(var: &str) {
-    eprintln!("WARNING!!! the Variable {} could not be gotten, falling back to default Value", var);
+    eprintln!(
+        "WARNING!!! the Variable {} could not be gotten, falling back to default Value",
+        var
+    );
 }
