@@ -60,6 +60,7 @@ pub fn search_database(
     let (sender, receiver) = crossbeam_channel::unbounded();
 
     //Creating Thread that gets relevant Data from the Database, it already sorts for file_type and Path via the SQL Statement
+    let mut count_rows = 0;
     let query_thread = std::thread::spawn(move || {
         let mut pooled_connection = connection_pool.get().expect("Failed to get connection");
         let tx = pooled_connection
@@ -90,6 +91,7 @@ pub fn search_database(
             .collect::<Result<Vec<_>, _>>()
             .expect("Result collection failed")
         };
+        count_rows = path_embs.len();
 
         tx.commit().expect("Failed to commit transaction");
 
@@ -119,7 +121,7 @@ pub fn search_database(
     // Creating the Vec
     let embedded_vec_f32 = full_emb(search_term);
 
-    let mut search_query: Vec<(String, Vec<u8>)> = Vec::new();
+    let mut search_query: Vec<(String, Vec<u8>)> = Vec::with_capacity(count_rows);
 
     // Computes the Levenhstein distance / similarity as well as builds up a Vec of every batch
     let results_lev: Vec<(String, f32)> = receiver
