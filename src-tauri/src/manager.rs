@@ -20,24 +20,12 @@ use tauri::{AppHandle, State};
 pub struct AppState {
     pub handle: AppHandle,
 }
-
 pub static WEIGHTS: OnceLock<Array2<f32>> = OnceLock::new();
 pub static VOCAB: OnceLock<HashMap<String, usize>> = OnceLock::new();
-
-pub static THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
-    ThreadPoolBuilder::new()
-        .num_threads(num_cpus::get())
-        .build()
-        .unwrap()
-});
 
 /// Initializes VOCAB and WEIGHTS to be their respective files
 pub fn initialize_globals() {
     WEIGHTS.get_or_init(|| {
-        let wights_pth = CURRENT_DIR.clone().join("data/model/eng_weights_D300");
-
-        println!("{:?}", wights_pth);
-        
         let embedding_dim = get_embedding_dimensions();
 
         let weights_bytes: Vec<u8> = fs::read(get_path_to_weights()).expect("Could not read weights");

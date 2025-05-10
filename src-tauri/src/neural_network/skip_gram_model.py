@@ -64,7 +64,7 @@ tokens_idx = [vocab.get(t, unk_idx) for t in tokens]
 print(f"Vocabulary size: {len(vocab)}")
 
 # Save vocab for use in Rust
-with open("deu_vocab.json", "w", encoding="utf-8") as vocab_file:
+with open("eng_vocab.json", "w", encoding="utf-8") as vocab_file:
     json.dump(vocab, vocab_file, ensure_ascii=False, indent=4)
 
 # SkipGramNegDataset is the transformed Dataset, the word pairs are created and words are subsampled
@@ -180,5 +180,5 @@ for epoch in range(epochs):
 embedding_weights = model.target_embeddings.weight.data.cpu().numpy()
 embedding_weights.tofile("eng_weights_D300")
 print("Embeddings saved")
-print("Seconds since epoch =", start_time)
+print("Seconds since epoch =", time.time() - start_time)
 

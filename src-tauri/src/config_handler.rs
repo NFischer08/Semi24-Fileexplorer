@@ -15,6 +15,8 @@ pub static PATHS_TO_INDEX: OnceLock<Vec<PathBuf>> = OnceLock::new();
 pub static CREATE_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static SEARCH_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_OF_THREADS: OnceLock<usize> = OnceLock::new();
+
+// Important Information, Paths_to_ignored will still be watched by rt_db but not acted on
 pub static PATHS_TO_IGNORE: OnceLock<Vec<PathBuf>> = OnceLock::new();
 pub static PATH_TO_WEIGHTS: OnceLock<PathBuf> = OnceLock::new();
 pub static PATH_TO_VOCAB: OnceLock<PathBuf> = OnceLock::new();
@@ -90,7 +92,7 @@ impl Settings {
             "sh", "bash", "zsh", "fish", "bat", "cmd", "ps1", "exe", "dll", "so", "dylib",
             // Other formats
             "sql", "db", "sqlite", "mdb", "ttf", "otf", "woff", "woff2", "obj", "stl", "fbx", "dxf",
-            "dwg", "psd", "ai", "ind", "iso", "img", "dmg", "bak", "tmp", "log", "pcap",
+            "dwg", "psd", "ai", "ind", "iso", "img", "dmg", "bak", "log", "pcap",
         ]
         .iter()
         .map(|&s| String::from(s))

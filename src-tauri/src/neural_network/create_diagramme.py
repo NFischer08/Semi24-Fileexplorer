@@ -13,7 +13,7 @@ except ImportError:
     USE_ADJUST_TEXT = False
 
 # Parameters and constants for visualization and embedding
-INPUT_WORDS = ["ocean", "harmony", "laptop", "galaxy"]
+INPUT_WORDS = ["ozean", "harmonie", "laptop", "deutsch"]
 ANNOTATE_NEIGHBORS = 6
 
 CLUSTER_COLORS = [
@@ -21,8 +21,8 @@ CLUSTER_COLORS = [
     "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"
 ]
 
-VOCAB_JSON = "eng_vocab.json"
-WEIGHTS_FILE = "eng_weights_D300"
+VOCAB_JSON = "deu_vocab.json"
+WEIGHTS_FILE = "deu_weights_D300"
 EMBEDDING_DIM = 300
 number_nearest_words = 6
 
@@ -135,7 +135,8 @@ ax.spines['right'].set_visible(False)
 plt.grid(False)
 plt.tight_layout()
 plt.savefig("Visualization-Embeddings.svg", format="svg")
-print("Diagram saved as Visualization-Embeddings")
+plt.savefig("Visualization-Embeddings.png", dpi=300)
+print("Diagrame saved as Visualization-Embeddings")
 
 # Prints sorted cosine similarities for given input words and comparison set
 def print_sorted_similarities(input_words, words_to_compare, embedding_weights, vocab):

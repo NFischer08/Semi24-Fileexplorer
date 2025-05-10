@@ -59,6 +59,9 @@ pub fn watch_folder(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     ignore: &HashSet<&str>,
 ) {
+    
+    println!("ignore: {:?}", ignore);
+    
     let allowed_extensions: &HashSet<String> = match ALLOWED_FILE_EXTENSIONS.get() {
         Some(allowed_extensions) => allowed_extensions,
         None => &get_allowed_file_extensions(),
@@ -71,9 +74,9 @@ pub fn watch_folder(
     let mut watcher = recommended_watcher(sender).expect("Error: Couldn't create watcher");
 
     // Start watching the specified path and panic if an error occurs
-    watcher
-        .watch(&watch_path, RecursiveMode::Recursive)
-        .expect("Error: Couldn't watch path");
+    if let Err(e) = watcher.watch(&watch_path, RecursiveMode::Recursive) {
+        eprintln!("Error: Couldn't watch path {:?}: {}", watch_path, e); // If this happens we may have a problem, but if it panics here we have an even bigger problem
+    }
 
     // Loop to receive events from the channel
     for res in receiver {
@@ -135,7 +138,8 @@ pub fn watch_folder(
                                                 insert_into_db(pooled_connection, &file_path);
                                             }
                                         }
-                                        // Other cases should not occur / are not from interest since they mean something didnt go as planned
+                                        // Other cases should not occur / are not from interest since they mean something don't go as planned
+                                        // Cap on Linux creating txt files is other
                                         _ => {
                                             println!("Something else {:?}, ({:?})", file_path, mode)
                                         }
@@ -202,6 +206,7 @@ fn check_folder(
         .filter_map(Result::ok)
         .map(PathBuf::from)
         .collect();
+
     let mut db_files: HashSet<PathBuf> = HashSet::new();
 
     let path_slashes_amount: usize = path.components().count();
