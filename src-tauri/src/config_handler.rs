@@ -23,6 +23,8 @@ pub static NUMBER_OF_THREADS: OnceLock<usize> = OnceLock::new();
 pub static PATHS_TO_IGNORE: OnceLock<Vec<PathBuf>> = OnceLock::new();
 pub static PATH_TO_WEIGHTS: OnceLock<PathBuf> = OnceLock::new();
 pub static PATH_TO_VOCAB: OnceLock<PathBuf> = OnceLock::new();
+pub static EMBEDDING_DIMENSIONS: OnceLock<usize> = OnceLock::new();
+
 // This should stay Lazy because it ensures that it can be used at all time
 pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     env::current_dir()
@@ -47,6 +49,7 @@ struct RawSettings {
     paths_to_ignore: Vec<String>,
     path_to_weights: String,
     path_to_vocab: String,
+    embedding_dimensions: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -64,6 +67,7 @@ struct Settings {
     paths_to_ignore: Vec<PathBuf>,
     path_to_weights: PathBuf,
     path_to_vocab: PathBuf,
+    embedding_dimensions: usize,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -71,7 +75,6 @@ pub enum CopyMode {
     Clipboard,
     File,
 }
-
 impl Settings {
     /// creates some default values incase its not able to read the json file properly
     fn default() -> Settings {
@@ -123,8 +126,9 @@ impl Settings {
             search_batch_size: 1000,
             number_of_threads: num_cpus::get() - 1,
             paths_to_ignore: Vec::new(),
-            path_to_weights: CURRENT_DIR.clone().join("data/model/weights"),
-            path_to_vocab: CURRENT_DIR.clone().join("data/model/vocab.json"),
+            path_to_weights: CURRENT_DIR.clone().join("data/model/eng_weights_D300"),
+            path_to_vocab: CURRENT_DIR.clone().join("data/model/eng_vocab.json"),
+            embedding_dimensions: 300,
         }
     }
 }
@@ -197,13 +201,13 @@ pub fn initialize_config() {
                     let paths_to_index: Vec<PathBuf> = settings
                         .paths_to_index
                         .iter()
-                        .map(|path| PathBuf::from(path))
+                        .map(PathBuf::from)
                         .filter(|path| path.exists())
                         .collect();
                     let paths_to_ignore: Vec<PathBuf> = settings
                         .paths_to_ignore
                         .iter()
-                        .map(|path| PathBuf::from(path))
+                        .map(PathBuf::from)
                         .filter(|path| path.exists())
                         .collect();
 
@@ -237,6 +241,7 @@ pub fn initialize_config() {
                         } else {
                             default_settings.path_to_vocab
                         },
+                        embedding_dimensions: settings.embedding_dimensions,
                     }
                 }
                 Err(_) => default_settings,
@@ -297,13 +302,20 @@ pub fn initialize_config() {
     PATH_TO_VOCAB
         .set(config.path_to_vocab)
         .expect("couldn't set path to vocab");
+
+    EMBEDDING_DIMENSIONS
+        .set(config.embedding_dimensions)
+        .expect("couldn't set embedding dimensions");
 }
 
 // functions for retrieving the values of the constants
 #[command]
 pub fn get_fav_file_extensions() -> HashMap<String, String> {
     match FAVOURITE_FILE_EXTENSIONS.get() {
-        None => Settings::default().favourite_extensions,
+        None => {
+            print_warning("FAVOURITE_FILE_EXTENSIONS");
+            Settings::default().favourite_extensions
+        },
         Some(val) => val.to_owned(),
     }
 }
@@ -311,87 +323,134 @@ pub fn get_fav_file_extensions() -> HashMap<String, String> {
 #[command]
 pub fn get_allowed_file_extensions() -> HashSet<String> {
     match ALLOWED_FILE_EXTENSIONS.get() {
-        None => Settings::default().allowed_extensions,
+        None => {
+            print_warning("ALLOWED_FILE_EXTENSIONS");
+            Settings::default().allowed_extensions
+        },
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_copy_mode() -> CopyMode {
     match COPY_MODE.get() {
-        None => Settings::default().copy_mode,
+        None =>  {
+            print_warning("COPY_MODE");
+            Settings::default().copy_mode
+        },
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_number_results_levenhstein() -> usize {
     match NUMBER_RESULTS_LEVENHSTEIN.get() {
-        None => Settings::default().number_results_levenhstein,
+        None => {
+            print_warning("NUMBER_RESULTS_LEVENHSTEIN");
+            Settings::default().number_results_levenhstein
+        },
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_number_results_embedding() -> usize {
     match NUMBER_RESULTS_EMBEDDING.get() {
-        None => Settings::default().number_results_embedding,
+        None => {
+            print_warning("NUMBER_RESULTS_EMBEDDING");
+            Settings::default().number_results_embedding
+        },
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_search_with_model() -> bool {
     match SEARCH_WITH_MODEL.get() {
-        None => Settings::default().search_with_model,
+        None => {
+            print_warning("SEARCH_WITH_MODEL");
+            Settings::default().search_with_model
+        },
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_paths_to_index() -> Vec<PathBuf> {
     match PATHS_TO_INDEX.get() {
-        None => Settings::default().paths_to_index,
+        None => {
+            print_warning("PATHS_TO_INDEX");
+            Settings::default().paths_to_index
+        },
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_create_batch_size() -> usize {
     match CREATE_BATCH_SIZE.get() {
-        None => Settings::default().create_batch_size,
+        None => {
+            print_warning("CREATE_BATCH_SIZE");
+            Settings::default().create_batch_size
+        },
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_search_batch_size() -> usize {
     match SEARCH_BATCH_SIZE.get() {
-        None => Settings::default().search_batch_size,
+        None => {
+            print_warning("SEARCH_BATCH_SIZE");
+            Settings::default().search_batch_size
+        },
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_number_of_threads() -> usize {
     match NUMBER_OF_THREADS.get() {
-        None => Settings::default().number_of_threads,
+        None => {
+            print_warning("NUMBER_OF_THREADS");
+            Settings::default().number_of_threads
+        },
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_paths_to_ignore() -> Vec<PathBuf> {
     match PATHS_TO_IGNORE.get() {
-        None => Settings::default().paths_to_ignore,
+        None => {
+            print_warning("PATHS_TO_IGNORE");
+            Settings::default().paths_to_ignore
+        },
         Some(val) => val.to_owned(),
     }
 }
 
 pub fn get_path_to_weights() -> PathBuf {
     match PATH_TO_WEIGHTS.get() {
-        None => Settings::default().path_to_weights,
+        None => {
+            print_warning("PATH_TO_WEIGHTS");
+            Settings::default().path_to_weights
+        },
         Some(path) => path.to_owned(),
     }
 }
 
 pub fn get_path_to_vocab() -> PathBuf {
     match PATH_TO_VOCAB.get() {
-        None => Settings::default().path_to_vocab,
+        None => {
+            print_warning("PATH_TO_VOCAB");
+            Settings::default().path_to_vocab
+        },
         Some(path) => path.to_owned(),
     }
 }
+
+pub fn get_embedding_dimensions() -> usize {
+    match EMBEDDING_DIMENSIONS.get() {
+        None => {
+            print_warning("EMBEDDING_DIMENSIONS");
+            Settings::default().embedding_dimensions
+        },
+        Some(val) => val.to_owned(),
+    }
+}
+
 
 /// retireves the css config settings to send them to the frontend
 #[command]
@@ -405,4 +464,7 @@ pub fn get_css_settings() -> ColorConfig {
         Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
         Err(_) => ColorConfig::default(),
     }
+}
+fn print_warning(var: &str) {
+    eprintln!("WARNING!!! the Variable {} could not be gotten, falling back to default Value", var);
 }

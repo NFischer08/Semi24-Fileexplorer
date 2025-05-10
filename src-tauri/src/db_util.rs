@@ -26,7 +26,7 @@ pub struct Files {
 pub fn convert_to_forward_slashes(path: &Path) -> String {
     path.to_str()
         .map(|s| s.replace('\\', "/"))
-        .unwrap_or_else(|| String::new())
+        .unwrap_or_else(String::new)
 }
 
 /// calculates the cosine similarity between two embeddings
@@ -151,7 +151,7 @@ pub fn full_emb(file_name: &str) -> Vec<f32> {
 
 /// Transforms the &Vec<u8> into Vec<f32> primary use case is to test
 /// if transformation between database and embedding is working correctly
-pub fn bytes_to_vec(bytes: &Vec<u8>) -> Vec<f32> {
+pub fn bytes_to_vec(bytes: &[u8]) -> Vec<f32> {
     bytes
         .chunks_exact(4)
         .map(|chunk| {

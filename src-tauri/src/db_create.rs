@@ -1,4 +1,4 @@
-use crate::config_handler::{get_allowed_file_extensions, get_create_batch_size};
+use crate::config_handler::{get_allowed_file_extensions, get_create_batch_size, get_embedding_dimensions};
 use crate::db_util::{convert_to_forward_slashes, full_emb, is_allowed_file, Files};
 use jwalk::WalkDir;
 use ndarray::Array2;
@@ -142,8 +142,6 @@ pub fn create_database(
 
                 //The Embedding takes up like 80% of the time per Batch
 
-                //Embedding_dim is the Amount of f32 in an Single Vec / Embedding
-                let embedding_dim = 300;
 
                 //Embeds the Batch and writes it as a Matrix
                 let batch_embeddings: Array2<f32> = {
@@ -151,14 +149,13 @@ pub fn create_database(
                         .par_iter()
                         .map(|file_data| {
                             let file_name = &file_data.1;
-                            let embedding = full_emb(file_name);
-                            embedding
+                            full_emb(file_name)
                         })
                         .collect();
 
                     let n_samples = embeddings.len();
                     Array2::from_shape_vec(
-                        (n_samples, embedding_dim),
+                        (n_samples, get_embedding_dimensions()),
                         embeddings.into_iter().flatten().collect(),
                     )
                     .expect("Shape mismatch")
@@ -182,7 +179,7 @@ pub fn create_database(
                             .execute(params![
                                 file.file_name,
                                 file.file_path,
-                                file.file_type.as_deref().map::<&str, _>(|s| s.as_ref()),
+                                file.file_type.as_deref().map::<&str, _>(|s| s),
                                 vec
                             ])
                             .expect("Could not insert file");

@@ -1,6 +1,4 @@
-use crate::config_handler::{
-    get_number_results_embedding, get_number_results_levenhstein, CURRENT_DIR,
-};
+use crate::config_handler::{get_embedding_dimensions, get_number_results_embedding, get_number_results_levenhstein, get_path_to_vocab, get_path_to_weights, CURRENT_DIR};
 use crate::db_create::create_database;
 use crate::db_search::search_database;
 use crate::db_util::{initialize_database, load_vocab};
@@ -19,8 +17,8 @@ use tauri::command;
 use tauri::{AppHandle, State};
 
 #[derive(Debug)]
-pub(crate) struct AppState {
-    pub(crate) handle: AppHandle,
+pub struct AppState {
+    pub handle: AppHandle,
 }
 
 pub static WEIGHTS: OnceLock<Array2<f32>> = OnceLock::new();
@@ -36,10 +34,13 @@ pub static THREAD_POOL: LazyLock<ThreadPool> = LazyLock::new(|| {
 /// Initializes VOCAB and WEIGHTS to be their respective files
 pub fn initialize_globals() {
     WEIGHTS.get_or_init(|| {
-        let embedding_dim = 300;
-        let mut path = CURRENT_DIR.clone();
-        path.push("data/model/weights");
-        let weights_bytes: Vec<u8> = fs::read(&path).expect("Could not read weights");
+        let wights_pth = CURRENT_DIR.clone().join("data/model/eng_weights_D300");
+
+        println!("{:?}", wights_pth);
+        
+        let embedding_dim = get_embedding_dimensions();
+
+        let weights_bytes: Vec<u8> = fs::read(get_path_to_weights()).expect("Could not read weights");
         let weights_as_f32: &[f32] = cast_slice(&weights_bytes);
 
         // Infer the vocab size from the file length
@@ -50,10 +51,7 @@ pub fn initialize_globals() {
     });
 
     VOCAB.get_or_init(|| {
-        let mut path = CURRENT_DIR.clone();
-        path.push("data/model/vocab.json");
-        println!("{}", path.display());
-        load_vocab(&path)
+        load_vocab(&get_path_to_vocab())
     });
 }
 
@@ -72,14 +70,13 @@ pub fn manager_make_connection_pool() -> Pool<SqliteConnectionManager> {
     if PathBuf::from(&path).try_exists().expect("Reason") {
         path.push("files.sqlite3");
         let manager = SqliteConnectionManager::file(path);
-        let connection_pool = Pool::new(manager).expect("Failed to create pool.");
-        connection_pool
+        Pool::new(manager).expect("Failed to create pool.")
+        
     } else {
         create_dir(PathBuf::from(&path)).expect("Failed to create Dir");
         path.push("files.sqlite3");
         let manager = SqliteConnectionManager::file(path);
-        let connection_pool = Pool::new(manager).expect("Failed to create pool.");
-        connection_pool
+        Pool::new(manager).expect("Failed to create pool.")
     }
 }
 
@@ -118,7 +115,7 @@ pub fn manager_basic_search(
     searchpath: &str,
     searchfiletype: &str,
     state: State<AppState>,
-) -> () {
+) {
     initialize_globals();
     println!("search started !");
     let connection_pool = manager_make_connection_pool();

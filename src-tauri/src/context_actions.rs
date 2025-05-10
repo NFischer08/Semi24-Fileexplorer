@@ -73,7 +73,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
                 delete_file(copy_path.join("CONTENT").to_string_lossy().to_string())?;
             }
             // copy file or folder to paste it later
-            match copy_dir(&source_path, &copy_path.join("CONTENT")) {
+            match copy_dir(&source_path, copy_path.join("CONTENT")) {
                 Ok(_) => {}
                 Err(e) => return Err(e.to_string()),
             };
@@ -239,10 +239,7 @@ pub fn delete_file(filepath: String) -> Result<String, String> {
         // get the connection pool from manager
         let connection_pool: Pool<SqliteConnectionManager> = manager_make_connection_pool();
         // get a valid connection to db and remove just deleted folder from db
-        match connection_pool.get() {
-            Ok(conn) => delete_from_db(&conn, &path),
-            Err(_) => {}
-        }
+        if let Ok(conn) = connection_pool.get() { delete_from_db(&conn, &path) }
         println!("Deleted directory '{}'", path.display());
     } else if path.is_file() {
         //fs::remove_file(path).map_err(|e| e.to_string())?;

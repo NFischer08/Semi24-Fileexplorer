@@ -27,7 +27,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 VOCAB_SIZE = 50_000
 UNK_TOKEN = "UNK"
 
-file_path = "deu_wikipedia_2021_10K/deu_wikipedia_2021_10K-sentences.txt"
+file_path = "deu_wikipedia_2021_1M/deu_wikipedia_2021_1M-sentences.txt"
 
 def normalize_token(token):
     if re.fullmatch(r"\d{4}([-:.])\d{2}\1\d{2}", token):
@@ -151,7 +151,7 @@ print("Using device:", device)
 batch_size = 8192
 window_size = 5
 n_neg = 10
-embedding_dim = 300
+embedding_dim = 150
 epochs = 20
 
 dataset = SkipGramNegDataset(tokens_idx, vocab, vocab_counter, window_size=window_size, unk_idx=unk_idx, device='cpu')
@@ -186,6 +186,6 @@ for epoch in range(epochs):
 # 5. Save Embeddings and Visualize
 # -------------------------------
 embedding_weights = model.target_embeddings.weight.data.cpu().numpy()
-embedding_weights.tofile("deu_weights")
+embedding_weights.tofile("deu_weights_D150")
 print("Embeddings saved")
 

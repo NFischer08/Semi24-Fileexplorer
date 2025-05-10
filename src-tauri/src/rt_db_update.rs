@@ -104,7 +104,7 @@ pub fn watch_folder(
                         match event.kind {
                             Create(_) => {
                                 // insert file into db
-                                insert_into_db(&pooled_connection, &file_path);
+                                insert_into_db(pooled_connection, &file_path);
 
                                 if file_path.is_dir() {
                                     // update db function starting at `file_path`
@@ -113,7 +113,7 @@ pub fn watch_folder(
                                 }
                             }
                             Remove(_) => {
-                                delete_from_db(&pooled_connection, &file_path);
+                                delete_from_db(pooled_connection, &file_path);
                             }
                             Modify(modify) => match modify {
                                 // only renaming is interesting
@@ -122,7 +122,7 @@ pub fn watch_folder(
                                     match mode {
                                         From => {
                                             // remove file from db
-                                            delete_from_db(&pooled_connection, &file_path);
+                                            delete_from_db(pooled_connection, &file_path);
                                         }
                                         To => {
                                             if file_path.is_dir() {
@@ -131,11 +131,11 @@ pub fn watch_folder(
                                                     .parent()
                                                     .unwrap_or(Path::new("/"))
                                                     .to_path_buf();
-                                                check_folder(ppath, &pooled_connection)
+                                                check_folder(ppath, pooled_connection)
                                                     .unwrap_or_default()
                                             } else {
                                                 // insert file into db
-                                                insert_into_db(&pooled_connection, &file_path);
+                                                insert_into_db(pooled_connection, &file_path);
                                             }
                                         }
                                         // Linux: `Both` why? Idk, what it means? Idk :(
@@ -203,7 +203,7 @@ fn check_folder(
 
     let db_files_all: Vec<PathBuf> = paths_iter
         .filter_map(Result::ok)
-        .map(|path| PathBuf::from(path))
+        .map(PathBuf::from)
         .collect();
     let mut db_files: HashSet<PathBuf> = HashSet::new();
 
@@ -227,7 +227,7 @@ fn check_folder(
         if file.is_dir() {
             let _ = manager_populate_database(file);
         } else {
-            insert_into_db(&pooled_connection, &file)
+            insert_into_db(pooled_connection, &file)
         }
     }
 
@@ -245,8 +245,8 @@ fn check_folder(
 /// deletes a given file path from the db (therefor taking connection to it)
 pub fn delete_from_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
-    file_path: &PathBuf,
-) -> () {
+    file_path: &Path,
+) {
     pooled_connection
         .execute(
             "DELETE FROM files WHERE file_path = ?",
@@ -258,8 +258,8 @@ pub fn delete_from_db(
 /// inserts a given file path into the db (therefor taking connection to it)
 fn insert_into_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
-    file_path: &PathBuf,
-) -> () {
+    file_path: &Path,
+) {
     let path = file_path.to_string_lossy().to_string().replace("\\", "/");
     let name = file_path
         .file_stem()

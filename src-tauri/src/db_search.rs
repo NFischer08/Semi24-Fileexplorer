@@ -24,7 +24,7 @@ pub fn search_database(
     num_results_embeddings: usize,
     num_results_levenhstein: usize,
     state: State<AppState>,
-) -> () {
+) {
     // Getting a Pooled Connetion
     let pooled_connection = connection_pool.get().expect("get connection pool");
     let batch_size: usize = get_search_batch_size();

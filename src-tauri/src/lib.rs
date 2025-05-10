@@ -67,7 +67,7 @@ pub fn run() {
                 handle: app.handle().clone(),
             });
             initialize_globals();
-            thread::spawn(move || start_file_watcher());
+            thread::spawn(start_file_watcher);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
