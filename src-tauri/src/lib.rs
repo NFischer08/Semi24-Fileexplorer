@@ -59,7 +59,9 @@ fn setup_directory_structure() {
 }
 
 pub fn run() {
+
     initialize_config();
+    initialize_globals();
 
     rayon::ThreadPoolBuilder::new()
         .num_threads(get_number_of_threads()) // Reserve one core for OS
