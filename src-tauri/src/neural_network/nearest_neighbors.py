@@ -2,12 +2,15 @@ import json
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
-EMBEDDING_DIM = 300  # Set this to your embedding dimension used in training
+# Parameters
+EMBEDDING_DIM = 300
+sample_words = ["test", "first", "king"]
+vocap_path = "eng_vocab.json"
+weights_path = "eng_weights_D300"
+number_nearest_words = 10
 
-def nearest_neighbor(word, embedding_weights, vocab, top_k=10, exclude_unk=True):
-    """
-    Returns the top_k nearest neighbors for a given word based on cosine similarity.
-    """
+
+def nearest_neighbor(word, embedding_weights, vocab, top_k=number_nearest_words, exclude_unk=True):
     if word not in vocab:
         print(f"Word '{word}' not in vocabulary.")
         return []
@@ -18,9 +21,9 @@ def nearest_neighbor(word, embedding_weights, vocab, top_k=10, exclude_unk=True)
     neighbors = []
     for i in sorted_indices:
         if i == idx:
-            continue  # skip the word itself
+            continue
         if exclude_unk and i == vocab.get("UNK", -1):
-            continue  # skip UNK token if requested
+            continue
         neighbors.append((i, similarities[i]))
         if len(neighbors) >= top_k:
             break
@@ -28,28 +31,21 @@ def nearest_neighbor(word, embedding_weights, vocab, top_k=10, exclude_unk=True)
     inv_vocab = {i: w for w, i in vocab.items()}
     return [(inv_vocab[i], sim) for i, sim in neighbors]
 
-def usage_nearest_neighbor(embedding_weights, vocab):
-    """
-    Example usage of nearest_neighbor: prints neighbors for a list of sample words.
-    """
-    sample_words = ["test", "first", "king"]
+def usage_nearest_neighbor(embedding_weights, vocab, sample_words):
     for word in sample_words:
         print(f"\nNearest neighbors for '{word}':")
-        neighbors = nearest_neighbor(word, embedding_weights, vocab, top_k=5)
+        neighbors = nearest_neighbor(word, embedding_weights, vocab, top_k=number_nearest_words)
         for neighbor, sim in neighbors:
             print(f"  {neighbor:15s} (similarity: {sim:.4f})")
 def main():
-        # --- 1. Load vocab ---
-    with open('eng_vocab.json', 'r', encoding='utf-8') as f:
+    with open(vocap_path, 'r', encoding='utf-8') as f:
         vocab = json.load(f)
     vocab_size = len(vocab)
 
-    # --- 2. Load weights ---
-    embedding_weights = np.fromfile('eng_weights_D300', dtype=np.float32)
+    embedding_weights = np.fromfile(weights_path, dtype=np.float32)
     embedding_weights = embedding_weights.reshape((vocab_size, EMBEDDING_DIM))
 
-    # --- 3. Run monolingual nearest neighbor example ---
-    usage_nearest_neighbor(embedding_weights, vocab)
+    usage_nearest_neighbor(embedding_weights, vocab, sample_words)
 
 
 if __name__ == "__main__":

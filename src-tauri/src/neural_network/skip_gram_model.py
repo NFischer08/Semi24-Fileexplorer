@@ -16,15 +16,21 @@ import torch.optim as optim
 from tqdm import tqdm
 import time
 
-# -------------------------------
-# 1. Data Preparation
-# -------------------------------
-# Parameters
+
+# All Parameters for training the model
 VOCAB_SIZE = 50_000
 UNK_TOKEN = "UNK"
+batch_size = 8192
+window_size = 5
+n_neg = 10
+embedding_dim = 300
+epochs = 20
+dataset_workers = 12
 
+# Path to training Data which should be in text form and only contain normal text
 file_path = "eng_wikipedia_2016_1M/eng_wikipedia_2016_1M-sentences.txt"
 
+# Tokeniziation with an Regex expression
 def normalize_token(token):
     if re.fullmatch(r"\d{4}([-:.])\d{2}\1\d{2}", token):
         return "DATE"
@@ -57,13 +63,11 @@ tokens_idx = [vocab.get(t, unk_idx) for t in tokens]
 
 print(f"Vocabulary size: {len(vocab)}")
 
-# Save vocab for reference
+# Save vocab for use in Rust
 with open("deu_vocab.json", "w", encoding="utf-8") as vocab_file:
     json.dump(vocab, vocab_file, ensure_ascii=False, indent=4)
 
-# -------------------------------
-# 2. Dataset with Negative Sampling and UNK
-# -------------------------------
+# SkipGramNegDataset is the transformed Dataset, the word pairs are created and words are subsampled
 class SkipGramNegDataset(Dataset):
     def __init__(self, tokens_idx, vocab, vocab_counter, window_size=2, unk_idx=None, subsample_t=1e-4, device='cpu'):
         self.vocab = vocab
@@ -116,9 +120,8 @@ class SkipGramNegDataset(Dataset):
     def __getitem__(self, idx):
         target, context = self.pairs[idx]
         return target, context
-# -------------------------------
-# 3. SkipGram Model with Negative Sampling
-# -------------------------------
+
+# SkipGranNegSampling is the model with it's initialization and forward function
 class SkipGramNegSampling(nn.Module):
     def __init__(self, vocab_size, embedding_dim):
         super().__init__()
@@ -138,20 +141,12 @@ class SkipGramNegSampling(nn.Module):
         loss = -torch.mean(pos_loss + neg_loss)
         return loss
 
-# -------------------------------
-# 4. Training
-# -------------------------------
+# Training preparations, using GPU if possible, initializing dataset and loader
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 print("Using device:", device)
 
-batch_size = 8192
-window_size = 5
-n_neg = 10
-embedding_dim = 300
-epochs = 20
-
 dataset = SkipGramNegDataset(tokens_idx, vocab, vocab_counter, window_size=window_size, unk_idx=unk_idx, device='cpu')
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=12, prefetch_factor=4, pin_memory=True, persistent_workers=True)
+dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=dataset_workers, prefetch_factor=4, pin_memory=True, persistent_workers=True)
 
 model = SkipGramNegSampling(len(vocab), embedding_dim).to(device)
 optimizer = optim.Adam(model.parameters(), lr=0.003)
@@ -160,6 +155,8 @@ optimizer = optim.Adam(model.parameters(), lr=0.003)
 word_prob_tensor = torch.tensor(dataset.word_prob, dtype=torch.float32, device=device)
 
 start_time = time.time()
+
+# Main training loop is here
 for epoch in range(epochs):
     total_loss = 0
     progress_bar = tqdm(dataloader, desc=f"Epoch {epoch + 1}", unit="batch")
@@ -179,9 +176,7 @@ for epoch in range(epochs):
         total_loss += loss.item()
         progress_bar.set_postfix(loss=loss.item())
 
-# -------------------------------
-# 5. Save Embeddings and Visualize
-# -------------------------------
+# Saving weights
 embedding_weights = model.target_embeddings.weight.data.cpu().numpy()
 embedding_weights.tofile("eng_weights_D300")
 print("Embeddings saved")

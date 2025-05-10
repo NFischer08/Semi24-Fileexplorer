@@ -12,11 +12,9 @@ try:
 except ImportError:
     USE_ADJUST_TEXT = False
 
-# -------------------------------
-# 0. Input: Your words and annotation settings
-# -------------------------------
+# Parameters and constants for visualization and embedding
 INPUT_WORDS = ["ocean", "harmony", "laptop", "galaxy"]
-ANNOTATE_NEIGHBORS = 6  # How many neighbors per input word to annotate
+ANNOTATE_NEIGHBORS = 6
 
 CLUSTER_COLORS = [
     "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
@@ -26,51 +24,46 @@ CLUSTER_COLORS = [
 VOCAB_JSON = "eng_vocab.json"
 WEIGHTS_FILE = "eng_weights_D300"
 EMBEDDING_DIM = 300
+number_nearest_words = 6
 
+# Load vocabulary from file
 with open(VOCAB_JSON, "r", encoding="utf-8") as f:
     vocab = json.load(f)
 
+# Load embedding weights from file and reshape
 embedding_weights = np.fromfile(WEIGHTS_FILE, dtype=np.float32)
 embedding_weights = embedding_weights.reshape(len(vocab), EMBEDDING_DIM)
 
 UNK_TOKEN = "UNK"
 
-# -------------------------------
-# 1. Find neighbors and build word list
-# -------------------------------
 all_words = set()
 word_to_neighbors = {}
 word_to_cluster = {}
-annotate_words = set(INPUT_WORDS)  # Always annotate input words
+annotate_words = set(INPUT_WORDS)
 
+# Find nearest neighbors for each input word, assign clusters, prepare annotation list
 for idx, word in enumerate(INPUT_WORDS):
     if word in vocab and word != UNK_TOKEN:
         all_words.add(word)
-        neighbors = nearest_neighbor(word, embedding_weights, vocab, top_k=6, exclude_unk=True)
+        neighbors = nearest_neighbor(word, embedding_weights, vocab, top_k=number_nearest_words, exclude_unk=True)
         neighbor_words = [w for w, sim in neighbors if w != UNK_TOKEN]
         word_to_neighbors[word] = neighbor_words
         all_words.update(neighbor_words)
         word_to_cluster[word] = idx
         for n in neighbor_words:
             word_to_cluster[n] = idx
-        # Add only the specified number of neighbors to annotate
         annotate_words.update(neighbor_words[:ANNOTATE_NEIGHBORS])
     else:
         print(f"Warning: '{word}' not found in vocabulary or is UNK.")
 
 WORDS_FOR_VIS = list(all_words)
 
-# -------------------------------
-# 2. Prepare Embeddings
-# -------------------------------
+# Prepare embeddings and indices for visualization
 words = [w for w in WORDS_FOR_VIS if w in vocab and w != UNK_TOKEN]
-if not words:
-    raise ValueError("None of the selected words were found in the vocabulary.")
-
 indices = [vocab[word] for word in words]
 embeddings_subset = embedding_weights[indices]
 
-print("\nCosine similarities between each INPUT_WORD and all plotted words:\n")
+# Print cosine similarities for each input word against all selected words
 for input_word in INPUT_WORDS:
     if input_word not in vocab or input_word == UNK_TOKEN:
         print(f"Warning: '{input_word}' not found in vocabulary or is UNK.")
@@ -83,15 +76,12 @@ for input_word in INPUT_WORDS:
         word_vec = embedding_weights[word_idx].reshape(1, -1)
         sim = float((np.dot(input_vec, word_vec.T) / (np.linalg.norm(input_vec) * np.linalg.norm(word_vec))).item())
         similarities.append((word, sim))
-    # Sort by similarity descending
-    similarities.sort(key=lambda x: -x[1])
+    similarities.sort(key=lambda x: -x[1])  # Sort by similarity
     print(f"\nSimilarities for '{input_word}':")
     for word, sim in similarities:
         print(f"  {word:15s} (cosine similarity: {sim:.4f})")
 
-# -------------------------------
-# 3. t-SNE Visualization
-# -------------------------------
+# Plotting setup and TSNE dimensionality reduction
 plt.rcParams['svg.fonttype'] = 'path'
 plt.rcParams['font.family'] = 'Sans serif'
 
@@ -120,22 +110,20 @@ for i, word in enumerate(words):
         embeddings_2d[i, 0], embeddings_2d[i, 1],
         s=size, c=color, alpha=alpha, marker=marker, edgecolor='k', linewidth=1.2, zorder=zorder
     )
-    # Annotate only if word is in annotate_words
     if word in annotate_words:
         t = plt.text(
             embeddings_2d[i, 0], embeddings_2d[i, 1], word,
             fontsize=fontsize, color=color, fontweight=fontweight,
-            alpha=1,  # <-- removed path_effects
+            alpha=1,
             zorder=zorder+1
         )
         texts.append(t)
 
-# --- Add this block to avoid overlapping labels ---
+# Optionally adjust text labels to avoid overlap
 if USE_ADJUST_TEXT and texts:
     adjust_text(texts)
 
-
-
+# Final plot formatting and saving
 plt.title("Gruppierte Worteinbettungen", fontsize=28, weight='bold', pad=20)
 plt.xlabel("Dimension 1", fontsize=26)
 plt.ylabel("Dimension 2", fontsize=26)
@@ -149,11 +137,8 @@ plt.tight_layout()
 plt.savefig("Visualization-Embeddings.svg", format="svg")
 print("Diagram saved as Visualization-Embeddings")
 
+# Prints sorted cosine similarities for given input words and comparison set
 def print_sorted_similarities(input_words, words_to_compare, embedding_weights, vocab):
-    """
-    For each input word, print cosine similarities to all words in words_to_compare,
-    sorted from highest to lowest.
-    """
     for input_word in input_words:
         if input_word not in vocab or input_word == "UNK":
             print(f"Warning: '{input_word}' not found in vocabulary or is UNK.")
@@ -166,8 +151,7 @@ def print_sorted_similarities(input_words, words_to_compare, embedding_weights, 
             word_vec = embedding_weights[word_idx].reshape(1, -1)
             sim = float(np.dot(input_vec, word_vec.T) / (np.linalg.norm(input_vec) * np.linalg.norm(word_vec)))
             similarities.append((word, sim))
-        # Sort by similarity, descending
-        similarities.sort(key=lambda x: -x[1])
+        similarities.sort(key=lambda x: -x[1])  # Sort by similarity
         print(f"\nSimilarities for '{input_word}':")
         for word, sim in similarities:
             print(f"  {word:15s} (cosine similarity: {sim:.4f})")
