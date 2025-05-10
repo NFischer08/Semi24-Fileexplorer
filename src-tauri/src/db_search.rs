@@ -1,5 +1,5 @@
 use crate::config_handler::get_search_batch_size;
-use crate::db_util::{bytes_to_vec, cosine_similarity, tokenize_file_name, tokens_to_indices};
+use crate::db_util::{bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices};
 use crate::manager::{build_struct, AppState, VOCAB, WEIGHTS};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -115,24 +115,8 @@ pub fn search_database(
         }
     });
 
-    // Doing prerequisites for embedding the search_term
-    let token_indices = tokens_to_indices(tokenize_file_name(search_term), VOCAB.get().unwrap());
-
-    // Gets the Embeddings via the Index in the Weights Array
-    let selected = WEIGHTS
-        .get()
-        .unwrap()
-        .select(ndarray::Axis(0), &token_indices);
-
-    // Adding the Embedding together for the tokens
-    let sum_embedding = selected.sum_axis(ndarray::Axis(0));
-
-    // Averaging the embedding
-    let count = token_indices.len() as f32;
-    let avg_embedding = &sum_embedding / count;
-
     // Creating the Vec
-    let embedded_vec_f32 = avg_embedding.to_vec();
+    let embedded_vec_f32 = full_emb(search_term);
 
     let mut search_query: Vec<(String, Vec<u8>)> = Vec::new();
 

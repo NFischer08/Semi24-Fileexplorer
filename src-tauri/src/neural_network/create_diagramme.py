@@ -13,7 +13,7 @@ except ImportError:
     USE_ADJUST_TEXT = False
 
 # Parameters and constants for visualization and embedding
-INPUT_WORDS = ["ozean", "harmonie", "laptop", "deutsch"]
+INPUT_WORDS = ["ocean", "harmony", "laptop", "galaxy"]
 ANNOTATE_NEIGHBORS = 6
 
 CLUSTER_COLORS = [
@@ -21,8 +21,8 @@ CLUSTER_COLORS = [
     "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"
 ]
 
-VOCAB_JSON = "deu_vocab.json"
-WEIGHTS_FILE = "deu_weights_D300"
+VOCAB_JSON = "eng_vocab.json"
+WEIGHTS_FILE = "eng_weights_D300"
 EMBEDDING_DIM = 300
 number_nearest_words = 6
 
@@ -124,7 +124,7 @@ if USE_ADJUST_TEXT and texts:
     adjust_text(texts)
 
 # Final plot formatting and saving
-plt.title("Gruppierte Worteinbettungen", fontsize=28, weight='bold', pad=20)
+plt.title("Gruppierte Worteinbettungen", fontsize=28, weight='bold', pad=28)
 plt.xlabel("Dimension 1", fontsize=26)
 plt.ylabel("Dimension 2", fontsize=26)
 plt.xticks(fontsize=20)
