@@ -25,8 +25,7 @@ async function loadFilesAndFolders() {
     filePathHistoryIndex += 1; // increment index do it stays at the last element
   }
 
-  const errorMessageElement = document.getElementById('error-message'); // get the errorMessageElement
-  errorMessageElement.classList.add('hidden'); // hide error in case there was one
+  hideError();
 
   const fileListElement = document.getElementById('fileList'); // get table body with results
   fileListElement.innerHTML = ''; // remove previously displayed files and folders
@@ -69,10 +68,7 @@ async function loadFilesAndFolders() {
     });
 
   } catch (error) {
-    console.error('Error:', error);
-    // in case of an error it will be displayed beneth the table
-    errorMessageElement.textContent = 'Error: ' + error; // set error message
-    errorMessageElement.classList.remove('hidden'); // display it
+    displayError(error);
   }
 }
 
@@ -101,10 +97,7 @@ listen('search-finnished', (event) => {
     const entries = event.payload;
     displaySearchResults(entries);
   } catch (error) {
-    console.error('Error:', error);
-    const errorMessageElement = document.getElementById('error-message');
-    errorMessageElement.textContent = 'Error: ' + error.message;
-    errorMessageElement.classList.remove('hidden');
+    displayError(error);
   }
 }).then((unlistenFn) => {
   // Store unlisten function for cleanup
@@ -119,8 +112,7 @@ function displaySearchResults(entries) {
   document.getElementById('loading-spinner').classList.add('hidden');
   document.getElementById('fileTable').classList.remove('hidden');
 
-  const errorMessageElement = document.getElementById('error-message'); // get errorMessageElement
-  errorMessageElement.classList.add('hidden'); // remove Error message if it was displayed
+  hideError();
 
   const fileListElement = document.getElementById('fileList'); // get table body with results
   fileListElement.innerHTML = ''; // delete previous results
@@ -166,12 +158,24 @@ function displaySearchResults(entries) {
     });
 
   } catch (error) {
-    console.error('Error:', error);
-
-    // display error beneth the table
-    errorMessageElement.textContent = 'Error: ' + error; // set message
-    errorMessageElement.classList.remove('hidden'); // display message
+    displayError(error);
   }
+}
+
+// display error message and hide table when an error occurs
+function displayError(error) {
+  console.error('Error:', error);
+  document.getElementById('fileTableContainer').classList.add('error');
+  const errorMessageElement = document.getElementById('error-message');
+  errorMessageElement.textContent = 'Error: ' + error;
+  errorMessageElement.classList.remove('hidden');
+}
+
+// hide error message and show table when no error occured
+function hideError() {
+  document.getElementById('fileTableContainer').classList.remove('error');
+  const errorMessageElement = document.getElementById('error-message'); // get the errorMessageElement
+  errorMessageElement.classList.add('hidden'); // hide error in case there was one
 }
 
 // runs when program starts
