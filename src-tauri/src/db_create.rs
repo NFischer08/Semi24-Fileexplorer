@@ -6,7 +6,8 @@ use jwalk::WalkDir;
 use ndarray::Array2;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rayon::prelude::*;
+use rayon::iter::IntoParallelRefIterator;
+use rayon::iter::ParallelIterator;
 use rusqlite::{params, Result};
 use std::{collections::HashSet, path::PathBuf, time::Instant};
 

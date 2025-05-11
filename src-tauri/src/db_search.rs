@@ -1,9 +1,14 @@
 use crate::config_handler::{get_path_to_vocab, get_search_batch_size};
-use crate::db_util::{bytes_to_vec, cosine_similarity, full_emb, load_vocab, tokenize_file_name, tokens_to_indices};
+use crate::db_util::{
+    bytes_to_vec, cosine_similarity, full_emb, load_vocab, tokenize_file_name, tokens_to_indices,
+};
 use crate::manager::{build_struct, AppState, VOCAB, WEIGHTS};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use rayon::prelude::*;
+use rayon::iter::ParallelIterator;
+use rayon::iter::{IntoParallelIterator, ParallelBridge};
+use rayon::prelude::ParallelSliceMut;
+use rusqlite::fallible_iterator::FallibleIterator;
 use rusqlite::{params, Result};
 use std::cmp::Ordering;
 use std::{
@@ -11,7 +16,6 @@ use std::{
     path::{Path, PathBuf},
     time::Instant,
 };
-use rusqlite::fallible_iterator::FallibleIterator;
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
 
@@ -170,7 +174,7 @@ pub fn search_database(
     query_thread.join().expect("Query thread panicked");
 
     let tokenized_file_name = tokenize_file_name(search_term);
-    let tokens_indices = tokens_to_indices(tokenized_file_name, VOCAB.get().unwrap()) ;
+    let tokens_indices = tokens_to_indices(tokenized_file_name, VOCAB.get().unwrap());
 
     // Checks if Model doesn't undersand anything in search term
     let mut num_results_embeddings = num_results_embeddings;

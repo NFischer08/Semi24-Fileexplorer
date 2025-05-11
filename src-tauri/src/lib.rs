@@ -12,7 +12,6 @@ use crate::config_handler::{
     build_config, get_number_of_threads, get_paths_to_index, ColorConfig, Settings, CURRENT_DIR,
 };
 use crate::manager::{initialize_globals, manager_populate_database, AppState};
-use crate::rt_db_update::start_file_watcher;
 use config_handler::{get_css_settings, get_fav_file_extensions, initialize_config};
 use context_actions::{copy_file, cut_file, delete_file, open_file, paste_file, rename_file};
 use file_information::format_file_data;
@@ -65,6 +64,9 @@ pub fn run() {
     initialize_globals();
 
     rayon::ThreadPoolBuilder::new()
+        .panic_handler(|err| {
+            eprintln!("A Rayon worker thread panicked: {:?}", err);
+        })
         .num_threads(get_number_of_threads()) // Reserve one core for OS
         .build_global()
         .expect("Couldn't build thread pool");

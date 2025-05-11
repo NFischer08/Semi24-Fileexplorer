@@ -1,5 +1,5 @@
 use crate::config_handler::get_paths_to_ignore;
-use crate::manager::{initialize_globals, VOCAB, WEIGHTS};
+use crate::manager::{VOCAB, WEIGHTS};
 use ndarray::{Array2, Axis};
 use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -33,7 +33,7 @@ pub fn convert_to_forward_slashes(path: &Path) -> String {
 pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() {
         eprintln!("Cosine similarity has been used wrong !!!");
-        return 0.0
+        return 0.0;
     }
     let dot = a.iter().zip(b.iter()).map(|(&x, &y)| x * y).sum::<f32>();
     let norm_a = a.iter().map(|&x| x * x).sum::<f32>().sqrt();
@@ -52,7 +52,7 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
             return false;
         }
     }
-    
+
     // Checks if the extension of the Path is in the allowed_file_extensions Hashset
     path.is_dir()
         || path
