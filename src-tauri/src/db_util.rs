@@ -186,6 +186,9 @@ pub fn is_hidden(path: &Path) -> bool {
 
     for ancestor in path.ancestors() {
         if let Ok(metadata) = fs::metadata(ancestor) {
+            if ancestor == Path::new("/") {
+                break
+            }
             if (metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN) != 0 {
                 return true;
             }

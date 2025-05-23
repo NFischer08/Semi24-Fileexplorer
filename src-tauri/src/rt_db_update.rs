@@ -87,7 +87,7 @@ pub fn watch_folder(
                         }
                     }
                     
-                    if !*INDEX_HIDDEN_FILES.get().expect("") && is_hidden(Path::new(&file_path)) {
+                    if !*INDEX_HIDDEN_FILES.get().expect("") && is_hidden(&file_path) {
                         continue 'event;
                     }
                     
