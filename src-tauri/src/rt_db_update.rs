@@ -27,6 +27,7 @@ use std::{
 /// gets all paths which need to be watched from config and starts watching each path
 /// as well as that it initializes the db connection
 pub fn start_file_watcher() {
+    println!("File Watcher started");
     // creates a HashSet with paths to ignore
     let ignore: HashSet<String> = get_paths_to_ignore()
         .iter()

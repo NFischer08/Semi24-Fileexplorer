@@ -19,6 +19,7 @@ use manager::manager_basic_search;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{fs::create_dir, thread};
 use tauri::Manager;
+use crate::rt_db_update::start_file_watcher;
 
 fn setup_directory_structure() {
     let data_dir = CURRENT_DIR.join("data");
@@ -62,6 +63,7 @@ fn setup_directory_structure() {
 }
 
 pub fn run() {
+    setup_directory_structure();
     initialize_config();
     initialize_globals();
 
@@ -72,8 +74,6 @@ pub fn run() {
         .num_threads(get_number_of_threads()) // Reserve one core for OS
         .build_global()
         .expect("Couldn't build thread pool");
-
-    setup_directory_structure();
 
     let paths_to_index = get_paths_to_index();
     thread::spawn(move || {
@@ -87,8 +87,7 @@ pub fn run() {
             app.manage(AppState {
                 handle: app.handle().clone(),
             });
-            initialize_globals();
-            //thread::spawn(start_file_watcher);
+            thread::spawn(start_file_watcher);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

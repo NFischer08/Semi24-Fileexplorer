@@ -101,7 +101,7 @@ pub fn manager_populate_database(database_scan_start: PathBuf) -> Result<(), Str
 pub fn manager_basic_search(
     searchterm: &str,
     searchpath: &str,
-    searchfiletype: &str,
+    searchfiletype: String,
     state: State<AppState>,
 ) {
     initialize_globals();
