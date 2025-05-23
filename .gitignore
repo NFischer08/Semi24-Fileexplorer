@@ -1,8 +1,7 @@
 /target/
 /src-tauri/target/
-/dist/
-/.vite/
 /venv/
 /src-tauri/src/neural_network/training_data
 /src-tauri/data/db/
 /src-tauri/gen/
+/.idea/
