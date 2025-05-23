@@ -1,14 +1,12 @@
 use crate::config_handler::get_search_batch_size;
-use crate::db_util::{
-    bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices,
-};
+use crate::db_util::{bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices};
 use crate::manager::{build_struct, AppState, VOCAB};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::iter::ParallelIterator;
 use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use rayon::prelude::ParallelSliceMut;
-use rusqlite::{Result};
+use rusqlite::Result;
 use std::cmp::Ordering;
 use std::{
     fs::{self, DirEntry},
@@ -67,28 +65,27 @@ pub fn search_database(
     println!("search file type: {:?}", search_file_types);
 
     let sql_stmt: String = if search_file_types_vec.is_empty() {
-        
-            r#"
+        r#"
         SELECT file_path, name_embeddings
         FROM files
         WHERE file_path LIKE ?1
-        "#.to_string()
-        
+        "#
+        .to_string()
     } else {
         let placeholders = std::iter::repeat("?")
             .take(search_file_types_vec.len())
             .collect::<Vec<_>>()
             .join(", ");
-        
+
         format!(
-                r#"
+            r#"
             SELECT file_path, name_embeddings
             FROM files
             WHERE file_path LIKE ?1
             AND file_type IN ({})
             "#,
-                placeholders
-            )
+            placeholders
+        )
     };
 
     //Creating channel
@@ -103,25 +100,26 @@ pub fn search_database(
             .expect("Failed to begin transaction");
 
         let search_pattern = format!("{}%", search_path_str);
-        let mut params: Vec<&dyn rusqlite::ToSql> = Vec::with_capacity(1 + search_file_types_vec.len());
+        let mut params: Vec<&dyn rusqlite::ToSql> =
+            Vec::with_capacity(1 + search_file_types_vec.len());
         params.push(&search_pattern);
         for file_type in &search_file_types_vec {
             params.push(file_type);
         }
 
-
         let path_embs = {
-            let mut stmt = tx.prepare_cached(&sql_stmt).expect("Failed to prepare statement");
-            stmt
-                .query_map(params.as_slice(), |row| {
-                    Ok((
-                        row.get::<_, String>("file_path")?,
-                        row.get::<_, Vec<u8>>("name_embeddings")?,
-                    ))
-                })
-                .expect("Query execution failed")
-                .collect::<Result<Vec<_>, _>>()
-                .expect("Result collection failed")
+            let mut stmt = tx
+                .prepare_cached(&sql_stmt)
+                .expect("Failed to prepare statement");
+            stmt.query_map(params.as_slice(), |row| {
+                Ok((
+                    row.get::<_, String>("file_path")?,
+                    row.get::<_, Vec<u8>>("name_embeddings")?,
+                ))
+            })
+            .expect("Query execution failed")
+            .collect::<Result<Vec<_>, _>>()
+            .expect("Result collection failed")
         };
         count_rows = path_embs.len();
 

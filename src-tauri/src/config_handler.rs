@@ -17,7 +17,6 @@ pub static FAVOURITE_FILE_EXTENSIONS: OnceLock<HashMap<String, String>> = OnceLo
 pub static COPY_MODE: OnceLock<CopyMode> = OnceLock::new();
 pub static NUMBER_RESULTS_LEVENHSTEIN: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_RESULTS_EMBEDDING: OnceLock<usize> = OnceLock::new();
-pub static SEARCH_WITH_MODEL: OnceLock<bool> = OnceLock::new();
 pub static PATHS_TO_INDEX: OnceLock<Vec<PathBuf>> = OnceLock::new();
 pub static CREATE_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static SEARCH_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
@@ -45,7 +44,6 @@ struct RawSettings {
     copy_mode: CopyMode,
     number_results_levenhstein: usize,
     number_results_embedding: usize,
-    search_with_model: bool,
     paths_to_index: Vec<String>,
     create_batch_size: usize,
     search_batch_size: usize,
@@ -63,7 +61,6 @@ pub struct Settings {
     copy_mode: CopyMode,
     number_results_levenhstein: usize,
     number_results_embedding: usize,
-    search_with_model: bool,
     paths_to_index: Vec<PathBuf>,
     create_batch_size: usize,
     search_batch_size: usize,
@@ -124,7 +121,6 @@ impl Default for Settings {
             copy_mode: CopyMode::File,
             number_results_levenhstein: 15,
             number_results_embedding: 25,
-            search_with_model: false,
             paths_to_index: vec![PathBuf::from("/")],
             create_batch_size: 250,
             search_batch_size: 1000,
@@ -231,7 +227,6 @@ pub fn initialize_config() {
                         copy_mode: settings.copy_mode,
                         number_results_levenhstein: settings.number_results_levenhstein,
                         number_results_embedding: settings.number_results_embedding,
-                        search_with_model: settings.search_with_model,
                         paths_to_index: if paths_to_index.is_empty() {
                             default_settings.paths_to_index
                         } else {
@@ -284,11 +279,7 @@ pub fn initialize_config() {
     NUMBER_RESULTS_LEVENHSTEIN
         .set(config.number_results_levenhstein)
         .expect("couldn't set num lev");
-
-    SEARCH_WITH_MODEL
-        .set(config.search_with_model)
-        .expect("couldn't set search with model");
-
+    
     PATHS_TO_INDEX
         .set(config.paths_to_index)
         .expect("couldn't set paths to index");
@@ -370,16 +361,6 @@ pub fn get_number_results_embedding() -> usize {
         None => {
             print_warning("NUMBER_RESULTS_EMBEDDING");
             Settings::default().number_results_embedding
-        }
-        Some(val) => val.to_owned(),
-    }
-}
-
-pub fn get_search_with_model() -> bool {
-    match SEARCH_WITH_MODEL.get() {
-        None => {
-            print_warning("SEARCH_WITH_MODEL");
-            Settings::default().search_with_model
         }
         Some(val) => val.to_owned(),
     }
