@@ -15,7 +15,7 @@ use tauri::command;
 pub static ALLOWED_FILE_EXTENSIONS: OnceLock<HashSet<String>> = OnceLock::new();
 pub static FAVOURITE_FILE_EXTENSIONS: OnceLock<HashMap<String, String>> = OnceLock::new();
 pub static COPY_MODE: OnceLock<CopyMode> = OnceLock::new();
-pub static NUMBER_RESULTS_LEVENHSTEIN: OnceLock<usize> = OnceLock::new();
+pub static NUMBER_RESULTS_LEVENSHTEIN: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_RESULTS_EMBEDDING: OnceLock<usize> = OnceLock::new();
 pub static PATHS_TO_INDEX: OnceLock<Vec<PathBuf>> = OnceLock::new();
 pub static INDEX_HIDDEN_FILES: OnceLock<bool> = OnceLock::new();
@@ -43,7 +43,7 @@ struct RawSettings {
     allowed_extensions: HashSet<String>,
     favourite_extensions: HashMap<String, String>,
     copy_mode: CopyMode,
-    number_results_levenhstein: usize,
+    number_results_levenshtein: usize,
     number_results_embedding: usize,
     paths_to_index: Vec<String>,
     index_hidden_files: bool,
@@ -61,7 +61,7 @@ pub struct Settings {
     allowed_extensions: HashSet<String>,
     favourite_extensions: HashMap<String, String>,
     copy_mode: CopyMode,
-    number_results_levenhstein: usize,
+    number_results_levenshtein: usize,
     number_results_embedding: usize,
     paths_to_index: Vec<PathBuf>,
     index_hidden_files: bool,
@@ -112,7 +112,7 @@ impl Default for Settings {
             allowed_extensions,
             favourite_extensions,
             copy_mode: CopyMode::File,
-            number_results_levenhstein: 15,
+            number_results_levenshtein: 15,
             number_results_embedding: 25,
             paths_to_index: vec![PathBuf::from("/")],
             index_hidden_files: false,
@@ -187,9 +187,9 @@ fn read_config(config_path: &PathBuf) -> Result<String, ()> {
 /// reads the config file and initialises the constants
 pub fn initialize_config() {
     println!("Initializing config");
-    let default_settings = Settings::default();
+    let default_settings: Settings = Settings::default();
     // get the path to the config file
-    let mut path = CURRENT_DIR.clone();
+    let mut path: PathBuf = CURRENT_DIR.clone();
     path.push("data/config/config.json");
 
     // read the config file and parse it into the Settings struct (use default values when an error occurs)
@@ -214,12 +214,11 @@ pub fn initialize_config() {
                         .map(PathBuf::from)
                         .filter(|path| path.exists())
                         .collect();
-
                     Settings {
                         allowed_extensions: settings.allowed_extensions,
                         favourite_extensions: settings.favourite_extensions,
                         copy_mode: settings.copy_mode,
-                        number_results_levenhstein: settings.number_results_levenhstein,
+                        number_results_levenshtein: settings.number_results_levenshtein,
                         number_results_embedding: settings.number_results_embedding,
                         paths_to_index: if paths_to_index.is_empty() {
                             default_settings.paths_to_index
@@ -271,8 +270,8 @@ pub fn initialize_config() {
         .set(config.number_results_embedding)
         .expect("couldn't set num emb");
 
-    NUMBER_RESULTS_LEVENHSTEIN
-        .set(config.number_results_levenhstein)
+    NUMBER_RESULTS_LEVENSHTEIN
+        .set(config.number_results_levenshtein)
         .expect("couldn't set num lev");
     
     PATHS_TO_INDEX
@@ -345,11 +344,11 @@ pub fn get_copy_mode() -> CopyMode {
     }
 }
 
-pub fn get_number_results_levenhstein() -> usize {
-    match NUMBER_RESULTS_LEVENHSTEIN.get() {
+pub fn get_number_results_levenshtein() -> usize {
+    match NUMBER_RESULTS_LEVENSHTEIN.get() {
         None => {
-            print_warning("NUMBER_RESULTS_LEVENHSTEIN");
-            Settings::default().number_results_levenhstein
+            print_warning("NUMBER_RESULTS_LEVENSHTEIN");
+            Settings::default().number_results_levenshtein
         }
         Some(val) => val.to_owned(),
     }
