@@ -1,11 +1,8 @@
 /target/
 /src-tauri/target/
-/src-tauri/src/neural_network/deu_wikipedia_2021_1M/
-/src-tauri/src/neural_network/deu_wikipedia_2021_10K/
-/src-tauri/src/neural_network/deu_wikipedia_2021_100K/
-/src-tauri/src/neural_network/eng-simple_wikipedia_2021_10K/
-/src-tauri/src/neural_network/eng-simple_wikipedia_2021_100K/
+/dist/
+/.vite/
+/venv/
+/src-tauri/src/neural_network/training_data
 /src-tauri/data/db/
-/src-tauri/gen/schemas/
-/src/db/
-/src-tauri/data/config/
+/src-tauri/gen/
