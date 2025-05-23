@@ -13,7 +13,7 @@ In this project, we have implemented a file explorer with fast and efficient sea
 
 ## Installation
 
-If your system isn't supported, you have to build the application from source code.
+If there is no release for your system, you have to build the application from source code.
 
 ### Option 1: Using the Executable
 
@@ -46,9 +46,11 @@ If your system isn't supported, you have to build the application from source co
    | ``` cargo tauri dev --no-watch ``` | ``` cargo tauri build ``` |
 
 ## Project configuration
-There are two config files (`~/data/config/..`):
-1. config.json
-2. color-config.json
+There are two config files (`~/data/config/..`) for customising the File Explorer:
+1. [config.json](src-tauri/data/config/config.json)
+2. [color-config.json](src-tauri/data/config/color-config.json)
+
+Read [here](CONFIG.md) to learn more.
 
 ## Contributing
 
