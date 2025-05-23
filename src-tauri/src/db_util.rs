@@ -1,4 +1,4 @@
-use crate::config_handler::get_paths_to_ignore;
+use crate::config_handler::{get_paths_to_ignore, INDEX_HIDDEN_FILES};
 use crate::manager::{VOCAB, WEIGHTS};
 use ndarray::{Array2, Axis};
 use r2d2::PooledConnection;
@@ -52,8 +52,11 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
             return false;
         }
     }
-    return true;
 
+    if !*INDEX_HIDDEN_FILES.get().expect("") && is_hidden(path) {
+        return false;
+    }
+    
     // Checks if the extension of the Path is in the allowed_file_extensions Hashset
     path.is_dir()
         || path
@@ -162,4 +165,31 @@ pub fn bytes_to_vec(bytes: &[u8]) -> Vec<f32> {
             f32::from_le_bytes(arr)
         })
         .collect()
+}
+
+/// A functon for knowing if a folder or any parent is hidden for Unix Systems (MacOs + Linux)
+#[cfg(unix)]
+pub fn is_hidden(path: &Path) -> bool {
+    // Check if any component (except root) starts with a dot
+    path.components().any(|comp| {
+        comp.as_os_str().to_str().map_or(false, |s| s.starts_with('.'))
+    })
+}
+
+
+/// A functon for knowing if a folder is hidden for Windows also check if any parent folder is hidden
+#[cfg(windows)]
+pub fn is_hidden(path: &Path) -> bool {
+    use std::fs;
+    use std::os::windows::fs::MetadataExt;
+    const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
+
+    for ancestor in path.ancestors() {
+        if let Ok(metadata) = fs::metadata(ancestor) {
+            if (metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN) != 0 {
+                return true;
+            }
+        }
+    }
+    false
 }

@@ -18,6 +18,7 @@ pub static COPY_MODE: OnceLock<CopyMode> = OnceLock::new();
 pub static NUMBER_RESULTS_LEVENHSTEIN: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_RESULTS_EMBEDDING: OnceLock<usize> = OnceLock::new();
 pub static PATHS_TO_INDEX: OnceLock<Vec<PathBuf>> = OnceLock::new();
+pub static INDEX_HIDDEN_FILES: OnceLock<bool> = OnceLock::new();
 pub static CREATE_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static SEARCH_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_OF_THREADS: OnceLock<usize> = OnceLock::new();
@@ -45,6 +46,7 @@ struct RawSettings {
     number_results_levenhstein: usize,
     number_results_embedding: usize,
     paths_to_index: Vec<String>,
+    index_hidden_files: bool,
     create_batch_size: usize,
     search_batch_size: usize,
     number_of_threads: usize,
@@ -62,6 +64,7 @@ pub struct Settings {
     number_results_levenhstein: usize,
     number_results_embedding: usize,
     paths_to_index: Vec<PathBuf>,
+    index_hidden_files: bool,
     create_batch_size: usize,
     search_batch_size: usize,
     number_of_threads: usize,
@@ -122,6 +125,7 @@ impl Default for Settings {
             number_results_levenhstein: 15,
             number_results_embedding: 25,
             paths_to_index: vec![PathBuf::from("/")],
+            index_hidden_files: false,
             create_batch_size: 250,
             search_batch_size: 1000,
             number_of_threads: num_cpus::get() - 1,
@@ -232,6 +236,7 @@ pub fn initialize_config() {
                         } else {
                             paths_to_index
                         },
+                        index_hidden_files: settings.index_hidden_files,
                         create_batch_size: settings.create_batch_size,
                         search_batch_size: settings.search_batch_size,
                         number_of_threads: settings.number_of_threads,
@@ -283,6 +288,10 @@ pub fn initialize_config() {
     PATHS_TO_INDEX
         .set(config.paths_to_index)
         .expect("couldn't set paths to index");
+
+    INDEX_HIDDEN_FILES
+        .set(config.index_hidden_files)
+        .expect("couldn't set index hidden files");
 
     CREATE_BATCH_SIZE
         .set(config.create_batch_size)
@@ -371,6 +380,16 @@ pub fn get_paths_to_index() -> Vec<PathBuf> {
         None => {
             print_warning("PATHS_TO_INDEX");
             Settings::default().paths_to_index
+        }
+        Some(val) => val.to_owned(),
+    }
+}
+
+pub fn get_index_hidden_files() -> bool {
+    match INDEX_HIDDEN_FILES.get() { 
+        None => {
+            print_warning("INDEX_HIDDEN_FILES");
+            Settings::default().index_hidden_files
         }
         Some(val) => val.to_owned(),
     }

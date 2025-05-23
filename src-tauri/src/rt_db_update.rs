@@ -1,7 +1,5 @@
-use crate::config_handler::{
-    get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS,
-};
-use crate::db_util::full_emb;
+use crate::config_handler::{get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS, INDEX_HIDDEN_FILES};
+use crate::db_util::{full_emb, is_hidden};
 use crate::manager::{manager_make_connection_pool, manager_populate_database};
 use notify::{
     self,
@@ -90,7 +88,11 @@ pub fn watch_folder(
                             continue 'event;
                         }
                     }
-
+                    
+                    if !*INDEX_HIDDEN_FILES.get().expect("") && is_hidden(Path::new(&file_path)) {
+                        continue 'event;
+                    }
+                    
                     // check if the path is from interest
                     if file_path.is_dir()
                         || file_path
