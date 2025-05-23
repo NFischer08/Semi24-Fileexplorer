@@ -54,9 +54,10 @@ pub fn search_database(
         )
         .expect("Indexing: ");
 
-    //Making sure there are no Spaces in file_types
+    //Making sure there are no Spaces in file_types and also accounting for "."
     let search_file_types_vec: Vec<String> = search_file_types
         .replace(" ", "")
+        .replace(".", "")
         .split(',')
         .filter(|s| !s.is_empty())
         .map(|s| s.to_string())
@@ -64,6 +65,7 @@ pub fn search_database(
 
     println!("search file type: {:?}", search_file_types);
 
+    // Logic for making search with multiple types possible
     let sql_stmt: String = if search_file_types_vec.is_empty() {
         r#"
         SELECT file_path, name_embeddings

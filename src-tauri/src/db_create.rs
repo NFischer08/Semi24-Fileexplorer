@@ -108,7 +108,6 @@ pub fn create_database(
         if !batch.is_empty() {
             tx.send(batch)
                 .unwrap_or_else(|_| println!("Failed to send final batch"));
-            println!("Last Batch has been send!!!")
         }
     });
 

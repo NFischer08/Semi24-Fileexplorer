@@ -58,8 +58,6 @@ pub fn watch_folder(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     ignore: &HashSet<&str>,
 ) {
-    println!("ignore: {:?}", ignore);
-
     let allowed_extensions: &HashSet<String> = match ALLOWED_FILE_EXTENSIONS.get() {
         Some(allowed_extensions) => allowed_extensions,
         None => &get_allowed_file_extensions(),

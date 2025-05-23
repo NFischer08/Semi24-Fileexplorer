@@ -83,28 +83,18 @@ impl Default for Settings {
     /// creates some default values incase its not able to read the json file properly
     fn default() -> Self {
         let allowed_extensions: HashSet<String> = [
-            // Text and documents
-            "txt", "pdf", "doc", "docx", "rtf", "odt", "tex", "md", "epub",
-            // Spreadsheets and presentations
-            "xls", "xlsx", "csv", "ods", "ppt", "pptx", "odp", "key", // Images
-            "jpg", "jpeg", "png", "gif", "bmp", "tiff", "svg", "webp", "ico", "raw",
-            // Audio and video
-            "mp3", "wav", "ogg", "flac", "aac", "wma", "m4a", "mp4", "avi", "mov", "wmv", "flv",
-            "mkv", "webm", "m4v", "3gp", // Archives and data
-            "zip", "rar", "7z", "tar", "gz", "bz2", "xz", "json", "xml", "yaml", "yml", "toml",
-            "ini", "cfg", // Web and programming
-            "html", "htm", "css", "js", "php", "asp", "jsp", "py", "java", "c", "cpp", "h", "hpp",
-            "cs", "rs", "go", "rb", "pl", "swift", "kt", "ts", "coffee", "scala", "groovy", "lua",
-            "r", // Scripts and executables
-            "sh", "bash", "zsh", "fish", "bat", "cmd", "ps1", "exe", "dll", "so", "dylib",
-            // Other formats
-            "sql", "db", "sqlite", "mdb", "ttf", "otf", "woff", "woff2", "obj", "stl", "fbx", "dxf",
-            "dwg", "psd", "ai", "ind", "iso", "img", "dmg", "bak", "log", "pcap",
+            "txt", "pdf", "doc", "docx",
+            "xls", "xlsx", "csv", "ppt", "pptx",
+            "jpg", "jpeg", "png", "gif",
+            "mp3", "wav", "mp4", "avi", "mov", "mkv",
+            "zip", "rar", "7z", "tar", "gz",
+            "html", "css", "js", "py", "java", "c", "cpp", "rs",
+            "json", "xml", "sql", "log",
         ]
-        .iter()
-        .map(|&s| String::from(s))
-        .collect();
-
+            .iter()
+            .map(|&s| s.to_string())
+            .collect();
+        
         let favourite_extensions: HashMap<String, String> = [
             ("Images", "png,jpg,jpeg,gif"),
             ("Text", "txt,doc,docx,pdf,odt,rtf"),
@@ -127,7 +117,7 @@ impl Default for Settings {
             paths_to_index: vec![PathBuf::from("/")],
             index_hidden_files: false,
             create_batch_size: 250,
-            search_batch_size: 1000,
+            search_batch_size: 2500,
             number_of_threads: num_cpus::get() - 1,
             paths_to_ignore: Vec::new(),
             path_to_weights: CURRENT_DIR.clone().join("data/model/eng_weights_D300"),

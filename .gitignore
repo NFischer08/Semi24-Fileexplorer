@@ -4,8 +4,8 @@
 /src-tauri/src/neural_network/deu_wikipedia_2021_100K/
 /src-tauri/src/neural_network/eng-simple_wikipedia_2021_10K/
 /src-tauri/src/neural_network/eng-simple_wikipedia_2021_100K
-src-tauri/data/config
-src-tauri/data/db
-/target/
-src-tauri/gen/schemas
+/src-tauri/data/db
+src-tauri/target/
+/src-tauri/gen/schemas
 /src/db/
+/src-tauri/data/config/

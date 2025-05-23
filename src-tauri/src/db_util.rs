@@ -56,7 +56,7 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
     if !*INDEX_HIDDEN_FILES.get().expect("") && is_hidden(path) {
         return false;
     }
-    
+
     // Checks if the extension of the Path is in the allowed_file_extensions Hashset
     path.is_dir()
         || path
