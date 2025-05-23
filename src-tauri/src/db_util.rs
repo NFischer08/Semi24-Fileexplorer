@@ -52,6 +52,7 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
             return false;
         }
     }
+    return true;
 
     // Checks if the extension of the Path is in the allowed_file_extensions Hashset
     path.is_dir()

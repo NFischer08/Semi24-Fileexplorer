@@ -114,38 +114,34 @@ pub fn watch_folder(
                             Remove(_) => {
                                 delete_from_db(pooled_connection, &file_path);
                             }
-                            Modify(modify) => match modify {
-                                // only renaming is interesting
-                                Name(mode) => {
-                                    // From gives old path, To gives new path
-                                    match mode {
-                                        From => {
-                                            // remove file from db
-                                            delete_from_db(pooled_connection, &file_path);
-                                        }
-                                        To => {
-                                            if file_path.is_dir() {
-                                                // get parent path and check it
-                                                let ppath = file_path
-                                                    .parent()
-                                                    .unwrap_or(Path::new("/"))
-                                                    .to_path_buf();
-                                                check_folder(ppath, pooled_connection)
-                                                    .unwrap_or_default()
-                                            } else {
-                                                // insert file into db
-                                                insert_into_db(pooled_connection, &file_path);
-                                            }
-                                        }
-                                        // Other cases should not occur / are not from interest since they mean something don't go as planned
-                                        // Cap on Linux creating txt files is other
-                                        _ => {
-                                            println!("Something else {:?}, ({:?})", file_path, mode)
+                            Modify(Name(mode)) => {
+                                // From gives old path, To gives new path
+                                match mode {
+                                    From => {
+                                        // remove file from db
+                                        delete_from_db(pooled_connection, &file_path);
+                                    }
+                                    To => {
+                                        if file_path.is_dir() {
+                                            // get parent path and check it
+                                            let ppath = file_path
+                                                .parent()
+                                                .unwrap_or(Path::new("/"))
+                                                .to_path_buf();
+                                            check_folder(ppath, pooled_connection)
+                                                .unwrap_or_default()
+                                        } else {
+                                            // insert file into db
+                                            insert_into_db(pooled_connection, &file_path);
                                         }
                                     }
+                                    // Other cases should not occur / are not from interest since they mean something don't go as planned
+                                    // Cap on Linux creating txt files is other
+                                    _ => {
+                                        println!("Something else {:?}, ({:?})", file_path, mode)
+                                    }
                                 }
-                                _ => {}
-                            },
+                            }
                             _ => {}
                         }
                     }

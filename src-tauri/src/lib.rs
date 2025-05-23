@@ -46,15 +46,17 @@ fn setup_directory_structure() {
         _ => {}
     }
     if !config_file.exists() {
-        match build_config(&config_file, &Settings::default()) {
-            Ok(_) => println!("Warning: Config file didnt exist, created new one"),
-            Err(_) => println!("WARNING: Unable to build config file"),
+        if build_config(&config_file, &Settings::default()) {
+            println!("Warning: Config file didnt exist, created new one")
+        } else {
+            println!("WARNING: Unable to build config file")
         }
     }
     if !color_config_file.exists() {
-        match build_config(&color_config_file, &ColorConfig::default()) {
-            Ok(_) => println!("Warning: Color-config file didnt exist, created new one"),
-            Err(_) => println!("WARNING: Unable to build color-config file"),
+        if build_config(&color_config_file, &ColorConfig::default()) {
+            println!("Warning: Color-config file didnt exist, created new one")
+        } else {
+            println!("WARNING: Unable to build color-config file")
         }
     }
 }

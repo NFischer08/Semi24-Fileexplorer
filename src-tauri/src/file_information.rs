@@ -33,16 +33,6 @@ pub struct FileDataFormatted {
 }
 
 impl FileData {
-    pub fn default() -> FileData {
-        FileData {
-            name: String::from("No Name"),
-            path: PathBuf::from("/"),
-            last_modified: Local::now(),
-            file_type: FileType::None,
-            size_in_kb: 0,
-        }
-    }
-
     pub fn format(self) -> FileDataFormatted {
         let (file_type, is_dir) = match self.file_type {
             FileType::Directory => ("Directory".to_string(), true),
@@ -75,6 +65,18 @@ impl FileData {
             last_modified: self.last_modified.format("%d.%m.%Y %H:%M Uhr").to_string(),
             file_type,
             size,
+        }
+    }
+}
+
+impl Default for FileData {
+    fn default() -> FileData {
+        FileData {
+            name: String::from("No Name"),
+            path: PathBuf::from("/"),
+            last_modified: Local::now(),
+            file_type: FileType::None,
+            size_in_kb: 0,
         }
     }
 }

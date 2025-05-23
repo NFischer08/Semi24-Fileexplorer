@@ -167,16 +167,13 @@ impl Default for ColorConfig {
 }
 
 /// creates the config file if it doesnt exist
-pub fn build_config<T: serde::Serialize>(path: &PathBuf, settings: &T) -> Result<(), ()> {
+pub fn build_config<T: serde::Serialize>(path: &PathBuf, settings: &T) -> bool {
     let json = match serde_json::to_string_pretty(&settings) {
         Ok(json) => json,
-        Err(_) => return Err(()),
+        Err(_) => return false,
     };
 
-    match fs::write(path, json) {
-        Ok(_) => Ok(()),
-        Err(_) => Err(()),
-    }
+    fs::write(path, json).is_ok()
 }
 
 /// opens a file and returns it contents
