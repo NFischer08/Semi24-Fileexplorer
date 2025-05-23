@@ -3,10 +3,10 @@
 Our project has a config file with which you can change important parameters for your preferences. 
 Furthermore, there is a color config file for changing the appereance of the program.
 
-## General Config
-You can find it [here](src-tauri/data/config/config.json). 
-
 Note that you have to restart the program for changes to take effect.
+
+## General Config
+You can find it [here](src-tauri/data/config/config.json).
 
 ### `file_extensions_to_index` 
 A list containing all file extensions that should be indexed (added to database) of type string. 
@@ -69,3 +69,33 @@ An integer determining the dimension of the embedding model.
 It represents the amount of floats each Entry in the vocab file is embedded into.
 
 ## Color Config
+
+You can find it [here](src-tauri/data/config/color-config.json).
+
+### `background`
+Defines the background color of the program.
+
+### `font`
+Defines the font color of the program.
+
+### `table_head_background`
+Defines the background color of the table head.
+
+### `table_every_second_row_background`
+Defines the background color of every second row.
+All other rows will have the same color as the background.
+
+### `table_border`
+Defines the border color of the columns in the table.
+
+### `input_border`
+Defines the border color of the input fields.
+
+### `button_hover`
+Defines the font color of the top buttons when hovered.
+
+### `modal_background`
+Defines the background color of all modals including the rightclick menu, the search settings and the rename form.
+
+### `modal_hover`
+Defines the background color of buttons in modals when hovered.

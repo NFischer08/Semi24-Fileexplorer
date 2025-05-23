@@ -199,30 +199,25 @@ td.error {
     border-bottom-left-radius: 0;
     border-left: none;
 }
-/*fügt Inputfelder zusammen*/
-.search-button,
-.file-path-button,
-.settings-button {
+/*Style für Buttons ganz oben*/
+.top-row-button {
     position: absolute;
     right: 10px; /* Abstand vom rechten Rand */
-    top: 50%;
-    transform: translateY(-50%);
     background-color: transparent; /* Transparenter Hintergrund */
     border: none; /* Keine Randlinien */
     cursor: pointer;
     font-size: 18px; /* Größe des Icons */
-    padding: 5px; /* Leichter Innenabstand */
+    padding: 7px; /* Leichter Innenabstand */
     color: var(--font); /* Farbe des Icons */
     float: left;
 }
-/*trennt Such- und Einstellungsbutton*/
-.search-button {
-    right: 45px;
-}
-/*macht Goto Button weiß, wenn man drüber geht*/
-.search-button:hover,
-.file-path-button:hover {
+/*Hover Farbe für Buttons ganz oben*/
+.top-row-button:hover {
     color: var(--button-hover);
+}
+/*trennt Such- und Einstellungsbutton (Suchbutton wird nach rechts verschoben*/
+#search-button {
+    right: 45px;
 }
 /*macht Pfadfeld 60% groß*/
 .file-path-container{
@@ -299,6 +294,10 @@ button {
     border-radius: 40%; /* Make it a circle */
     margin: 4px 5px; /* Center the button */
     vertical-align: middle;
+    cursor: pointer;
+}
+.nav-button:hover {
+    color: var(--button-hover);
 }
 
 .modal.hidden {
@@ -381,23 +380,6 @@ button {
 
 
 /*Einstellungen -------------------------------------------------*/
-
-/* Button wird beim Hovern hervorgehoben */
-.settings-button:hover {
-  color: var(--button-hover);
-}
-
-/*#settings-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-#settings-form label {
-  display: flex;
-  align-items: center;
-}*/
-
 #settings-form input[type="checkbox"] {
   float: left;
 }
