@@ -1,5 +1,5 @@
 use crate::config_handler::{
-    get_embedding_dimensions, get_number_results_embedding, get_number_results_levenhstein,
+    get_embedding_dimensions, get_number_results_embedding, get_number_results_levenshtein,
     get_path_to_vocab, get_path_to_weights, CURRENT_DIR,
 };
 use crate::db_create::create_database;
@@ -116,7 +116,7 @@ pub fn manager_basic_search(
         search_path,
         searchfiletype,
         get_number_results_embedding(),
-        get_number_results_levenhstein(),
+        get_number_results_levenshtein(),
         state,
     );
 }

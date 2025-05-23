@@ -16,7 +16,7 @@ use std::{
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
 
-/// Searches for similar File names in the Database via Levenhstein and a custome skip-gram model,
+/// Searches for similar File names in the Database via Levenshtein and a custome skip-gram model,
 /// it uses connection_pool, search_term, search_path, search_file_type, num_results_lev, num_results_emb and state
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
@@ -24,7 +24,7 @@ pub fn search_database(
     search_path: PathBuf,
     search_file_types: String,
     num_results_embeddings: usize,
-    num_results_levenhstein: usize,
+    num_results_levenshtein: usize,
     state: State<AppState>,
 ) {
     // Getting a Pooled Connetion
@@ -33,7 +33,7 @@ pub fn search_database(
 
     let start_time = Instant::now();
 
-    //Setting Search Path to "" for searching everythin
+    //Setting Search Path to "" for searching everything
     let search_path_str = if cfg!(windows) && search_path.to_str().unwrap_or("") == "/" {
         String::new()
     } else {
@@ -176,7 +176,7 @@ pub fn search_database(
         .collect();
 
     // Transform the results into DireEntrys, sorts them and only give back the num_results_lev best results
-    let ret_lev_dir = return_entries(results_lev, num_results_levenhstein);
+    let ret_lev_dir = return_entries(results_lev, num_results_levenshtein);
 
     // Transforms the results into FileDataFormatted which the FrontEnd uses
     let ret_lev = build_struct(ret_lev_dir);
