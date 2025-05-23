@@ -24,11 +24,14 @@ batch_size = 8192
 window_size = 5
 n_neg = 10
 embedding_dim = 300
-epochs = 20
-dataset_workers = 12
+max_epochs = 20
+dataset_workers = 10
 
 # Path to training Data which should be in text form and only contain normal text
 file_path = "eng_wikipedia_2016_1M/eng_wikipedia_2016_1M-sentences.txt"
+
+# Name of the Vocab file which will be generated
+vocab_name = "eng_vocab.json"
 
 # Tokeniziation with an Regex expression
 def normalize_token(token):
@@ -64,7 +67,7 @@ tokens_idx = [vocab.get(t, unk_idx) for t in tokens]
 print(f"Vocabulary size: {len(vocab)}")
 
 # Save vocab for use in Rust
-with open("eng_vocab.json", "w", encoding="utf-8") as vocab_file:
+with open(vocab_name, "w", encoding="utf-8") as vocab_file:
     json.dump(vocab, vocab_file, ensure_ascii=False, indent=4)
 
 # SkipGramNegDataset is the transformed Dataset, the word pairs are created and words are subsampled
@@ -157,13 +160,15 @@ word_prob_tensor = torch.tensor(dataset.word_prob, dtype=torch.float32, device=d
 start_time = time.time()
 
 # Main training loop is here
-for epoch in range(epochs):
+consecutive_increases = 0
+prev_loss = None
+
+for epoch in range(max_epochs):
     total_loss = 0
     progress_bar = tqdm(dataloader, desc=f"Epoch {epoch + 1}", unit="batch")
     for targets, contexts in progress_bar:
         targets, contexts = targets.to(device), contexts.to(device)
         batch_size = targets.shape[0]
-        # Vectorized negative sampling on GPU!
         negatives = torch.multinomial(
             word_prob_tensor,
             num_samples=batch_size * n_neg,
@@ -176,9 +181,36 @@ for epoch in range(epochs):
         total_loss += loss.item()
         progress_bar.set_postfix(loss=loss.item())
 
-# Saving weights
+    if prev_loss is not None and total_loss > prev_loss:
+        consecutive_increases += 1
+    #Save checkpoint at the end of each epoch
+    checkpoint = {
+        'epoch': epoch + 1,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'loss': total_loss,
+    }
+
+    if prev_loss is not None and prev_loss < total_loss:
+        consecutive_increases += 1
+        print("consecutive_increased")
+    else:
+        consecutive_increases = 0
+
+        prev_loss = total_loss
+
+    torch.save(checkpoint, f"checkpoint_epoch_{epoch+1}.pt")
+    try:
+        os.remove(f"checkpoint_epoch_{epoch}.pt")
+    except FileNotFoundError:
+        pass
+
+    if consecutive_increases == 2:
+        print(f"Stopping early: loss increased two epochs in a row at epoch {epoch + 1}")
+        break
+
+# If training finished normally, save embeddings with no epoch number
 embedding_weights = model.target_embeddings.weight.data.cpu().numpy()
 embedding_weights.tofile("eng_weights_D300")
 print("Embeddings saved")
 print("Seconds since epoch =", time.time() - start_time)
-
