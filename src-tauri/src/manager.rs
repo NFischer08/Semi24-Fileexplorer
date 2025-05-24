@@ -22,12 +22,13 @@ use tauri::{command, AppHandle, State};
 pub struct AppState {
     pub handle: AppHandle,
 }
+
 pub static WEIGHTS: OnceLock<Array2<f32>> = OnceLock::new();
 pub static VOCAB: OnceLock<HashMap<String, usize>> = OnceLock::new();
-pub static APP_STATE: OnceLock<AppState> = OnceLock::new();
 
 /// Initializes VOCAB and WEIGHTS to be their respective files
 pub fn initialize_globals() {
+    println!("Initializing globals");
     WEIGHTS.get_or_init(|| {
         let embedding_dim = get_embedding_dimensions();
 
@@ -35,7 +36,6 @@ pub fn initialize_globals() {
             fs::read(get_path_to_weights()).expect("Could not read weights");
         let weights_as_f32: &[f32] = cast_slice(&weights_bytes);
 
-        // Infer the vocab size from the file length
         let vocab_size = weights_as_f32.len() / embedding_dim;
 
         Array2::from_shape_vec((vocab_size, embedding_dim), weights_as_f32.to_vec())
@@ -43,10 +43,6 @@ pub fn initialize_globals() {
     });
 
     VOCAB.get_or_init(|| load_vocab(&get_path_to_vocab()));
-}
-#[command]
-pub fn initialize_app_state(handle: AppHandle) {
-    APP_STATE.get_or_init(|| AppState { handle });
 }
 
 /// Builds up the FileDataFormatted Struct from DireEntries
@@ -90,7 +86,7 @@ pub fn manager_populate_database(database_scan_start: PathBuf) -> Result<(), Str
         .expect("synchronous failed");
     pooled_connection
         .pragma_update(None, "wal_autocheckpoint", "1000")
-        .expect("wal_autocheckpoint failed");
+        .expect("wal auto checkpoint failed");
 
     match create_database(connection_pool, database_scan_start) {
         Ok(_) => {}

@@ -4,6 +4,7 @@ use ndarray::{Array2, Axis};
 use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
 use regex::Regex;
+use rusqlite::params;
 use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::{
@@ -11,7 +12,6 @@ use std::{
     fs::{self},
     path::{Path, PathBuf},
 };
-use rusqlite::params;
 
 pub static PATHS_TO_IGNORE: LazyLock<Vec<PathBuf>> = LazyLock::new(get_paths_to_ignore);
 
@@ -55,7 +55,11 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
         }
     }
 
-    if !*INDEX_HIDDEN_FILES.get().expect("") && is_hidden(path) {
+    if !*INDEX_HIDDEN_FILES
+        .get()
+        .expect("Failed to get INDEX_HIDDEN_FILES ")
+        && is_hidden(path)
+    {
         return false;
     }
 
@@ -78,7 +82,7 @@ pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnection
         .expect("synchronous failed");
     pooled_connection
         .pragma_update(None, "wal_autocheckpoint", "10000")
-        .expect("wal_autocheckpoint failed");
+        .expect("wal auto checkpoint failed");
 
     pooled_connection
         .execute(
@@ -175,7 +179,8 @@ pub fn check_folder(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
 ) -> Result<(), ()> {
     // read currently existing files in dir
-    let mut current_files: HashSet<PathBuf> = match crate::rt_db_update::get_elements_in_dir(&path) {
+    let mut current_files: HashSet<PathBuf> = match crate::rt_db_update::get_elements_in_dir(&path)
+    {
         Ok(paths) => paths,
         Err(_) => return Err(()),
     };
@@ -244,7 +249,7 @@ pub fn delete_from_db(
     if !path_str.ends_with('/') {
         path_str.push('/');
     }
-    
+
      */
     let like_pattern = format!("{}%", path_str);
 
@@ -254,7 +259,10 @@ pub fn delete_from_db(
 }
 
 /// inserts a given file path into the db (therefor taking connection to it)
-pub fn insert_into_db(pooled_connection: &PooledConnection<SqliteConnectionManager>, file_path: &Path) {
+pub fn insert_into_db(
+    pooled_connection: &PooledConnection<SqliteConnectionManager>,
+    file_path: &Path,
+) {
     let path = file_path.to_string_lossy().to_string().replace("\\", "/");
     let name = file_path
         .file_stem()

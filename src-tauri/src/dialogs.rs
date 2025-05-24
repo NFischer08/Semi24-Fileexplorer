@@ -1,7 +1,6 @@
-use std::path::Path;
-use tauri::AppHandle;
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
-use crate::manager::APP_STATE;
+/*
+
+The Following function does not work well
 
 pub fn file_missing_dialog(path_to_file: &Path) {
     let app_handle: AppHandle = APP_STATE.get().expect("I hate life").handle.clone();
@@ -27,3 +26,4 @@ pub fn file_missing_dialog(path_to_file: &Path) {
             }
         });
 }
+ */
