@@ -43,14 +43,14 @@ impl FileData {
             "--".to_string()
         } else {
             let size_kb_f: f64 = self.size_in_kb as f64;
-            let (size, unit) = if self.size_in_kb < 1000 {
-                (size_kb_f, "KB")
-            } else if self.size_in_kb < 1_000_000 {
-                (size_kb_f / 1_000.0, "MB")
-            } else if self.size_in_kb < 1_000_000_000 {
-                (size_kb_f / 1_000_000.0, "GB")
+            let (size, unit) = if self.size_in_kb < 1_024 {
+                (size_kb_f, "KiB")
+            } else if self.size_in_kb < 1_048_576 {
+                (size_kb_f / 1_024.0, "MiB")
+            } else if self.size_in_kb < 1_073_741_824 {
+                (size_kb_f / 1_048_576.0, "GiB")
             } else {
-                (size_kb_f / 1_000_000_000.0, "TB")
+                (size_kb_f / 1_073_741_824.0, "TiB")
             };
 
             // Round to one decimal place
@@ -143,7 +143,7 @@ pub fn get_file_information(entry: &DirEntry) -> FileData {
     };
 
     // size of the file in KB, if folder: 0
-    let size: u64 = metadata.len() / 1000;
+    let size: u64 = metadata.len() / 1024;
 
     // get the last modified time of the file
     let modified_time = match metadata.modified() {
