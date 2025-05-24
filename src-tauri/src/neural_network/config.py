@@ -1,4 +1,5 @@
 # config.py
+import os
 
 VOCAB_SIZE = 50_000
 UNK_TOKEN = "UNK"
@@ -13,4 +14,5 @@ CHECKPOINT_PATH = "checkpoint_latest.pt"
 
 
 FILE_PATH = "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/src/neural_network/eng_wikipedia_2016_1M/eng_wikipedia_2016_1M-sentences.txt"
+FILE_NAME = os.path.basename(FILE_PATH)
 VOCAB_NAME = "eng_vocab.json"

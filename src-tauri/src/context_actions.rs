@@ -1,4 +1,5 @@
 use crate::config_handler::{get_copy_mode, CopyMode, CURRENT_DIR};
+use crate::db_util::delete_from_db;
 use crate::manager::manager_make_connection_pool;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use copy_dir::copy_dir;
@@ -11,9 +12,8 @@ use std::{
     path::PathBuf,
 };
 use tauri::command;
-use crate::db_util::delete_from_db;
 
-/// copys a file either to the clipboard or as a file in the tmp folder
+/// copes a file either to the clipboard or as a file in the tmp folder
 #[command]
 pub fn copy_file(filepath: String) -> Result<(), String> {
     // get needed values

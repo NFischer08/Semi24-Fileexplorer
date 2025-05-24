@@ -1,10 +1,9 @@
-import os
+import time
+import GPUtil
 import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import time
-import GPUtil
 
 from config import *
 from data_utils import load_and_tokenize, build_vocab, save_vocab
@@ -49,6 +48,13 @@ def main():
 
     start_time = time.time()
 
+    with open("training_log.txt", "a") as log_file:
+        log_file.write(
+            f"Time started: {time.ctime()}\n"
+            f"Model trained on: {FILE_NAME}\n"
+        )
+
+
     for epoch in range(start_epoch, MAX_EPOCHS):
         total_loss = 0
         progress_bar = tqdm(dataloader, desc=f"Epoch {epoch + 1}", unit="batch")
@@ -78,8 +84,7 @@ def main():
         with open("training_log.txt", "a") as log_file:
             log_file.write(
                 f"Epoch: {epoch + 1}, "
-                f"Total Loss: {total_loss:.4f}, "
-                f"Consecutive Increases: {consecutive_increases}\n"
+                f"Total Loss: {total_loss:.4f}\n"
             )
 
         if prev_loss is not None and prev_loss < total_loss:
@@ -89,13 +94,19 @@ def main():
             consecutive_increases = 0
             prev_loss = total_loss
 
-        if consecutive_increases == 2:
-            print(f"Stopping early: loss increased two epochs in a row at epoch {epoch + 1}")
+        if consecutive_increases == 1:
+            print(f"Stopping early loss increased {epoch + 1}")
             break
 
     embedding_weights = model.target_embeddings.weight.data.cpu().numpy()
     embedding_weights.tofile("eng_weights_D300")
     print("Embeddings saved")
+
+    with open("training_log.txt", "a") as log_file:
+        log_file.write(
+            f"Time taken to train: {time.time() - start_time}\n"
+        )
+
     print("Seconds since epoch =", time.time() - start_time)
 
 if __name__ == "__main__":

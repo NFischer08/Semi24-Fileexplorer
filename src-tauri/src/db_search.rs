@@ -51,13 +51,13 @@ pub fn search_database(
             "CREATE INDEX IF NOT EXISTS idx_file_path ON files(file_path)",
             [],
         )
-        .expect("Indexing: ");
+        .expect("Failed to index ");
     pooled_connection
         .execute(
             "CREATE INDEX IF NOT EXISTS idx_file_type ON files(file_type)",
             [],
         )
-        .expect("Indexing: ");
+        .expect("Failed to index ");
 
     //Making sure there are no Spaces in file_types and also accounting for "."
     let search_file_types_vec: Vec<String> = search_file_types

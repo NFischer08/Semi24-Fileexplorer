@@ -5,6 +5,7 @@ pub mod context_actions;
 pub mod db_create;
 pub mod db_search;
 pub mod db_util;
+pub mod dialogs;
 pub mod file_information;
 pub mod manager;
 pub mod rt_db_update;

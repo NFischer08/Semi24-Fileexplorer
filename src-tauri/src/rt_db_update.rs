@@ -130,11 +130,11 @@ pub fn watch_folder(
                                     To => {
                                         if file_path.is_dir() {
                                             // get parent path and check it
-                                            let ppath = file_path
+                                            let parent_path = file_path
                                                 .parent()
                                                 .unwrap_or(Path::new("/"))
                                                 .to_path_buf();
-                                            check_folder(ppath, pooled_connection)
+                                            check_folder(parent_path, pooled_connection)
                                                 .unwrap_or_default()
                                         } else {
                                             // insert file into db
