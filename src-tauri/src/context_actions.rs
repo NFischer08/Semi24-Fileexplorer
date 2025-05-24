@@ -13,9 +13,9 @@ use std::{
 };
 use tauri::command;
 
-/// copy a file either to the clipboard or as a file in the tmp folder
+/// copys a file either to the clipboard or as a file in the tmp folder
 #[command]
-pub fn copy_file(filepath: String) -> Result<String, String> {
+pub fn copy_file(filepath: String) -> Result<(), String> {
     // get needed values
     let source_path: PathBuf = clean_path(filepath);
     let mut copy_mode: CopyMode = get_copy_mode();
@@ -24,7 +24,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
 
     // check if the source path is valid
     if !source_path.exists() {
-        return Err(String::from("No such file or directory"));
+        return Err(String::from("Couldn't find file or directory."));
     }
 
     // if a directory gets copyed, it must be done `File` mode
@@ -73,10 +73,7 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
                 delete_file(copy_path.join("CONTENT").to_string_lossy().to_string())?;
             }
             // copy file or folder to paste it later
-            match copy_dir(&source_path, copy_path.join("CONTENT")) {
-                Ok(_) => {}
-                Err(e) => return Err(e.to_string()),
-            };
+            copy_dir(&source_path, copy_path.join("CONTENT")).map_err(|e| e.to_string())?;
         }
     }
     // get filename
@@ -103,15 +100,12 @@ pub fn copy_file(filepath: String) -> Result<String, String> {
         Err(e) => return Err(e.to_string()),
     }
 
-    Ok(format!(
-        "File copyied successfully to {}!",
-        source_path.display()
-    ))
+    Ok(())
 }
 
-/// paste a file either to the clipboard or as a file in the tmp folder
+/// pastes a file either to the clipboard or as a file in the tmp folder
 #[command]
-pub fn paste_file(destination: String) -> Result<String, String> {
+pub fn paste_file(destination: String) -> Result<(), String> {
     // get needed values
     let mut dest_path: PathBuf = clean_path(destination);
     let copy_mode: CopyMode = get_copy_mode();
@@ -135,7 +129,7 @@ pub fn paste_file(destination: String) -> Result<String, String> {
     let mut filename = String::new();
     match reader.read_to_string(&mut filename) {
         Ok(_) => {}
-        Err(_) => filename = String::from("Unbenannt"),
+        Err(_) => filename = String::from("Unnamed"),
     };
 
     // make sure the filename doesn't exist yet
@@ -181,25 +175,19 @@ pub fn paste_file(destination: String) -> Result<String, String> {
         }
     }
 
-    Ok(String::from("Successfully copied file!"))
+    Ok(())
 }
 
-/// cut a file by combinding copy and delete
+/// cuts a file by combinding copy and delete
 #[command]
-pub fn cut_file(filepath: String) -> Result<String, String> {
-    match copy_file(filepath.to_owned()) {
-        Ok(_) => {}
-        Err(error) => return Err(error),
-    };
-    match delete_file(filepath) {
-        Ok(_) => Ok("Cut successfully!".to_string()),
-        Err(error) => Err(error),
-    }
+pub fn cut_file(filepath: String) -> Result<(), String> {
+    copy_file(filepath.to_owned())?;
+    delete_file(filepath)
 }
 
-/// rename a old file path to the new one
+/// renames a old file path to the new one
 #[command]
-pub fn rename_file(filepath: String, new_filename: &str) -> Result<String, String> {
+pub fn rename_file(filepath: String, new_filename: &str) -> Result<(), String> {
     // Clean the path
     let path: PathBuf = clean_path(filepath);
 
@@ -218,51 +206,49 @@ pub fn rename_file(filepath: String, new_filename: &str) -> Result<String, Strin
     }
 
     // Rename the file
-    fs::rename(&path, &new_filepath).map_err(|e| format!("Failed to rename file: {}", e))?;
+    fs::rename(&path, &new_filepath).map_err(|e| e.to_string())?;
 
-    Ok("Renamed successfully!".to_string())
+    Ok(())
 }
 
-/// delete the given file path from fs and db
+/// deletes the given file path from fs and db
 #[command]
-pub fn delete_file(filepath: String) -> Result<String, String> {
+pub fn delete_file(filepath: String) -> Result<(), String> {
     let path: PathBuf = clean_path(filepath);
 
     // check if path is valid
     if !path.exists() {
-        return Err(String::from("No such file or directory."));
+        return Err(String::from("Couldn't find file or directory."));
     }
 
     // delete dir / file
     if path.is_dir() {
-        //fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
+        fs::remove_dir_all(&path).map_err(|e| e.to_string())?;
         // get the connection pool from manager
         let connection_pool: Pool<SqliteConnectionManager> = manager_make_connection_pool();
         // get a valid connection to db and remove just deleted folder from db
         if let Ok(conn) = connection_pool.get() {
-            delete_from_db(&conn, &path)
+            delete_from_db(&conn, &path) // TODO: delete all children too
         }
-        println!("Deleted directory '{}'", path.display());
     } else if path.is_file() {
-        //fs::remove_file(path).map_err(|e| e.to_string())?;
-        println!("Deleted file '{}'", path.display());
+        fs::remove_file(path).map_err(|e| e.to_string())?;
     } else {
-        return Err(String::from("File doesn't exist."));
+        return Err(String::from("Problem when detecting type."));
     }
-    Ok("File deleted successfully.".to_string())
+    Ok(())
 }
 
-/// open the file for the user
+/// opens the file for the user
 #[command]
-pub fn open_file(filepath: String) -> Result<String, String> {
+pub fn open_file(filepath: String) -> Result<(), String> {
     let path: PathBuf = clean_path(filepath);
     match open(path) {
-        Ok(_) => Ok(String::from("File opened successfully!")),
-        Err(_) => Err(String::from("Failed to open file for user.")),
+        Ok(_) => Ok(()),
+        Err(e) => Err(e.to_string()),
     }
 }
 
-/// cleans and formats a given path (`String`) to a (`PathBuf`)
+/// cleans and formats a given path (`String`) to a `PathBuf`
 fn clean_path(filepath: String) -> PathBuf {
     // remove double slashes and backslashes
     let filepath: &str = &filepath.replace("\\", "/");
