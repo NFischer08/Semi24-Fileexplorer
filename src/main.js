@@ -239,7 +239,7 @@ document.getElementById('clear-modal').addEventListener('click', () => {
 
 // request favourite settings from backend (=> config.json)
 async function displayFavSettings() {
-  const settings = await invoke('get_fav_file_extensions'); // get favourite settings as HashMap<String, String>
+  const settings = await invoke('get_fav_file_extensions').catch(error => displayWarning('Unable to retrieve favourite settings: ' + error)); // get favourite settings as HashMap<String, String>
   const form = document.getElementById('settings-form');
 
   for (const [titel, favourites] of Object.entries(settings)) {
@@ -287,11 +287,7 @@ document.getElementById('fileList').addEventListener('dblclick', async (event) =
       document.getElementById('file-path-input').value = target.dataset.filepath;
       await loadFilesAndFolders();
     } else {
-      try {
-        invoke('open_file', { filepath: target.dataset.filepath });
-      } catch (error) {
-        displayWarning('Opening file failed due to Error: \n', error);
-      }
+      invoke('open_file', {filepath: target.dataset.filepath}).catch(error => displayWarning('Opening file failed due to Error: \n' + error));
     }
   }
 })
@@ -317,11 +313,12 @@ document.getElementById('up-button').addEventListener('click', () => {
   // retrieve current path and replace `\` with `/`
   let path = document.getElementById('file-path-input').value.replace(/\\/g, '/');
 
-  // check if the last character is slash
+  // check if the last character is slash and their amount in general
   const slashAtEnd = path[path.length - 1] === '/';
+  const amountSlashes = path.match(/\//g)
 
   // if it already is the root folder, do nothing
-  if (path.match(/\//g).length === 1 && slashAtEnd) {
+  if (amountSlashes && amountSlashes.length === 1 && slashAtEnd) {
     return;
   }
 
@@ -336,7 +333,7 @@ document.getElementById('up-button').addEventListener('click', () => {
   // get parent path by removing last part of path
   let parentPath = path.substring(0, lastIndexOfSlash);
   // check if it is empty (then take root folder)
-  if (parentPath === '' || parentPath.match(/^[a-zA-Z]:/).length === 1) {
+  if (parentPath === '' || parentPath.match(/^[a-zA-Z]:/)) {
     parentPath += '/';
   }
   // set new path and load files and folders
@@ -369,7 +366,9 @@ document.getElementById('forward-button').addEventListener('click', async () => 
     filePathHistoryIndex += 1;
     document.getElementById('file-path-input').value = filePathHistory[filePathHistoryIndex];
     await loadFilesAndFolders();
-  } catch (error) {}
+  } catch (error) {
+    displayWarning('Failed to go forward: ' + error);
+  }
 })
 
 // context Menu
@@ -438,41 +437,39 @@ document.getElementById('context-rename').addEventListener('click', () => {
 });
 
 // rename logic (displaying and logic behind the rename field)
-document.addEventListener("DOMContentLoaded", () => {
-  const renameTrigger = document.getElementById("context-rename");
-  const renameModal = document.getElementById("rename-modal");
-  const closeRenameModal = document.getElementById("close-rename-modal");
-  const renameForm = document.getElementById("rename-form");
-  const newFilenameInput = document.getElementById("new-filename");
+const renameTrigger = document.getElementById("context-rename");
+const renameModal = document.getElementById("rename-modal");
+const closeRenameModal = document.getElementById("close-rename-modal");
+const renameForm = document.getElementById("rename-form");
+const newFilenameInput = document.getElementById("new-filename");
 
-  // connect rename button with the action to display the rename form
-  renameTrigger.addEventListener("click", () => {
-    document.getElementById("settings-modal").classList.add('hidden');
-    renameModal.classList.remove("hidden"); // display rename form
-    newFilenameInput.value = ""; // reset input field for the new file name
-    newFilenameInput.focus(); // and focus it
-  });
+// connect rename button with the action to display the rename form
+renameTrigger.addEventListener("click", () => {
+  document.getElementById("settings-modal").classList.add('hidden');
+  renameModal.classList.remove("hidden"); // display rename form
+  newFilenameInput.value = ""; // reset input field for the new file name
+  newFilenameInput.focus(); // and focus it
+});
 
-  // connect close button with close
-  closeRenameModal.addEventListener("click", () => {
-    renameModal.classList.add("hidden");
-  });
+// connect close button with close
+closeRenameModal.addEventListener("click", () => {
+  renameModal.classList.add("hidden");
+});
 
-  // connect submit logic with rename form
-  renameForm.addEventListener("submit",async (e) => {
-    e.preventDefault();
-    const newFilename = newFilenameInput.value.trim();
-    if (newFilename || !newFilename.contains("/")) { // make sure its a valid new name - neither `/` nor empty
-      try {
-        // rename the file (by using backend) and reload the path
-        invoke('rename_file', {filepath: selectedFile, newFilename: newFilename});
-        renameModal.classList.add("hidden");
-        await loadFilesAndFolders();
-      } catch (error) {
-        await displayWarning('Failed to rename file due to error: \n' + error)
-      }
-    } else {
-      alert("Please enter a valid filename.");
+// connect submit logic with rename form
+renameForm.addEventListener("submit",async (e) => {
+  e.preventDefault();
+  const newFilename = newFilenameInput.value.trim();
+  if (newFilename && !newFilename.includes("/")) { // make sure its a valid new name - neither `/` nor empty
+    try {
+      // rename the file (by using backend) and reload the path
+      invoke('rename_file', {filepath: selectedFile, newFilename: newFilename});
+      renameModal.classList.add("hidden");
+      await loadFilesAndFolders();
+    } catch (error) {
+      await displayWarning('Failed to rename file due to error: \n' + error)
     }
-  });
-})
+  } else {
+    alert("Please enter a valid filename.");
+  }
+});
