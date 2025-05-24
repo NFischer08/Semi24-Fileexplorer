@@ -62,7 +62,7 @@ impl FileData {
         FileDataFormatted {
             name: self.name,
             path: self.path.to_string_lossy().to_string().replace("\\", "/"),
-            last_modified: self.last_modified.format("%d.%m.%Y %H:%M Uhr").to_string(),
+            last_modified: self.last_modified.format("%d.%m.%Y %H:%M").to_string(),
             file_type,
             size,
         }

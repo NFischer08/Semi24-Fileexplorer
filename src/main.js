@@ -312,6 +312,38 @@ document.getElementById('search-term-input').addEventListener('keypress', (event
   }
 })
 
+// up arrow to go to parent folder
+document.getElementById('up-button').addEventListener('click', () => {
+  // retrieve current path and replace `\` with `/`
+  let path = document.getElementById('file-path-input').value.replace(/\\/g, '/');
+
+  // check if the last character is slash
+  const slashAtEnd = path[path.length - 1] === '/';
+
+  // if it already is the root folder, do nothing
+  if (path.match(/\//g).length === 1 && slashAtEnd) {
+    return;
+  }
+
+  // get the index of the last slash
+  let lastIndexOfSlash;
+  if (slashAtEnd) {
+    // in case there is a slash at the end, ignore it and get the index of the last slash before it
+    lastIndexOfSlash = path.substring(0, path.length - 2).lastIndexOf('/');
+  } else {
+    lastIndexOfSlash = path.lastIndexOf('/');
+  }
+  // get parent path by removing last part of path
+  let parentPath = path.substring(0, lastIndexOfSlash);
+  // check if it is empty (then take root folder)
+  if (parentPath === '' || parentPath.match(/^[a-zA-Z]:/).length === 1) {
+    parentPath += '/';
+  }
+  // set new path and load files and folders
+  document.getElementById('file-path-input').value = parentPath
+  loadFilesAndFolders();
+})
+
 // backwards buttons
 document.getElementById('back-button').addEventListener('click', async () => {
   try {
