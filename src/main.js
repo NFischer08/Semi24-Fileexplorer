@@ -337,7 +337,7 @@ document.getElementById('up-button').addEventListener('click', () => {
   // get parent path by removing last part of path
   let parentPath = path.substring(0, lastIndexOfSlash);
   // check if it is empty (then take root folder)
-  if (parentPath === '' || parentPath.match(/^[a-zA-Z]:/).length === 1) {
+  if (parentPath === '' || parentPath.match(/^[a-zA-Z]:/)) {
     parentPath += '/';
   }
   // set new path and load files and folders
@@ -463,7 +463,7 @@ document.addEventListener("DOMContentLoaded", () => {
   renameForm.addEventListener("submit",async (e) => {
     e.preventDefault();
     const newFilename = newFilenameInput.value.trim();
-    if (newFilename || !newFilename.contains("/")) { // make sure its a valid new name - neither `/` nor empty
+    if (newFilename && !newFilename.includes("/")) { // make sure its a valid new name - neither `/` nor empty
       try {
         // rename the file (by using backend) and reload the path
         invoke('rename_file', {filepath: selectedFile, newFilename: newFilename});
