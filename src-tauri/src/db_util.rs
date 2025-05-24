@@ -261,13 +261,15 @@ pub fn insert_into_db(pooled_connection: &PooledConnection<SqliteConnectionManag
         .unwrap_or("ERR".as_ref())
         .to_string_lossy()
         .to_string();
-    let file_type = Some(
+    let file_type = if file_path.is_dir() {
+        String::from("dir")
+    } else {
         file_path
             .extension()
-            .unwrap_or("ERR".as_ref())
+            .unwrap_or("binary".as_ref())
             .to_string_lossy()
-            .to_string(),
-    );
+            .to_string()
+    };
     let embedding: Vec<u8> = full_emb(&name)
         .iter()
         .flat_map(|f| f.to_le_bytes())

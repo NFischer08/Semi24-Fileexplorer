@@ -292,7 +292,7 @@ button {
     background-color: #0f0f0f98; /* Darker background color */
     border: 1px solid var(--input-border); /* Small border */
     border-radius: 40%; /* Make it a circle */
-    margin: 4px 5px; /* Center the button */
+    margin: 4px 1px; /* Center the button */
     vertical-align: middle;
     cursor: pointer;
 }
@@ -302,6 +302,10 @@ button {
 
 .modal.hidden {
     display: none; /* Verstecke das Modal */
+}
+
+#forward-button {
+    margin-right: 13px;
 }
 
 /* Context Menu styles -------------------------------------------------------------------*/
