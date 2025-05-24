@@ -80,7 +80,7 @@ pub enum CopyMode {
     File,
 }
 impl Default for Settings {
-    /// creates some default values incase its not able to read the json file properly
+    /// creates some default values incase it's not able to read the json file properly
     fn default() -> Self {
         let allowed_extensions: HashSet<String> = [
             "txt", "pdf", "doc", "docx",
@@ -114,7 +114,7 @@ impl Default for Settings {
             copy_mode: CopyMode::File,
             number_results_levenshtein: 15,
             number_results_embedding: 25,
-            paths_to_index: vec![PathBuf::from("/")],
+            paths_to_index: default_paths_to_index(),
             index_hidden_files: false,
             create_batch_size: 250,
             search_batch_size: 2500,
@@ -156,7 +156,7 @@ impl Default for ColorConfig {
     }
 }
 
-/// creates the config file if it doesnt exist
+/// creates the config file if it doesn't exist
 pub fn build_config<T: serde::Serialize>(path: &PathBuf, settings: &T) -> bool {
     let json = match serde_json::to_string_pretty(&settings) {
         Ok(json) => json,
@@ -253,7 +253,7 @@ pub fn initialize_config() {
         Err(_) => default_settings,
     };
 
-    // set every constant, if something fails, the whole program immediantly stops executing due to panicing
+    // set every constant, if something fails, the whole program immediately stops executing due to panicking
     FAVOURITE_FILE_EXTENSIONS
         .set(config.favourite_extensions)
         .expect("couldn't set favourite extensions");
@@ -454,7 +454,7 @@ pub fn get_embedding_dimensions() -> usize {
     }
 }
 
-/// retireves the css config settings to send them to the frontend
+/// retrieves the css config settings to send them to the frontend
 #[command]
 pub fn get_css_settings() -> ColorConfig {
     // get the path to the color config file
@@ -472,4 +472,15 @@ fn print_warning(var: &str) {
         "WARNING!!! the Variable {} could not be gotten, falling back to default Value",
         var
     );
+}
+
+fn default_paths_to_index() -> Vec<PathBuf> {
+    #[cfg(target_os = "windows")]
+    { vec![PathBuf::from("C:\\Users")] }
+
+    #[cfg(target_os = "macos")]
+    { vec![PathBuf::from("/Users")] }
+
+    #[cfg(all(unix, not(target_os = "macos")))]
+    { vec![PathBuf::from("/home")] }
 }
