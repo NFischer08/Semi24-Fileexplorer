@@ -116,7 +116,7 @@ impl Default for Settings {
             number_of_threads: num_cpus::get() - 1,
             paths_to_ignore: Vec::new(),
             path_to_weights: CURRENT_DIR.clone().join("data/model/eng_weights_D300"),
-            path_to_vocab: CURRENT_DIR.clone().join("data/model/eng_vocab.json"),
+            path_to_vocab: CURRENT_DIR.clone().join("eng_vocab.json"),
             embedding_dimensions: 300,
         }
     }

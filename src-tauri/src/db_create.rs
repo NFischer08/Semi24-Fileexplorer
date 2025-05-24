@@ -83,7 +83,12 @@ pub fn create_database(
                         let path_slashes = convert_to_forward_slashes(&path);
                         let file = Files {
                             id: 0,
-                            file_name: entry.file_name().to_string_lossy().into_owned(),
+                            file_name: entry
+                                .path()
+                                .file_stem()
+                                .expect("Couldn't get file stem in create db")
+                                .to_string_lossy()
+                                .into_owned(),
                             file_path: path_slashes,
                             file_type: if path.is_dir() {
                                 String::from("dir")
@@ -91,7 +96,7 @@ pub fn create_database(
                                 path.extension()
                                     .and_then(|s| s.to_str())
                                     .map(String::from)
-                                    .unwrap_or_else(|| String::from("file"))
+                                    .unwrap_or_else(|| String::from("binary"))
                             },
                         };
                         //Sends Batch as soon as it's Batch_Size or higher

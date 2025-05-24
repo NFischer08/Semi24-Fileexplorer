@@ -71,7 +71,6 @@ pub fn manager_make_connection_pool() -> Pool<SqliteConnectionManager> {
 
 /// Populates the database with the files which are under the Path given
 pub fn manager_populate_database(database_scan_start: PathBuf) -> Result<(), String> {
-    initialize_globals();
     let connection_pool = manager_make_connection_pool();
 
     initialize_database(&connection_pool.get().expect("Initializing failed: "));
@@ -120,4 +119,25 @@ pub fn manager_basic_search(
         get_number_results_levenshtein(),
         state,
     );
+}
+
+pub fn check_for_default_paths() {
+    println!("checking for default paths");
+
+    // Model weights check
+    let model_path = CURRENT_DIR.clone().join("data/model/eng_weights_D300");
+    if !model_path.exists() {
+        log::error!(
+            "The default weights file couldn't be found at {:?}",
+            CURRENT_DIR.clone().join("data/model/eng_weights_D300")
+        );
+    }
+
+    // Vocab check
+    let vocab_path = CURRENT_DIR.clone().join("eng_vocab.json");
+    if !vocab_path.exists() {
+        log::error!(
+            "The default vocab file couldn't be found at {:?}",
+            CURRENT_DIR.clone().join("data/model/eng_vocab.json"));
+    }
 }
