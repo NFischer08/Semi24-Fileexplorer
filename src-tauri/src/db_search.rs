@@ -187,7 +187,7 @@ pub fn search_database(
     let ret_lev = build_struct(ret_lev_dir);
 
     // Sends the result to the FrontEnd via a Tauri Signal
-    state.handle.emit("search-finnished", &ret_lev).unwrap();
+    state.handle.emit("search-finished", &ret_lev).unwrap();
     println!(
         "levenshtein-finished {:?}",
         start_time.elapsed().as_millis()

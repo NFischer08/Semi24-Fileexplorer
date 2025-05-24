@@ -94,7 +94,7 @@ function initSearch() {
 }
 
 // wait for the search results from the backend and call the display function
-listen('search-finnished', (event) => {
+listen('search-finished', (event) => {
   try {
     const entries = event.payload;
     displaySearchResults(entries);

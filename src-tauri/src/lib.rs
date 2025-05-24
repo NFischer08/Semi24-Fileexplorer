@@ -20,8 +20,8 @@ use context_actions::{copy_file, cut_file, delete_file, open_file, paste_file, r
 use file_information::format_file_data;
 use manager::manager_basic_search;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use std::time::Instant;
 use std::{fs::create_dir, thread};
+use log::LevelFilter;
 use tauri::Manager;
 
 fn setup_directory_structure() {
@@ -66,10 +66,6 @@ fn setup_directory_structure() {
 }
 
 pub fn run() {
-    let start_time = Instant::now();
-    let start_time2 = start_time.clone();
-    println!("Elapsed time: {} ms", start_time.elapsed().as_millis());
-
     tauri::Builder::default()
         .plugin(
             tauri_plugin_log::Builder::new()
@@ -79,10 +75,10 @@ pub fn run() {
                         file_name: None,
                     },
                 ))
+                .level(LevelFilter::Warn)
                 .build(),
         )
         .setup(move |app| {
-            println!("Elapsed time: {} ms", start_time2.elapsed().as_millis());
             check_for_default_paths();
 
             setup_directory_structure();

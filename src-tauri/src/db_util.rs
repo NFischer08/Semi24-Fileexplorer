@@ -69,7 +69,7 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
             .extension()
             .and_then(|s| s.to_str())
             .map(|ext| allowed_file_extensions.contains(ext))
-            .unwrap_or(false)
+            .unwrap_or(true)
 }
 
 /// Generates the Database if it doesn't already exist and makes sure that path is indexed

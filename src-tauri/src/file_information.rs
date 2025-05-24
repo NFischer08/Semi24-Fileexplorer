@@ -37,7 +37,7 @@ impl FileData {
         let (file_type, is_dir) = match self.file_type {
             FileType::Directory => ("Directory".to_string(), true),
             FileType::File(extension) => (extension, false),
-            FileType::None => ("File".to_string(), false),
+            FileType::None => ("Binary".to_string(), false),
         };
         let size: String = if is_dir {
             "--".to_string()
