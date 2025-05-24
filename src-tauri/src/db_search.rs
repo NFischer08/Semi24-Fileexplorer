@@ -1,5 +1,7 @@
 use crate::config_handler::get_search_batch_size;
-use crate::db_util::{bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices};
+use crate::db_util::{
+    bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices,
+};
 use crate::manager::{build_struct, AppState, VOCAB};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;

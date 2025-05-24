@@ -172,10 +172,11 @@ pub fn bytes_to_vec(bytes: &[u8]) -> Vec<f32> {
 pub fn is_hidden(path: &Path) -> bool {
     // Check if any component (except root) starts with a dot
     path.components().any(|comp| {
-        comp.as_os_str().to_str().map_or(false, |s| s.starts_with('.'))
+        comp.as_os_str()
+            .to_str()
+            .map_or(false, |s| s.starts_with('.'))
     })
 }
-
 
 /// A functon for knowing if a folder is hidden for Windows also check if any parent folder is hidden
 #[cfg(windows)]
@@ -187,7 +188,7 @@ pub fn is_hidden(path: &Path) -> bool {
     for ancestor in path.ancestors() {
         if let Ok(metadata) = fs::metadata(ancestor) {
             if ancestor == Path::new("/") {
-                break
+                break;
             }
             if (metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN) != 0 {
                 return true;
