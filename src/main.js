@@ -1,5 +1,6 @@
 const { invoke } = __TAURI__.core;
 const { listen } = __TAURI__.event;
+const { message } = __TAURI__.dialog;
 
 // history with file paths for navigation buttons
 let filePathHistory = ["/"];
@@ -18,7 +19,7 @@ async function loadFilesAndFolders() {
     // incase there are some elements behind the position of the index they need to be removed first
     if (filePathHistory.length - 1 !== filePathHistoryIndex) {
       while (filePathHistory.length - 1 !== filePathHistoryIndex) {
-        console.log(filePathHistory.pop());
+        filePathHistory.pop();
       }
     }
     filePathHistory.push(filepath);  // add path to history
@@ -88,7 +89,8 @@ function initSearch() {
   }
   selectedSettings.push(document.getElementById('setting-filetype').value);
   const filetypes = selectedSettings.join(','); // Join the selected values into a string
-  invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path, searchfiletype: filetypes }); // start search process; values will be send back via event
+  invoke('manager_basic_search', { searchterm: search_term, searchpath: search_path, searchfiletype: filetypes }).catch(error => displayWarning('Failed to start search: ' + error)); // start search process;
+  // values will be send back via event
 }
 
 // wait for the search results from the backend and call the display function
@@ -103,7 +105,7 @@ listen('search-finnished', (event) => {
   // Store unlisten function for cleanup
   window._searchFinishedUnlisten = unlistenFn;
 }).catch((err) => {
-  console.error('Listener setup failed:', err);
+  displayWarning('Listener setup for search results failed: ', err + '\n You wont be able to recieve any search results.');
 });
 
 // display the search results for the user (therefor taking the entries)
@@ -164,11 +166,19 @@ function displaySearchResults(entries) {
 
 // display error message and hide table when an error occurs
 function displayError(error) {
-  console.error('Error:', error);
   document.getElementById('fileTableContainer').classList.add('error');
   const errorMessageElement = document.getElementById('error-message');
   errorMessageElement.textContent = 'Error: ' + error;
   errorMessageElement.classList.remove('hidden');
+}
+
+// raises an alert to warn the user about an problem
+async function displayWarning(error) {
+  await message(error, {
+    title: "Warning",
+    kind: "warning",
+  }).catch(error => console.error(error));
+
 }
 
 // hide error message and show table when no error occured
@@ -253,7 +263,7 @@ async function displayFavSettings() {
 
 // request color settings from backend
 async function loadCSSSettings() {
-  const settings = await invoke('get_css_settings');
+  const settings = await invoke('get_css_settings').catch(error => displayWarning('Failed to load Style Settings from color-config.json: ' + error));
   const documentstyle = document.documentElement.style;
 
   documentstyle.setProperty('--bg', settings.background);
@@ -280,7 +290,7 @@ document.getElementById('fileList').addEventListener('dblclick', async (event) =
       try {
         invoke('open_file', { filepath: target.dataset.filepath });
       } catch (error) {
-        console.error('Error while opening file for user:', error);
+        displayWarning('Opening file failed due to Error: \n', error);
       }
     }
   }
@@ -353,46 +363,35 @@ document.addEventListener('click', () => {
 // Add click event listeners for context menu options
 document.getElementById('context-delete').addEventListener('click', () => {
   if (selectedFile) {
-    console.log(`Deleting file: ${selectedFile}`);
-    const result = invoke('delete_file', { filepath: selectedFile});
-    console.log(result);
+    invoke('delete_file', { filepath: selectedFile}).catch(error => displayWarning('Failed to delete file due to Error: \n' + error));
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
 
 document.getElementById('context-copy').addEventListener('click', () => {
   if (selectedFile) {
-    console.log(`Copying file: ${selectedFile}`);
-    const result = invoke('copy_file', { filepath: selectedFile});
-    console.log(result);
+    invoke('copy_file', { filepath: selectedFile}).catch(error => displayWarning('Failed to copy file due to Error: \n' + error));
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
 
 document.getElementById('context-paste').addEventListener('click', () => {
   if (selectedFile) {
-    //let selectedFile = document.getElementById("file-path").value
-    console.log(`Pasting file: ${selectedFile}`);
-    const result = invoke('paste_file', { destination: selectedFile});
-    console.log(result);
+    invoke('paste_file', { destination: selectedFile}).catch(error => displayWarning('Failed to paste file due to Error: \n' + error));
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
 
 document.getElementById('context-cut').addEventListener('click', () => {
   if (selectedFile) {
-    console.log(`Cutting file: ${selectedFile}`);
-    const result = invoke('cut_file', { filepath: selectedFile});
-    console.log(result);
+    invoke('cut_file', { filepath: selectedFile}).catch(error => displayWarning('Failed to cut file due to Error: \n' + error));
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
 
 document.getElementById('context-open').addEventListener('click', () => {
   if (selectedFile) {
-    console.log(`Opening file: ${selectedFile}`);
-    const result = invoke('open_file', { filepath: selectedFile});
-    console.log(result);
+    invoke('open_file', { filepath: selectedFile}).catch(error => displayWarning('Failed to open file due to Error: \n' + error));
     contextMenu.style.display = 'none'; // Hide the menu after action
   }
 });
@@ -428,15 +427,14 @@ document.addEventListener("DOMContentLoaded", () => {
   renameForm.addEventListener("submit",async (e) => {
     e.preventDefault();
     const newFilename = newFilenameInput.value.trim();
-    if (newFilename || !newFilename.contains("/")) { // make sure its a valid new name - neither / nor empty
+    if (newFilename || !newFilename.contains("/")) { // make sure its a valid new name - neither `/` nor empty
       try {
         // rename the file (by using backend) and reload the path
         invoke('rename_file', {filepath: selectedFile, newFilename: newFilename});
         renameModal.classList.add("hidden");
         await loadFilesAndFolders();
       } catch (error) {
-        console.error('Error during renaming:', error); // Fehlerprotokollierung
-        alert("An error occurred while renaming the file.");
+        displayWarning('Failed to rename file due to error: \n' + error)
       }
     } else {
       alert("Please enter a valid filename.");

@@ -179,6 +179,7 @@ pub fn is_hidden(path: &Path) -> bool {
     })
 }
 
+
 /// A functon for knowing if a folder is hidden for Windows also check if any parent folder is hidden
 #[cfg(windows)]
 pub fn is_hidden(path: &Path) -> bool {
