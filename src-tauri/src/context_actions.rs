@@ -252,15 +252,6 @@ pub fn open_file(filepath: String) -> Result<(), String> {
 fn clean_path(filepath: String) -> PathBuf {
     // remove double slashes and backslashes
     let filepath: &str = &filepath.replace("\\", "/");
-    let mut clean_path: String = String::new();
-    let mut prev_char = '\0';
-
-    for ch in filepath.chars() {
-        if ch != '/' || prev_char != '/' {
-            clean_path.push(ch);
-        }
-        prev_char = ch;
-    }
-
-    PathBuf::from(clean_path)
+    let parts: Vec<&str> = filepath.split('/').filter(|&s| !s.is_empty() && s != ".").collect();
+    PathBuf::from("/").join(parts.join("/"))
 }
