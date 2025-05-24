@@ -7,6 +7,7 @@ pub mod db_util;
 pub mod file_information;
 pub mod manager;
 pub mod rt_db_update;
+pub mod dialogs;
 
 use crate::config_handler::{
     build_config, get_number_of_threads, get_paths_to_index, ColorConfig, Settings, CURRENT_DIR,

@@ -1,5 +1,5 @@
 use crate::config_handler::{get_paths_to_ignore, INDEX_HIDDEN_FILES};
-use crate::manager::{VOCAB, WEIGHTS};
+use crate::manager::{manager_populate_database, VOCAB, WEIGHTS};
 use ndarray::{Array2, Axis};
 use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -11,6 +11,7 @@ use std::{
     fs::{self},
     path::{Path, PathBuf},
 };
+use rusqlite::params;
 
 pub static PATHS_TO_IGNORE: LazyLock<Vec<PathBuf>> = LazyLock::new(get_paths_to_ignore);
 
@@ -67,7 +68,7 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
             .unwrap_or(false)
 }
 
-/// Generates the Database if it doesn't already exists and makes sure that path is indexed
+/// Generates the Database if it doesn't already exist and makes sure that path is indexed
 pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnectionManager>) {
     pooled_connection
         .pragma_update(None, "journal_mode", "WAL")
@@ -140,7 +141,7 @@ pub fn load_vocab(path: &PathBuf) -> HashMap<String, usize> {
     serde_json::from_str(&vocab_json).expect("Failed to parse vocab JSON")
 }
 
-/// Reads the corresct Vecs from the weights matrix depending on the indices
+/// Reads the correct Vecs from the weights matrix depending on the indices
 pub fn embedding_from_ind(token_indices: Vec<usize>, weights: &Array2<f32>) -> Vec<f32> {
     let selected = weights.select(Axis(0), &token_indices);
     let sum_embedding = selected.sum_axis(Axis(0));
@@ -168,7 +169,118 @@ pub fn bytes_to_vec(bytes: &[u8]) -> Vec<f32> {
         .collect()
 }
 
-/// A functon for knowing if a folder or any parent is hidden for Unix Systems (MacOs + Linux)
+/// checks a folder for its contents and compares it with the db to keep it up to date
+pub fn check_folder(
+    path: PathBuf,
+    pooled_connection: &PooledConnection<SqliteConnectionManager>,
+) -> Result<(), ()> {
+    // read currently existing files in dir
+    let mut current_files: HashSet<PathBuf> = match crate::rt_db_update::get_elements_in_dir(&path) {
+        Ok(paths) => paths,
+        Err(_) => return Err(()),
+    };
+
+    // read currently existing files in db for that dir
+    let pattern = format!("{}%", path.to_str().unwrap().replace("\\", "/"));
+    let mut stmt = pooled_connection
+        .prepare("SELECT file_path FROM files WHERE file_path LIKE ?1")
+        .expect("Failed to prepare statement");
+
+    let paths_iter = stmt
+        .query_map(params![pattern], |row| row.get::<_, String>(0))
+        .expect("Failed to get file paths");
+
+    let db_files_all: Vec<PathBuf> = paths_iter
+        .filter_map(Result::ok)
+        .map(PathBuf::from)
+        .collect();
+
+    let mut db_files: HashSet<PathBuf> = HashSet::new();
+
+    let path_slashes_amount: usize = path.components().count();
+    for file in db_files_all {
+        // Check if Path is a child path
+        if file.clone().components().count() == path_slashes_amount + 1 {
+            db_files.insert(file);
+        }
+    }
+
+    // ignore the common elements
+    let common_el: HashSet<PathBuf> = current_files.intersection(&db_files).cloned().collect();
+    for el in common_el {
+        current_files.remove(&el);
+        db_files.remove(&el);
+    }
+
+    // files which now left in the `current_files` HashSet need to be inserted into the db since they are missing
+    for file in current_files {
+        if file.is_dir() {
+            let _ = manager_populate_database(file);
+        } else {
+            insert_into_db(pooled_connection, &file)
+        }
+    }
+
+    // files which are still in the db, but don't exist anymore need to be removed
+    for file in db_files {
+        let pattern = format!("{}%", file.to_str().unwrap().replace("\\", "/"));
+        pooled_connection
+            .execute("DELETE FROM files WHERE file_path LIKE ?1", (pattern,))
+            .expect("Failed to execute statement");
+    }
+
+    Ok(())
+}
+
+/// deletes a given file path from the db (therefor taking connection to it)
+pub fn delete_from_db(
+    pooled_connection: &PooledConnection<SqliteConnectionManager>,
+    file_path: &Path,
+) {
+    println!("Deleting {:?}", &file_path);
+
+    let path_str = file_path.to_string_lossy().replace("\\", "/");
+    /*
+    if !path_str.ends_with('/') {
+        path_str.push('/');
+    }
+    
+     */
+    let like_pattern = format!("{}%", path_str);
+
+    pooled_connection
+        .execute("DELETE FROM files WHERE file_path LIKE ?", (like_pattern,))
+        .expect("Error: Couldn't delete file in pooled connection");
+}
+
+/// inserts a given file path into the db (therefor taking connection to it)
+pub fn insert_into_db(pooled_connection: &PooledConnection<SqliteConnectionManager>, file_path: &Path) {
+    let path = file_path.to_string_lossy().to_string().replace("\\", "/");
+    let name = file_path
+        .file_stem()
+        .unwrap_or("ERR".as_ref())
+        .to_string_lossy()
+        .to_string();
+    let file_type = Some(
+        file_path
+            .extension()
+            .unwrap_or("ERR".as_ref())
+            .to_string_lossy()
+            .to_string(),
+    );
+    let embedding: Vec<u8> = full_emb(&name)
+        .iter()
+        .flat_map(|f| f.to_le_bytes())
+        .collect();
+    pooled_connection
+        .execute(
+            "INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)",
+            (name, path, file_type, embedding),
+        )
+        .expect("Error: Couldn't insert file in pooled connection");
+}
+
+/// A functon for knowing if a folder or any parent is hidden for Unix Systems (macOS + Linux)
 #[cfg(unix)]
 pub fn is_hidden(path: &Path) -> bool {
     // Check if any component (except root) starts with a dot

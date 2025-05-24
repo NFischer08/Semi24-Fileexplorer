@@ -1,6 +1,5 @@
 use crate::config_handler::{get_copy_mode, CopyMode, CURRENT_DIR};
 use crate::manager::manager_make_connection_pool;
-use crate::rt_db_update::delete_from_db;
 use clipboard::{ClipboardContext, ClipboardProvider};
 use copy_dir::copy_dir;
 use opener::open;
@@ -12,6 +11,7 @@ use std::{
     path::PathBuf,
 };
 use tauri::command;
+use crate::db_util::delete_from_db;
 
 /// copys a file either to the clipboard or as a file in the tmp folder
 #[command]
@@ -228,7 +228,7 @@ pub fn delete_file(filepath: String) -> Result<(), String> {
         let connection_pool: Pool<SqliteConnectionManager> = manager_make_connection_pool();
         // get a valid connection to db and remove just deleted folder from db
         if let Ok(conn) = connection_pool.get() {
-            delete_from_db(&conn, &path) // TODO: delete all children too
+            delete_from_db(&conn, &path) //
         }
     } else if path.is_file() {
         fs::remove_file(path).map_err(|e| e.to_string())?;

@@ -2,7 +2,7 @@ use crate::config_handler::{
     get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS,
     INDEX_HIDDEN_FILES,
 };
-use crate::db_util::{full_emb, is_hidden};
+use crate::db_util::{check_folder, delete_from_db, insert_into_db, is_hidden};
 use crate::manager::{manager_make_connection_pool, manager_populate_database};
 use notify::{
     self,
@@ -16,7 +16,6 @@ use notify::{
 };
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
-use rusqlite::params;
 use std::{
     collections::HashSet,
     fs,
@@ -161,7 +160,7 @@ pub fn watch_folder(
 }
 
 /// gets all elements from a given folder
-fn get_elements_in_dir(parent_path: &PathBuf) -> Result<HashSet<PathBuf>, ()> {
+pub fn get_elements_in_dir(parent_path: &PathBuf) -> Result<HashSet<PathBuf>, ()> {
     // create a new empty HashSet
     let mut elements: HashSet<PathBuf> = HashSet::new();
 
@@ -181,110 +180,4 @@ fn get_elements_in_dir(parent_path: &PathBuf) -> Result<HashSet<PathBuf>, ()> {
     }
 
     Ok(elements)
-}
-
-/// checks a folder for its contents and compares it with the db to keep it up to date
-fn check_folder(
-    path: PathBuf,
-    pooled_connection: &PooledConnection<SqliteConnectionManager>,
-) -> Result<(), ()> {
-    // read currently existing files in dir
-    let mut current_files: HashSet<PathBuf> = match get_elements_in_dir(&path) {
-        Ok(paths) => paths,
-        Err(_) => return Err(()),
-    };
-
-    // read currently existing files in db for that dir
-    let pattern = format!("{}%", path.to_str().unwrap().replace("\\", "/"));
-    let mut stmt = pooled_connection
-        .prepare("SELECT file_path FROM files WHERE file_path LIKE ?1")
-        .expect("Failed to prepare statement");
-
-    let paths_iter = stmt
-        .query_map(params![pattern], |row| row.get::<_, String>(0))
-        .expect("Failed to get file paths");
-
-    let db_files_all: Vec<PathBuf> = paths_iter
-        .filter_map(Result::ok)
-        .map(PathBuf::from)
-        .collect();
-
-    let mut db_files: HashSet<PathBuf> = HashSet::new();
-
-    let path_slashes_amount: usize = path.components().count();
-    for file in db_files_all {
-        // Prüfe ob der Pfad tatsächlich ein Unterpfad des Elternpfads ist
-        if file.clone().components().count() == path_slashes_amount + 1 {
-            db_files.insert(file);
-        }
-    }
-
-    // ignore the common elements
-    let common_el: HashSet<PathBuf> = current_files.intersection(&db_files).cloned().collect();
-    for el in common_el {
-        current_files.remove(&el);
-        db_files.remove(&el);
-    }
-
-    // files which now left in the `current_files` HashSet need to be inserted into the db since they are missing
-    for file in current_files {
-        if file.is_dir() {
-            let _ = manager_populate_database(file);
-        } else {
-            insert_into_db(pooled_connection, &file)
-        }
-    }
-
-    // files which are still in the db, but don't exist anymore need to be removed
-    for file in db_files {
-        let pattern = format!("{}%", file.to_str().unwrap().replace("\\", "/"));
-        pooled_connection
-            .execute("DELETE FROM files WHERE file_path LIKE ?1", (pattern,))
-            .expect("Failed to execute statement");
-    }
-
-    Ok(())
-}
-
-/// deletes a given file path from the db (therefor taking connection to it)
-pub fn delete_from_db(
-    pooled_connection: &PooledConnection<SqliteConnectionManager>,
-    file_path: &Path,
-) {
-    let mut path_str = file_path.to_string_lossy().replace("\\", "/");
-    if !path_str.ends_with('/') {
-        path_str.push('/');
-    }
-    let like_pattern = format!("{}%", path_str);
-
-    pooled_connection
-        .execute("DELETE FROM files WHERE file_path LIKE ?", (like_pattern,))
-        .expect("Error: Couldn't delete file in pooled connection");
-}
-
-/// inserts a given file path into the db (therefor taking connection to it)
-fn insert_into_db(pooled_connection: &PooledConnection<SqliteConnectionManager>, file_path: &Path) {
-    let path = file_path.to_string_lossy().to_string().replace("\\", "/");
-    let name = file_path
-        .file_stem()
-        .unwrap_or("ERR".as_ref())
-        .to_string_lossy()
-        .to_string();
-    let file_type = Some(
-        file_path
-            .extension()
-            .unwrap_or("ERR".as_ref())
-            .to_string_lossy()
-            .to_string(),
-    );
-    let embedding: Vec<u8> = full_emb(&name)
-        .iter()
-        .flat_map(|f| f.to_le_bytes())
-        .collect();
-    pooled_connection
-        .execute(
-            "INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)",
-            (name, path, file_type, embedding),
-        )
-        .expect("Error: Couldn't insert file in pooled connection");
 }

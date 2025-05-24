@@ -10,7 +10,6 @@ use bytemuck::cast_slice;
 use ndarray::Array2;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use std::path::Path;
 use std::{
     collections::HashMap,
     fs::{self, create_dir, DirEntry},
@@ -18,7 +17,6 @@ use std::{
     sync::OnceLock,
 };
 use tauri::{command, AppHandle, State};
-use tauri_plugin_dialog::{DialogExt, MessageDialogButtons};
 
 #[derive(Debug)]
 pub struct AppState {
@@ -26,7 +24,7 @@ pub struct AppState {
 }
 pub static WEIGHTS: OnceLock<Array2<f32>> = OnceLock::new();
 pub static VOCAB: OnceLock<HashMap<String, usize>> = OnceLock::new();
-static APP_STATE: OnceLock<AppState> = OnceLock::new();
+pub static APP_STATE: OnceLock<AppState> = OnceLock::new();
 
 /// Initializes VOCAB and WEIGHTS to be their respective files
 pub fn initialize_globals() {
@@ -126,29 +124,4 @@ pub fn manager_basic_search(
         get_number_results_levenshtein(),
         state,
     );
-}
-
-pub fn file_missing_dialog(path_to_file: &Path) {
-    let app_handle: AppHandle = APP_STATE.get().expect("I hate life").handle.clone();
-    let app_handle_for_closure: AppHandle = app_handle.clone();
-
-    let message = format!(
-        "The {} file couldn't be found. Please add the correct path to the config file.",
-        path_to_file
-            .to_str()
-            .expect("file missing dialog failed converting Path to str")
-    );
-
-    app_handle
-        .dialog()
-        .message(message)
-        .buttons(MessageDialogButtons::OkCancelCustom(
-            "Continue without full functionality".to_string(),
-            "Exit Program an Fix Config".to_string(),
-        ))
-        .show(move |user_clicked_yes| {
-            if !user_clicked_yes {
-                app_handle_for_closure.exit(0);
-            }
-        });
 }
