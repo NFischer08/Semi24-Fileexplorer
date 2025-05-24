@@ -22,7 +22,7 @@ pub static INDEX_HIDDEN_FILES: OnceLock<bool> = OnceLock::new();
 pub static CREATE_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static SEARCH_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_OF_THREADS: OnceLock<usize> = OnceLock::new();
-// Important Information, Paths_to_ignored will still be watched by rt_db but not acted on
+// Important Information: paths_to_ignore will still be watched by rt_db but not acted on
 pub static PATHS_TO_IGNORE: OnceLock<Vec<PathBuf>> = OnceLock::new();
 pub static PATH_TO_WEIGHTS: OnceLock<PathBuf> = OnceLock::new();
 pub static PATH_TO_VOCAB: OnceLock<PathBuf> = OnceLock::new();
@@ -33,7 +33,6 @@ pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     env::current_dir()
         .and_then(absolute)
         .expect("Failed to resolve absolute path")
-    // VERY IMPORTANT when using .push() don't start with a /, if you do it will override the path with C: + "Your Input"
 });
 
 // create structs
@@ -87,7 +86,7 @@ impl Default for Settings {
             "html", "css", "js", "py", "java", "c", "cpp", "rs", "json", "xml", "sql", "log",
         ]
         .iter()
-        .map(|&s| s.to_string())
+        .map(|&s| String::from(s))
         .collect();
 
         let favourite_extensions: HashMap<String, String> = [
@@ -116,7 +115,7 @@ impl Default for Settings {
             number_of_threads: num_cpus::get() - 1,
             paths_to_ignore: Vec::new(),
             path_to_weights: CURRENT_DIR.clone().join("data/model/eng_weights_D300"),
-            path_to_vocab: CURRENT_DIR.clone().join("eng_vocab.json"),
+            path_to_vocab: CURRENT_DIR.clone().join("data/model/eng_vocab.json"),
             embedding_dimensions: 300,
         }
     }
@@ -369,16 +368,6 @@ pub fn get_paths_to_index() -> Vec<PathBuf> {
     }
 }
 
-pub fn get_index_hidden_files() -> bool {
-    match INDEX_HIDDEN_FILES.get() {
-        None => {
-            print_warning("INDEX_HIDDEN_FILES");
-            Settings::default().index_hidden_files
-        }
-        Some(val) => val.to_owned(),
-    }
-}
-
 pub fn get_create_batch_size() -> usize {
     match CREATE_BATCH_SIZE.get() {
         None => {
@@ -472,7 +461,7 @@ fn print_warning(var: &str) {
 fn default_paths_to_index() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
     {
-        vec![PathBuf::from("C:\\Users")]
+        vec![PathBuf::from("/Users")]
     }
 
     #[cfg(target_os = "macos")]

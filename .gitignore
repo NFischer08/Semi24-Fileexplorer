@@ -2,6 +2,7 @@
 /src-tauri/data/db/
 /src-tauri/data/config/
 /src-tauri/data/tmp
+/src-tauri/file_explorer.log
 /src-tauri/gen/
 /src-tauri/src/neural_network/training_data
 /src-tauri/target/
