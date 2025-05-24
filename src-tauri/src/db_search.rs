@@ -1,6 +1,8 @@
 use crate::config_handler::get_search_batch_size;
-use crate::db_util::{bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices};
-use crate::manager::{build_struct, AppState, VOCAB};
+use crate::db_util::{
+    bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices,
+};
+use crate::manager::{build_struct, file_missing_dialog, AppState, VOCAB};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::iter::ParallelIterator;
@@ -8,6 +10,7 @@ use rayon::iter::{IntoParallelIterator, ParallelBridge};
 use rayon::prelude::ParallelSliceMut;
 use rusqlite::Result;
 use std::cmp::Ordering;
+use std::iter::repeat_n;
 use std::{
     fs::{self, DirEntry},
     path::{Path, PathBuf},
@@ -15,9 +18,12 @@ use std::{
 };
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
+use tauri_plugin_dialog::DialogExt;
 
 /// Searches for similar File names in the Database via Levenshtein and a custome skip-gram model,
 /// it uses connection_pool, search_term, search_path, search_file_type, num_results_lev, num_results_emb and state
+
+#[tauri::command]
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,
     search_term: &str,
@@ -74,7 +80,7 @@ pub fn search_database(
         "#
         .to_string()
     } else {
-        let placeholders = std::iter::repeat("?")
+        let placeholders = repeat_n("?", search_file_types_vec.len())
             .take(search_file_types_vec.len())
             .collect::<Vec<_>>()
             .join(", ");

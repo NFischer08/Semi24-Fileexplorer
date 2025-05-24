@@ -5,7 +5,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 # Parameters
 EMBEDDING_DIM = 300
 sample_words = ["test", "first", "king"]
-vocap_path = "eng_vocab.json"
+vocap_path = "../eng_vocab.json"
 weights_path = "eng_weights_D300"
 number_nearest_words = 10
 

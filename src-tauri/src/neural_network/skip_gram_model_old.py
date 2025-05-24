@@ -152,7 +152,7 @@ dataset = SkipGramNegDataset(tokens_idx, vocab, vocab_counter, window_size=windo
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=dataset_workers, prefetch_factor=4, pin_memory=True, persistent_workers=True)
 
 model = SkipGramNegSampling(len(vocab), embedding_dim).to(device)
-optimizer = optim.Adam(model.parameters(), lr=0.003)
+optimizer = optim.Adam(model.parameters(), lr=0.001)
 
 # Get the negative sampling distribution tensor ONCE and move to GPU
 word_prob_tensor = torch.tensor(dataset.word_prob, dtype=torch.float32, device=device)
@@ -181,8 +181,6 @@ for epoch in range(max_epochs):
         total_loss += loss.item()
         progress_bar.set_postfix(loss=loss.item())
 
-    if prev_loss is not None and total_loss > prev_loss:
-        consecutive_increases += 1
     #Save checkpoint at the end of each epoch
     checkpoint = {
         'epoch': epoch + 1,
@@ -196,14 +194,9 @@ for epoch in range(max_epochs):
         print("consecutive_increased")
     else:
         consecutive_increases = 0
-
         prev_loss = total_loss
 
-    torch.save(checkpoint, f"checkpoint_epoch_{epoch+1}.pt")
-    try:
-        os.remove(f"checkpoint_epoch_{epoch}.pt")
-    except FileNotFoundError:
-        pass
+    torch.save(checkpoint, f"checkpoint_latest.pt")
 
     if consecutive_increases == 2:
         print(f"Stopping early: loss increased two epochs in a row at epoch {epoch + 1}")

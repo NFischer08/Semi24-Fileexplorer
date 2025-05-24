@@ -83,18 +83,14 @@ impl Default for Settings {
     /// creates some default values incase it's not able to read the json file properly
     fn default() -> Self {
         let allowed_extensions: HashSet<String> = [
-            "txt", "pdf", "doc", "docx",
-            "xls", "xlsx", "csv", "ppt", "pptx",
-            "jpg", "jpeg", "png", "gif",
-            "mp3", "wav", "mp4", "avi", "mov", "mkv",
-            "zip", "rar", "7z", "tar", "gz",
-            "html", "css", "js", "py", "java", "c", "cpp", "rs",
-            "json", "xml", "sql", "log",
+            "txt", "pdf", "doc", "docx", "xls", "xlsx", "csv", "ppt", "pptx", "jpg", "jpeg", "png",
+            "gif", "mp3", "wav", "mp4", "avi", "mov", "mkv", "zip", "rar", "7z", "tar", "gz",
+            "html", "css", "js", "py", "java", "c", "cpp", "rs", "json", "xml", "sql", "log",
         ]
-            .iter()
-            .map(|&s| s.to_string())
-            .collect();
-        
+        .iter()
+        .map(|&s| s.to_string())
+        .collect();
+
         let favourite_extensions: HashMap<String, String> = [
             ("Images", "png,jpg,jpeg,gif"),
             ("Text", "txt,doc,docx,pdf,odt,rtf"),
@@ -273,7 +269,7 @@ pub fn initialize_config() {
     NUMBER_RESULTS_LEVENSHTEIN
         .set(config.number_results_levenshtein)
         .expect("couldn't set num lev");
-    
+
     PATHS_TO_INDEX
         .set(config.paths_to_index)
         .expect("couldn't set paths to index");
@@ -375,7 +371,7 @@ pub fn get_paths_to_index() -> Vec<PathBuf> {
 }
 
 pub fn get_index_hidden_files() -> bool {
-    match INDEX_HIDDEN_FILES.get() { 
+    match INDEX_HIDDEN_FILES.get() {
         None => {
             print_warning("INDEX_HIDDEN_FILES");
             Settings::default().index_hidden_files
@@ -476,11 +472,17 @@ fn print_warning(var: &str) {
 
 fn default_paths_to_index() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
-    { vec![PathBuf::from("C:\\Users")] }
+    {
+        vec![PathBuf::from("C:\\Users")]
+    }
 
     #[cfg(target_os = "macos")]
-    { vec![PathBuf::from("/Users")] }
+    {
+        vec![PathBuf::from("/Users")]
+    }
 
     #[cfg(all(unix, not(target_os = "macos")))]
-    { vec![PathBuf::from("/home")] }
+    {
+        vec![PathBuf::from("/home")]
+    }
 }
