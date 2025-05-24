@@ -235,7 +235,7 @@ fn check_folder(
         }
     }
 
-    // files which are still in the db, but dont exist anymore need to be removed
+    // files which are still in the db, but don't exist anymore need to be removed
     for file in db_files {
         let pattern = format!("{}%", file.to_str().unwrap().replace("\\", "/"));
         pooled_connection
@@ -251,11 +251,14 @@ pub fn delete_from_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     file_path: &Path,
 ) {
+    let mut path_str = file_path.to_string_lossy().replace("\\", "/");
+    if !path_str.ends_with('/') {
+        path_str.push('/');
+    }
+    let like_pattern = format!("{}%", path_str);
+
     pooled_connection
-        .execute(
-            "DELETE FROM files WHERE file_path = ?",
-            (file_path.to_string_lossy().replace("\\", "/"),),
-        )
+        .execute("DELETE FROM files WHERE file_path LIKE ?", (like_pattern,))
         .expect("Error: Couldn't delete file in pooled connection");
 }
 

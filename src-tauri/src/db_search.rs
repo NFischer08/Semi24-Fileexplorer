@@ -2,7 +2,7 @@ use crate::config_handler::get_search_batch_size;
 use crate::db_util::{
     bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices,
 };
-use crate::manager::{build_struct, AppState, VOCAB};
+use crate::manager::{build_struct, file_missing_dialog, AppState, VOCAB};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::iter::ParallelIterator;
@@ -18,7 +18,6 @@ use std::{
 };
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
-use tauri_plugin_dialog::DialogExt;
 
 /// Searches for similar File names in the Database via Levenshtein and a custome skip-gram model,
 /// it uses connection_pool, search_term, search_path, search_file_type, num_results_lev, num_results_emb and state
@@ -161,7 +160,7 @@ pub fn search_database(
 
     let mut search_query: Vec<(String, Vec<u8>)> = Vec::with_capacity(count_rows);
 
-    // Computes the Levenhstein distance / similarity as well as builds up a Vec of every batch
+    // Computes the Levenshtein distance / similarity as well as builds up a Vec of every batch
     let results_lev: Vec<(String, f32)> = receiver
         .into_iter() // Convert to parallel iterator
         .flat_map(|batch| {
@@ -190,7 +189,7 @@ pub fn search_database(
     // Sends the result to the FrontEnd via a Tauri Signal
     state.handle.emit("search-finnished", &ret_lev).unwrap();
     println!(
-        "levenhstein-finnished {:?}",
+        "levenshtein-finished {:?}",
         start_time.elapsed().as_millis()
     );
 
@@ -210,29 +209,29 @@ pub fn search_database(
     let tokenized_file_name = tokenize_file_name(search_term);
     let tokens_indices = tokens_to_indices(tokenized_file_name, VOCAB.get().unwrap());
 
-    // Checks if Model doesn't undersand anything in search term
+    // Checks if Model doesn't understand anything in search term
     let mut num_results_embeddings = num_results_embeddings;
     if tokens_indices.iter().all(|i| *i == 0) {
         println!("Search Term isn't in Vocab");
         num_results_embeddings = 0;
     }
 
-    // Transform the results into DireEntrys, sorts them and only give back the num_results_emb best results
+    // Transform the results into DireEntry's, sorts them and only give back the num_results_emb best results
     let ret_emb_dir = return_entries(results_emb, num_results_embeddings);
 
     // Transforms the results into FileDataFormatted which the FrontEnd uses
     let ret_emb = build_struct(ret_emb_dir);
 
-    // Adds the results embedding and levenhstein together
+    // Adds the results embedding and levenshtein together
     let ret = [ret_lev, ret_emb].concat();
 
     // Sends final results to FrontEnd
-    state.handle.emit("search-finnished", &ret).unwrap();
-    println!("embedding-finnished {:?}", start_time.elapsed().as_millis());
+    state.handle.emit("search-finished", &ret).unwrap();
+    println!("embedding-finished {:?}", start_time.elapsed().as_millis());
     println!("search took: {:?}", start_time.elapsed().as_millis());
 }
 
-/// Support Funciton for searching which only gives back the best results in form of DirEntries
+/// Support Function for searching which only gives back the best results in form of DirEntries
 fn return_entries(mut similarity_values: Vec<(String, f32)>, num_ret: usize) -> Vec<DirEntry> {
     similarity_values.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
     similarity_values.truncate(num_ret);

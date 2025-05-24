@@ -12,7 +12,7 @@ use crate::config_handler::{
     build_config, get_number_of_threads, get_paths_to_index, ColorConfig, Settings, CURRENT_DIR,
 };
 use crate::manager::{
-    file_missing_dialog, initialize_globals, manager_populate_database, AppState,
+    initialize_app_state, initialize_globals, manager_populate_database, AppState,
 };
 use crate::rt_db_update::start_file_watcher;
 use config_handler::{get_css_settings, get_fav_file_extensions, initialize_config};
@@ -104,7 +104,7 @@ pub fn run() {
             manager_basic_search,
             get_fav_file_extensions,
             get_css_settings,
-            file_missing_dialog,
+            initialize_app_state,
         ])
         .run(tauri::generate_context!("tauri.conf.json"))
         .expect("error while running tauri application");

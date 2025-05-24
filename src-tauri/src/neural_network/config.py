@@ -12,5 +12,5 @@ LOAD_CHECKPOINT = False
 CHECKPOINT_PATH = "checkpoint_latest.pt"
 
 
-FILE_PATH = "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/src/neural_network/deu_wikipedia_2021_1M/deu_wikipedia_2021_1M-sentences.txt"
+FILE_PATH = "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/src/neural_network/eng_wikipedia_2016_1M/eng_wikipedia_2016_1M-sentences.txt"
 VOCAB_NAME = "eng_vocab.json"

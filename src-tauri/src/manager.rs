@@ -10,7 +10,7 @@ use bytemuck::cast_slice;
 use ndarray::Array2;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use std::fs::exists;
+use std::path::Path;
 use std::{
     collections::HashMap,
     fs::{self, create_dir, DirEntry},
@@ -26,6 +26,7 @@ pub struct AppState {
 }
 pub static WEIGHTS: OnceLock<Array2<f32>> = OnceLock::new();
 pub static VOCAB: OnceLock<HashMap<String, usize>> = OnceLock::new();
+static APP_STATE: OnceLock<AppState> = OnceLock::new();
 
 /// Initializes VOCAB and WEIGHTS to be their respective files
 pub fn initialize_globals() {
@@ -44,6 +45,10 @@ pub fn initialize_globals() {
     });
 
     VOCAB.get_or_init(|| load_vocab(&get_path_to_vocab()));
+}
+#[command]
+pub fn initialize_app_state(handle: AppHandle) {
+    APP_STATE.get_or_init(|| AppState { handle });
 }
 
 /// Builds up the FileDataFormatted Struct from DireEntries
@@ -98,7 +103,7 @@ pub fn manager_populate_database(database_scan_start: PathBuf) -> Result<(), Str
 }
 
 /// starts the search with a search term, location, extensions and sends it to FrontEnd via an Event
-/// searchfiletype is the Filetype Ending without the Dot, for Directorys it must be dir
+/// search filetype is the Filetype Ending without the Dot, for Directory's it must be dir
 #[command(async)]
 pub fn manager_basic_search(
     searchterm: &str,
@@ -123,27 +128,23 @@ pub fn manager_basic_search(
     );
 }
 
-#[command]
-pub fn file_missing_dialog(
-    app_handle: AppHandle,
-    button_1_text: &str,
-    button_2_text: &str,
-    path_to_file: &str,
-) {
+pub fn file_missing_dialog(path_to_file: &Path) {
+    let app_handle: AppHandle = APP_STATE.get().expect("I hate life").handle.clone();
+    let app_handle_for_closure: AppHandle = app_handle.clone();
+
     let message = format!(
         "The {} file couldn't be found. Please add the correct path to the config file.",
         path_to_file
+            .to_str()
+            .expect("file missing dialog failed converting Path to str")
     );
-
-    // Clone AppHandle for the closure
-    let app_handle_for_closure = app_handle.clone();
 
     app_handle
         .dialog()
         .message(message)
         .buttons(MessageDialogButtons::OkCancelCustom(
-            button_1_text.to_string(),
-            button_2_text.to_string(),
+            "Continue without full functionality".to_string(),
+            "Exit Program an Fix Config".to_string(),
         ))
         .show(move |user_clicked_yes| {
             if !user_clicked_yes {

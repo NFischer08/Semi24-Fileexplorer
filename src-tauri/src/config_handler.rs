@@ -22,7 +22,6 @@ pub static INDEX_HIDDEN_FILES: OnceLock<bool> = OnceLock::new();
 pub static CREATE_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static SEARCH_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_OF_THREADS: OnceLock<usize> = OnceLock::new();
-
 // Important Information, Paths_to_ignored will still be watched by rt_db but not acted on
 pub static PATHS_TO_IGNORE: OnceLock<Vec<PathBuf>> = OnceLock::new();
 pub static PATH_TO_WEIGHTS: OnceLock<PathBuf> = OnceLock::new();

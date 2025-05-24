@@ -193,6 +193,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   await loadCSSSettings()
   await displayFavSettings();
   await loadFilesAndFolders();
+  await invoke('initialize_app_state')
 });
 
 // calls apropriate function when clicking on button

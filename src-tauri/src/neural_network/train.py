@@ -75,6 +75,13 @@ def main():
         }
         torch.save(checkpoint, CHECKPOINT_PATH)
 
+        with open("training_log.txt", "a") as log_file:
+            log_file.write(
+                f"Epoch: {epoch + 1}, "
+                f"Total Loss: {total_loss:.4f}, "
+                f"Consecutive Increases: {consecutive_increases}\n"
+            )
+
         if prev_loss is not None and prev_loss < total_loss:
             consecutive_increases += 1
             print("consecutive_increased")
