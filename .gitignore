@@ -1,8 +1,9 @@
-/target/
-/src-tauri/target/
-/venv/
-/src-tauri/src/neural_network/training_data
+/.idea/
 /src-tauri/data/db/
 /src-tauri/data/config/
+/src-tauri/data/tmp
 /src-tauri/gen/
-/.idea/
+/src-tauri/src/neural_network/training_data
+/src-tauri/target/
+/target/
+/venv/

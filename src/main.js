@@ -366,6 +366,7 @@ document.getElementById('context-delete').addEventListener('click', () => {
   if (selectedFile) {
     invoke('delete_file', { filepath: selectedFile}).catch(error => displayWarning('Failed to delete file due to Error: \n' + error));
     contextMenu.style.display = 'none'; // Hide the menu after action
+    loadFilesAndFolders();
   }
 });
 
@@ -380,6 +381,7 @@ document.getElementById('context-paste').addEventListener('click', () => {
   if (selectedFile) {
     invoke('paste_file', { destination: selectedFile}).catch(error => displayWarning('Failed to paste file due to Error: \n' + error));
     contextMenu.style.display = 'none'; // Hide the menu after action
+    loadFilesAndFolders();
   }
 });
 
@@ -387,6 +389,7 @@ document.getElementById('context-cut').addEventListener('click', () => {
   if (selectedFile) {
     invoke('cut_file', { filepath: selectedFile}).catch(error => displayWarning('Failed to cut file due to Error: \n' + error));
     contextMenu.style.display = 'none'; // Hide the menu after action
+    loadFilesAndFolders();
   }
 });
 
@@ -435,7 +438,7 @@ document.addEventListener("DOMContentLoaded", () => {
         renameModal.classList.add("hidden");
         await loadFilesAndFolders();
       } catch (error) {
-        displayWarning('Failed to rename file due to error: \n' + error)
+        await displayWarning('Failed to rename file due to error: \n' + error)
       }
     } else {
       alert("Please enter a valid filename.");
