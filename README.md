@@ -48,7 +48,7 @@ If there is no release for your system, you have to build the application from s
 
 ## How to use it
 First of all you should start the program. 
-It will initialise the needed path structure. 
+It will initialise the needed path structure and close instantly since you need to copy the _weights_ and _vocab_ to their according place (`~/data/model/..`).
 After that you can configure the program to your preferences (see [config](CONFIG.md)).
 Now you can use the program just like you want to.
 
@@ -61,7 +61,7 @@ The following apects are supported by our program:
 - input field to enter your search term
 - **search settings** when pressing on the three lines with dots
 
-   In here you can either enter custom extensions you want to query for or click on some favourites (set in config).
+   In here you can either enter custom extensions (seperate them by a comma) you want to query for or click on some favourites (set in config).
    You have to use "dir" for directories and "binary" for files without extensions.
    By clicking on the trash can your search setting inputs will be reset.
 - pressing _enter_ will submit if you're currently in an input field
@@ -69,8 +69,9 @@ The following apects are supported by our program:
 Now have fun using our File Explorer 🎉🎉🎉
 
 ## Error Handling
-In case you encounter any problems try what the error messages tell you to do.
-If that doesn't work or the program crashes when starting it often helps to just restart the program.
+In case you encounter any problems try what the error messages tells you to do.
+View the log for more information (`~/file_explorer.log`).
+If that doesn't work or the program crashes when starting it can help to restart the program.
 Furthermore deleting the [database](src-tauri/data/db) (`~/data/db/..`) or deleting the [config files](src-tauri/data/config) can help too
 
 ## Project configuration

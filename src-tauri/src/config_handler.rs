@@ -252,80 +252,80 @@ pub fn initialize_config() {
                     }
                 }
                 Err(_) => {
-                    log::warn!("Fehler beim Verarbeiten der Konfiguration, es werden für manche Variablen Standardwerte verwendet.");
+                    log::warn!("Error when reading config.json: Using default values.");
                     default_settings
                 }
             }
         }
         Err(_) => {
-            log::warn!("Fehler beim Verarbeiten der Konfiguration, es werden für manche Variablen Standardwerte verwendet.");
+            log::warn!("Error when reading config.json: Using default values.");
             default_settings
         }
     };
 
     // set every constant, if something fails, the whole program immediately stops executing due to panicking
     if let Err(e) = FAVOURITE_FILE_EXTENSIONS.set(config.favourite_extensions) {
-        log::error!("Konnte favourite extensions nicht setzen: {:?}", e);
+        log::error!("Couldn't set favourite extensions: {:?}", e);
     }
 
     if let Err(e) = ALLOWED_FILE_EXTENSIONS.set(config.allowed_extensions) {
-        log::error!("Konnte allowed extensions nicht setzen: {:?}", e);
+        log::error!("Couldn't set allowed extensions: {:?}", e);
     }
 
     if let Err(e) = COPY_MODE.set(config.copy_mode) {
-        log::error!("Konnte copy mode nicht setzen: {:?}", e);
+        log::error!("Couldn't set copy mode: {:?}", e);
     }
 
     if let Err(e) = NUMBER_RESULTS_EMBEDDING.set(config.number_results_embedding) {
-        log::error!("Konnte number_results_embedding nicht setzen: {:?}", e);
+        log::error!("Couldn't set number_results_embedding: {:?}", e);
     }
 
     if let Err(e) = NUMBER_RESULTS_LEVENSHTEIN.set(config.number_results_levenshtein) {
-        log::error!("Konnte number_results_levenshtein nicht setzen: {:?}", e);
+        log::error!("Couldn't set number_results_levenshtein: {:?}", e);
     }
 
     if let Err(e) = PATHS_TO_INDEX.set(config.paths_to_index) {
-        log::error!("Konnte paths_to_index nicht setzen: {:?}", e);
+        log::error!("Couldn't set paths_to_index: {:?}", e);
     }
 
     if let Err(e) = INDEX_HIDDEN_FILES.set(config.index_hidden_files) {
-        log::error!("Konnte index_hidden_files nicht setzen: {:?}", e);
+        log::error!("Couldn't set index_hidden_files: {:?}", e);
     }
 
     if let Err(e) = INDEX_DIRECTORIES.set(config.index_directories) {
-        log::error!("Konnte index_directories nicht setzen: {:?}", e);
+        log::error!("Couldn't set index_directories: {:?}", e);
     }
 
     if let Err(e) = INDEX_BINARIES.set(config.index_binaries) {
-        log::error!("Konnte index_binaries nicht setzen: {:?}", e);
+        log::error!("Couldn't set index_binaries: {:?}", e);
     }
 
     if let Err(e) = CREATE_BATCH_SIZE.set(config.create_batch_size) {
-        log::error!("Konnte create_batch_size nicht setzen: {:?}", e);
+        log::error!("Couldn't set create_batch_size: {:?}", e);
     }
 
     if let Err(e) = SEARCH_BATCH_SIZE.set(config.search_batch_size) {
-        log::error!("Konnte search_batch_size nicht setzen: {:?}", e);
+        log::error!("Couldn't set search_batch_size: {:?}", e);
     }
 
     if let Err(e) = NUMBER_OF_THREADS.set(config.number_of_threads) {
-        log::error!("Konnte number_of_threads nicht setzen: {:?}", e);
+        log::error!("Couldn't set number_of_threads: {:?}", e);
     }
 
     if let Err(e) = PATHS_TO_IGNORE.set(config.paths_to_ignore) {
-        log::error!("Konnte paths_to_ignore nicht setzen: {:?}", e);
+        log::error!("Couldn't set paths_to_ignore: {:?}", e);
     }
 
     if let Err(e) = PATH_TO_WEIGHTS.set(config.path_to_weights) {
-        log::error!("Konnte path_to_weights nicht setzen: {:?}", e);
+        log::error!("Couldn't set path_to_weights: {:?}", e);
     }
 
     if let Err(e) = PATH_TO_VOCAB.set(config.path_to_vocab) {
-        log::error!("Konnte path_to_vocab nicht setzen: {:?}", e);
+        log::error!("Couldn't set path_to_vocab: {:?}", e);
     }
 
     if let Err(e) = EMBEDDING_DIMENSIONS.set(config.embedding_dimensions) {
-        log::error!("Konnte embedding_dimensions nicht setzen: {:?}", e);
+        log::error!("Couldn't set embedding_dimensions: {:?}", e);
     }
 }
 
@@ -334,7 +334,7 @@ pub fn initialize_config() {
 pub fn get_fav_file_extensions() -> HashMap<String, String> {
     match FAVOURITE_FILE_EXTENSIONS.get() {
         None => {
-            print_warning("FAVOURITE_FILE_EXTENSIONS");
+            log_warning("FAVOURITE_FILE_EXTENSIONS");
             Settings::default().favourite_extensions
         }
         Some(val) => val.to_owned(),
@@ -345,7 +345,7 @@ pub fn get_fav_file_extensions() -> HashMap<String, String> {
 pub fn get_allowed_file_extensions() -> HashSet<String> {
     match ALLOWED_FILE_EXTENSIONS.get() {
         None => {
-            print_warning("ALLOWED_FILE_EXTENSIONS");
+            log_warning("ALLOWED_FILE_EXTENSIONS");
             Settings::default().allowed_extensions
         }
         Some(val) => val.to_owned(),
@@ -355,7 +355,7 @@ pub fn get_allowed_file_extensions() -> HashSet<String> {
 pub fn get_copy_mode() -> CopyMode {
     match COPY_MODE.get() {
         None => {
-            print_warning("COPY_MODE");
+            log_warning("COPY_MODE");
             Settings::default().copy_mode
         }
         Some(val) => val.to_owned(),
@@ -365,7 +365,7 @@ pub fn get_copy_mode() -> CopyMode {
 pub fn get_number_results_levenshtein() -> usize {
     match NUMBER_RESULTS_LEVENSHTEIN.get() {
         None => {
-            print_warning("NUMBER_RESULTS_LEVENSHTEIN");
+            log_warning("NUMBER_RESULTS_LEVENSHTEIN");
             Settings::default().number_results_levenshtein
         }
         Some(val) => val.to_owned(),
@@ -375,7 +375,7 @@ pub fn get_number_results_levenshtein() -> usize {
 pub fn get_number_results_embedding() -> usize {
     match NUMBER_RESULTS_EMBEDDING.get() {
         None => {
-            print_warning("NUMBER_RESULTS_EMBEDDING");
+            log_warning("NUMBER_RESULTS_EMBEDDING");
             Settings::default().number_results_embedding
         }
         Some(val) => val.to_owned(),
@@ -385,7 +385,7 @@ pub fn get_number_results_embedding() -> usize {
 pub fn get_paths_to_index() -> Vec<PathBuf> {
     match PATHS_TO_INDEX.get() {
         None => {
-            print_warning("PATHS_TO_INDEX");
+            log_warning("PATHS_TO_INDEX");
             Settings::default().paths_to_index
         }
         Some(val) => val.to_owned(),
@@ -395,7 +395,7 @@ pub fn get_paths_to_index() -> Vec<PathBuf> {
 pub fn get_create_batch_size() -> usize {
     match CREATE_BATCH_SIZE.get() {
         None => {
-            print_warning("CREATE_BATCH_SIZE");
+            log_warning("CREATE_BATCH_SIZE");
             Settings::default().create_batch_size
         }
         Some(val) => val.to_owned(),
@@ -405,7 +405,7 @@ pub fn get_create_batch_size() -> usize {
 pub fn get_search_batch_size() -> usize {
     match SEARCH_BATCH_SIZE.get() {
         None => {
-            print_warning("SEARCH_BATCH_SIZE");
+            log_warning("SEARCH_BATCH_SIZE");
             Settings::default().search_batch_size
         }
         Some(val) => val.to_owned(),
@@ -415,7 +415,7 @@ pub fn get_search_batch_size() -> usize {
 pub fn get_number_of_threads() -> usize {
     match NUMBER_OF_THREADS.get() {
         None => {
-            print_warning("NUMBER_OF_THREADS");
+            log_warning("NUMBER_OF_THREADS");
             Settings::default().number_of_threads
         }
         Some(val) => val.to_owned(),
@@ -425,7 +425,7 @@ pub fn get_number_of_threads() -> usize {
 pub fn get_paths_to_ignore() -> Vec<PathBuf> {
     match PATHS_TO_IGNORE.get() {
         None => {
-            print_warning("PATHS_TO_IGNORE");
+            log_warning("PATHS_TO_IGNORE");
             Settings::default().paths_to_ignore
         }
         Some(val) => val.to_owned(),
@@ -435,7 +435,7 @@ pub fn get_paths_to_ignore() -> Vec<PathBuf> {
 pub fn get_path_to_weights() -> PathBuf {
     match PATH_TO_WEIGHTS.get() {
         None => {
-            print_warning("PATH_TO_WEIGHTS");
+            log_warning("PATH_TO_WEIGHTS");
             Settings::default().path_to_weights
         }
         Some(path) => path.to_owned(),
@@ -445,7 +445,7 @@ pub fn get_path_to_weights() -> PathBuf {
 pub fn get_path_to_vocab() -> PathBuf {
     match PATH_TO_VOCAB.get() {
         None => {
-            print_warning("PATH_TO_VOCAB");
+            log_warning("PATH_TO_VOCAB");
             Settings::default().path_to_vocab
         }
         Some(path) => path.to_owned(),
@@ -455,7 +455,7 @@ pub fn get_path_to_vocab() -> PathBuf {
 pub fn get_embedding_dimensions() -> usize {
     match EMBEDDING_DIMENSIONS.get() {
         None => {
-            print_warning("EMBEDDING_DIMENSIONS");
+            log_warning("EMBEDDING_DIMENSIONS");
             Settings::default().embedding_dimensions
         }
         Some(val) => val.to_owned(),
@@ -475,9 +475,9 @@ pub fn get_css_settings() -> ColorConfig {
         Err(_) => ColorConfig::default(),
     }
 }
-fn print_warning(var: &str) {
+fn log_warning(var: &str) {
     log::warn!(
-        "Die Variable '{}' konnte nicht gelesen werden, es wird auf den Standardwert zurückgegriffen.",
+        "The var '{}' could not be read. Using default value.",
         var
     );
 }

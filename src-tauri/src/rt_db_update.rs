@@ -149,7 +149,6 @@ pub fn watch_folder(
             Err(e) => println!("watch error: {:?}", e),
         }
     }
-    println!("File watcher stopped");
 }
 
 /// gets all elements from a given folder
@@ -161,7 +160,7 @@ pub fn get_elements_in_dir(parent_path: &PathBuf) -> Result<HashSet<PathBuf>, ()
         .filter(|entry| entry.is_ok())
         .map(|entry| {
             entry
-                .expect("RIP, that should not be able to happen")
+                .expect("Found Err in entries, even though they were removed by a filter before")
                 .path()
         })
         .filter(|path| {

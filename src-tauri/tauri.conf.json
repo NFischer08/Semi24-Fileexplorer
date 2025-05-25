@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "file_explorer",
+  "productName": "Semi-Explorer",
   "version": "0.1.0",
-  "identifier": "com.file-explorer.app",
+  "identifier": "com.semi-explorer.app",
   "build": {
     "frontendDist": "../src"
   },
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "file_explorer",
+        "title": "Semi-Explorer",
         "width": 1200,
         "height": 800,
         "resizable": true
