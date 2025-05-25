@@ -21,7 +21,7 @@ use file_information::format_file_data;
 use manager::manager_basic_search;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{fs::create_dir, thread};
-use log::LevelFilter;
+use log::{warn, LevelFilter};
 use tauri::Manager;
 
 fn setup_directory_structure() {
@@ -49,18 +49,19 @@ fn setup_directory_structure() {
         (true, _, _, false) => create_dir(&tmp_dir).expect("Unable to create tmp directory"),
         _ => {}
     }
+
     if !config_file.exists() {
         if build_config(&config_file, &Settings::default()) {
-            println!("Warning: Config file didnt exist, created new one")
+            warn!("Config file didn't exist, created new one");
         } else {
-            println!("WARNING: Unable to build config file")
+            warn!("Unable to build config file");
         }
     }
     if !color_config_file.exists() {
         if build_config(&color_config_file, &ColorConfig::default()) {
-            println!("Warning: Color-config file didnt exist, created new one")
+            warn!("Color-config file didn't exist, created new one");
         } else {
-            println!("WARNING: Unable to build color-config file")
+            warn!("Unable to build color-config file");
         }
     }
 }

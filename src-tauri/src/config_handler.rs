@@ -9,6 +9,7 @@ use std::{
     path::{absolute, PathBuf},
     sync::{LazyLock, OnceLock},
 };
+use log::error;
 use tauri::command;
 
 // create each constant
@@ -265,67 +266,67 @@ pub fn initialize_config() {
 
     // set every constant, if something fails, the whole program immediately stops executing due to panicking
     if let Err(e) = FAVOURITE_FILE_EXTENSIONS.set(config.favourite_extensions) {
-        log::error!("Konnte favourite extensions nicht setzen: {:?}", e);
+        error!("Konnte favourite extensions nicht setzen: {:?}", e);
     }
 
     if let Err(e) = ALLOWED_FILE_EXTENSIONS.set(config.allowed_extensions) {
-        log::error!("Konnte allowed extensions nicht setzen: {:?}", e);
+        error!("Konnte allowed extensions nicht setzen: {:?}", e);
     }
 
     if let Err(e) = COPY_MODE.set(config.copy_mode) {
-        log::error!("Konnte copy mode nicht setzen: {:?}", e);
+        error!("Konnte copy mode nicht setzen: {:?}", e);
     }
 
     if let Err(e) = NUMBER_RESULTS_EMBEDDING.set(config.number_results_embedding) {
-        log::error!("Konnte number_results_embedding nicht setzen: {:?}", e);
+        error!("Konnte number_results_embedding nicht setzen: {:?}", e);
     }
 
     if let Err(e) = NUMBER_RESULTS_LEVENSHTEIN.set(config.number_results_levenshtein) {
-        log::error!("Konnte number_results_levenshtein nicht setzen: {:?}", e);
+        error!("Konnte number_results_levenshtein nicht setzen: {:?}", e);
     }
 
     if let Err(e) = PATHS_TO_INDEX.set(config.paths_to_index) {
-        log::error!("Konnte paths_to_index nicht setzen: {:?}", e);
+        error!("Konnte paths_to_index nicht setzen: {:?}", e);
     }
 
     if let Err(e) = INDEX_HIDDEN_FILES.set(config.index_hidden_files) {
-        log::error!("Konnte index_hidden_files nicht setzen: {:?}", e);
+        error!("Konnte index_hidden_files nicht setzen: {:?}", e);
     }
 
     if let Err(e) = INDEX_DIRECTORIES.set(config.index_directories) {
-        log::error!("Konnte index_directories nicht setzen: {:?}", e);
+        error!("Konnte index_directories nicht setzen: {:?}", e);
     }
 
     if let Err(e) = INDEX_BINARIES.set(config.index_binaries) {
-        log::error!("Konnte index_binaries nicht setzen: {:?}", e);
+        error!("Konnte index_binaries nicht setzen: {:?}", e);
     }
 
     if let Err(e) = CREATE_BATCH_SIZE.set(config.create_batch_size) {
-        log::error!("Konnte create_batch_size nicht setzen: {:?}", e);
+        error!("Konnte create_batch_size nicht setzen: {:?}", e);
     }
 
     if let Err(e) = SEARCH_BATCH_SIZE.set(config.search_batch_size) {
-        log::error!("Konnte search_batch_size nicht setzen: {:?}", e);
+        error!("Konnte search_batch_size nicht setzen: {:?}", e);
     }
 
     if let Err(e) = NUMBER_OF_THREADS.set(config.number_of_threads) {
-        log::error!("Konnte number_of_threads nicht setzen: {:?}", e);
+        error!("Konnte number_of_threads nicht setzen: {:?}", e);
     }
 
     if let Err(e) = PATHS_TO_IGNORE.set(config.paths_to_ignore) {
-        log::error!("Konnte paths_to_ignore nicht setzen: {:?}", e);
+        error!("Konnte paths_to_ignore nicht setzen: {:?}", e);
     }
 
     if let Err(e) = PATH_TO_WEIGHTS.set(config.path_to_weights) {
-        log::error!("Konnte path_to_weights nicht setzen: {:?}", e);
+        error!("Konnte path_to_weights nicht setzen: {:?}", e);
     }
 
     if let Err(e) = PATH_TO_VOCAB.set(config.path_to_vocab) {
-        log::error!("Konnte path_to_vocab nicht setzen: {:?}", e);
+        error!("Konnte path_to_vocab nicht setzen: {:?}", e);
     }
 
     if let Err(e) = EMBEDDING_DIMENSIONS.set(config.embedding_dimensions) {
-        log::error!("Konnte embedding_dimensions nicht setzen: {:?}", e);
+        error!("Konnte embedding_dimensions nicht setzen: {:?}", e);
     }
 }
 

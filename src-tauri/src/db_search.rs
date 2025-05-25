@@ -233,7 +233,7 @@ fn return_entries(mut similarity_values: Vec<(String, f32)>, num_ret: usize) -> 
     similarity_values.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
     similarity_values.truncate(num_ret);
 
-    println!("Similarity values {:?}", similarity_values);
+    //println!("Similarity values {:?}", similarity_values);
     similarity_values
         .into_par_iter()
         .filter_map(|(s, _)| {

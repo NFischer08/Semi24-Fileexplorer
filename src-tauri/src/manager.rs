@@ -16,6 +16,7 @@ use std::{
     path::PathBuf,
     sync::OnceLock,
 };
+use log::error;
 use tauri::{command, AppHandle, State};
 
 #[derive(Debug)]
@@ -127,7 +128,7 @@ pub fn check_for_default_paths() {
     // Model weights check
     let model_path = CURRENT_DIR.clone().join("data/model/eng_weights_D300");
     if !model_path.exists() {
-        log::error!(
+        error!(
             "The default weights file couldn't be found at {:?}",
             CURRENT_DIR.clone().join("data/model/eng_weights_D300")
         );
@@ -136,7 +137,7 @@ pub fn check_for_default_paths() {
     // Vocab check
     let vocab_path = CURRENT_DIR.clone().join("data/model/eng_vocab.json");
     if !vocab_path.exists() {
-        log::error!(
+        error!(
             "The default vocab file couldn't be found at {:?}",
             CURRENT_DIR.clone().join("data/model/eng_vocab.json"));
     }
