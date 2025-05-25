@@ -4,6 +4,7 @@ Our project has a config file with which you can change important parameters for
 Furthermore, there is a color config file for changing the appereance of the program.
 
 Note that you have to restart the program for changes to take effect.
+If you change anything affecting the files to index it is recommended to delete the database, since the program will only insert new files, but won't remove files you don't want to index anymore.
 
 ## General Config
 You can find it [here](src-tauri/data/config/config.json).
@@ -40,6 +41,12 @@ All children of the paths will be indexed as well.
 
 ### `index_hidden_files`
 A boolean determining if hidden files should be indexed.
+
+### `index_directories`
+A boolean determining if directories should be indexed.
+
+### `index_binaries`
+A boolean determining if binaries (files without extension) should be indexed.
 
 ### `create_batch_size`
 An integer determining the number of files that should be added to the database at once.

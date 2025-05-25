@@ -16,7 +16,6 @@ use notify::{
 };
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
-use std::hash::Hash;
 use std::{
     collections::HashSet,
     fs,
@@ -98,14 +97,7 @@ pub fn watch_folder(
                     }
 
                     // check if the path is from interest
-                    if file_path.is_dir()
-                        || file_path
-                            .extension() // unpack extension and check if it is in the allowed extensions
-                            .map(|ext| {
-                                allowed_extensions.contains(&ext.to_string_lossy().to_string())
-                            })
-                            .unwrap_or(false)
-                    {
+                    if is_allowed_file(&file_path, allowed_extensions) {
                         // get actual event kind and handle it
                         match event.kind {
                             Create(_) => {

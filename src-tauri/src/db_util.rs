@@ -1,5 +1,6 @@
 use crate::config_handler::{get_paths_to_ignore, INDEX_BINARIES, INDEX_DIRECTORIES, INDEX_HIDDEN_FILES};
 use crate::manager::{manager_populate_database, VOCAB, WEIGHTS};
+use crate::rt_db_update::get_elements_in_dir;
 use ndarray::{Array2, Axis};
 use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -183,7 +184,7 @@ pub fn check_folder(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
 ) -> Result<(), ()> {
     // read currently existing files in dir
-    let mut current_files: HashSet<PathBuf> = match crate::rt_db_update::get_elements_in_dir(&path)
+    let mut current_files: HashSet<PathBuf> = match get_elements_in_dir(&path)
     {
         Ok(paths) => paths,
         Err(_) => return Err(()),
