@@ -23,6 +23,7 @@ use std::{
     sync::mpsc::channel,
     thread,
 };
+use log::warn;
 
 /// gets all paths which need to be watched from config and starts watching each path
 /// as well as that it initializes the db connection
@@ -73,8 +74,8 @@ pub fn watch_folder(
 
     // Start watching the specified path and panic if an error occurs
     if let Err(e) = watcher.watch(&watch_path, RecursiveMode::Recursive) {
-        eprintln!(
-            "Error: Couldn't watch child path of {:?}: {}",
+        warn!(
+            "Warning: Couldn't watch child path of {:?}: {}",
             watch_path, e
         ); // If this happens we may have a problem, but if it panics here we have an even bigger problem
     }

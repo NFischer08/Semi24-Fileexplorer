@@ -21,8 +21,8 @@ CLUSTER_COLORS = [
     "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"
 ]
 
-VOCAB_JSON = "eng_vocab.json"
-WEIGHTS_FILE = "eng_weights_D300"
+VOCAB_JSON = "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/data/model/eng_vocab.json"
+WEIGHTS_FILE = "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/data/model/eng_weights_D300_E50"
 EMBEDDING_DIM = 300
 number_nearest_words = 6
 

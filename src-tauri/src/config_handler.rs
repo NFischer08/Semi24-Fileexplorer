@@ -9,6 +9,7 @@ use std::{
     path::{absolute, PathBuf},
     sync::{LazyLock, OnceLock},
 };
+use log::error;
 use tauri::command;
 
 // create each constant
