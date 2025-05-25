@@ -52,6 +52,7 @@ def main():
         log_file.write(
             f"Time started: {time.ctime()}\n"
             f"Model trained on: {FILE_NAME}\n"
+            f"Model trained with: {EMBEDDING_DIM} dimensions\n"
         )
 
 
@@ -89,7 +90,10 @@ def main():
 
         if prev_loss is not None and prev_loss < total_loss:
             consecutive_increases += 1
-            print("consecutive_increased")
+            with open("training_log.txt", "a") as log_file:
+                log_file.write(
+                    f"Loss has increased, training has been stopped \n"
+                )
         else:
             consecutive_increases = 0
             prev_loss = total_loss
@@ -104,7 +108,7 @@ def main():
 
     with open("training_log.txt", "a") as log_file:
         log_file.write(
-            f"Time taken to train: {time.time() - start_time}\n"
+            f"Time taken to train: {time.time() - start_time}s\n"
         )
 
     print("Seconds since epoch =", time.time() - start_time)
