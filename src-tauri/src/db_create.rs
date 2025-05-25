@@ -81,29 +81,39 @@ pub fn create_database(
                     //Checking that the Path is not ignored and doesn't need to be added and that it is either a directory or an allowed file extension
                     if is_allowed_file(&path, &allowed_file_extensions) {
                         let path_slashes = convert_to_forward_slashes(&path);
-                        let file = Files {
-                            id: 0,
-                            file_name: entry
-                                .path()
-                                .file_stem()
-                                .expect("Couldn't get file stem in create db")
-                                .to_string_lossy()
-                                .into_owned(),
-                            file_path: path_slashes,
-                            file_type: if path.is_dir() {
-                                String::from("dir")
-                            } else {
-                                path.extension()
-                                    .and_then(|s| s.to_str())
-                                    .map(String::from)
-                                    .unwrap_or_else(|| String::from("binary"))
-                            },
-                        };
-                        //Sends Batch as soon as it's Batch_Size or higher
-                        batch.push(file);
-                        if batch.len() >= batch_size {
-                            tx.send(std::mem::take(&mut batch))
-                                .unwrap_or_else(|_| println!("Failed to send batch"));
+
+                        // Try to get the file stem safely
+                        let file_stem = entry
+                            .path()
+                            .file_stem()
+                            .and_then(|s| s.to_str())
+                            .map(|s| s.to_string());
+
+                        if let Some(file_name) = file_stem {
+                            let file = Files {
+                                id: 0,
+                                file_name,
+                                file_path: path_slashes,
+                                file_type: if path.is_dir() {
+                                    String::from("dir")
+                                } else {
+                                    path.extension()
+                                        .and_then(|s| s.to_str())
+                                        .map(String::from)
+                                        .unwrap_or_else(|| String::from("binary"))
+                                },
+                            };
+                            // Sends Batch as soon as it's Batch_Size or higher
+                            batch.push(file);
+                            if batch.len() >= batch_size {
+                                tx.send(std::mem::take(&mut batch))
+                                    .unwrap_or_else(|_| println!("Failed to send batch"));
+                            }
+                        } else {
+                            println!(
+                                "Warning: Couldn't get file stem for {:?}, skipping entry.",
+                                entry.path()
+                            );
                         }
                     }
                 }
