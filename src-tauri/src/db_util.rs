@@ -1,4 +1,4 @@
-use crate::config_handler::{get_paths_to_ignore, INDEX_HIDDEN_FILES};
+use crate::config_handler::{get_paths_to_ignore, INDEX_BINARIES, INDEX_DIRECTORIES, INDEX_HIDDEN_FILES};
 use crate::manager::{manager_populate_database, VOCAB, WEIGHTS};
 use ndarray::{Array2, Axis};
 use r2d2::PooledConnection;
@@ -63,26 +63,30 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
         return false;
     }
 
-    // Checks if the extension of the Path is in the allowed_file_extensions Hashset
-    path.is_dir()
-        || path
-            .extension()
-            .and_then(|s| s.to_str())
-            .map(|ext| allowed_file_extensions.contains(ext))
-            .unwrap_or(true)
+    if path.is_dir() {
+        return *INDEX_DIRECTORIES.get().unwrap_or(&true)
+    }
+
+    path
+        .extension()
+        .and_then(|s| s.to_str())
+        .map(|ext| allowed_file_extensions.contains(ext))
+        .unwrap_or(*INDEX_BINARIES.get().unwrap_or(&true))
 }
 
 /// Generates the Database if it doesn't already exist and makes sure that path is indexed
 pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnectionManager>) {
-    pooled_connection
-        .pragma_update(None, "journal_mode", "WAL")
-        .expect("journal_mode failed");
-    pooled_connection
-        .pragma_update(None, "synchronous", "NORMAL")
-        .expect("synchronous failed");
-    pooled_connection
-        .pragma_update(None, "wal_autocheckpoint", "10000")
-        .expect("wal auto checkpoint failed");
+    if let Err(e) = pooled_connection.pragma_update(None, "journal_mode", "WAL") {
+        log::error!("journal_mode konnte nicht gesetzt werden: {}", e);
+    }
+
+    if let Err(e) = pooled_connection.pragma_update(None, "synchronous", "NORMAL") {
+        log::error!("synchronous konnte nicht gesetzt werden: {}", e);
+    }
+
+    if let Err(e) = pooled_connection.pragma_update(None, "wal_autocheckpoint", "10000") {
+        log::error!("wal_autocheckpoint konnte nicht gesetzt werden: {}", e);
+    }
 
     pooled_connection
         .execute(

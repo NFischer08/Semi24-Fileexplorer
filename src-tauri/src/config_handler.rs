@@ -19,6 +19,8 @@ pub static NUMBER_RESULTS_LEVENSHTEIN: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_RESULTS_EMBEDDING: OnceLock<usize> = OnceLock::new();
 pub static PATHS_TO_INDEX: OnceLock<Vec<PathBuf>> = OnceLock::new();
 pub static INDEX_HIDDEN_FILES: OnceLock<bool> = OnceLock::new();
+pub static INDEX_DIRECTORIES: OnceLock<bool> = OnceLock::new();
+pub static INDEX_BINARIES: OnceLock<bool> = OnceLock::new();
 pub static CREATE_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static SEARCH_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_OF_THREADS: OnceLock<usize> = OnceLock::new();
@@ -45,6 +47,8 @@ struct RawSettings {
     number_results_embedding: usize,
     paths_to_index: Vec<String>,
     index_hidden_files: bool,
+    index_directories: bool,
+    index_binaries: bool,
     create_batch_size: usize,
     search_batch_size: usize,
     number_of_threads: usize,
@@ -63,6 +67,8 @@ pub struct Settings {
     number_results_embedding: usize,
     paths_to_index: Vec<PathBuf>,
     index_hidden_files: bool,
+    index_directories: bool,
+    index_binaries: bool,
     create_batch_size: usize,
     search_batch_size: usize,
     number_of_threads: usize,
@@ -110,6 +116,8 @@ impl Default for Settings {
             number_results_embedding: 25,
             paths_to_index: default_paths_to_index(),
             index_hidden_files: false,
+            index_directories: true,
+            index_binaries: true,
             create_batch_size: 250,
             search_batch_size: 2500,
             number_of_threads: num_cpus::get() - 1,
@@ -220,6 +228,8 @@ pub fn initialize_config() {
                             paths_to_index
                         },
                         index_hidden_files: settings.index_hidden_files,
+                        index_directories: settings.index_directories,
+                        index_binaries: settings.index_binaries,
                         create_batch_size: settings.create_batch_size,
                         search_batch_size: settings.search_batch_size,
                         number_of_threads: settings.number_of_threads,
@@ -241,68 +251,82 @@ pub fn initialize_config() {
                         embedding_dimensions: settings.embedding_dimensions,
                     }
                 }
-                Err(_) => default_settings,
+                Err(_) => {
+                    log::warn!("Fehler beim Verarbeiten der Konfiguration, es werden für manche Variablen Standardwerte verwendet.");
+                    default_settings
+                }
             }
         }
-        Err(_) => default_settings,
+        Err(_) => {
+            log::warn!("Fehler beim Verarbeiten der Konfiguration, es werden für manche Variablen Standardwerte verwendet.");
+            default_settings
+        }
     };
 
     // set every constant, if something fails, the whole program immediately stops executing due to panicking
-    FAVOURITE_FILE_EXTENSIONS
-        .set(config.favourite_extensions)
-        .expect("couldn't set favourite extensions");
+    if let Err(e) = FAVOURITE_FILE_EXTENSIONS.set(config.favourite_extensions) {
+        log::error!("Konnte favourite extensions nicht setzen: {:?}", e);
+    }
 
-    ALLOWED_FILE_EXTENSIONS
-        .set(config.allowed_extensions)
-        .expect("couldn't set allowed extensions");
+    if let Err(e) = ALLOWED_FILE_EXTENSIONS.set(config.allowed_extensions) {
+        log::error!("Konnte allowed extensions nicht setzen: {:?}", e);
+    }
 
-    COPY_MODE
-        .set(config.copy_mode)
-        .expect("couldn't set copy mode");
+    if let Err(e) = COPY_MODE.set(config.copy_mode) {
+        log::error!("Konnte copy mode nicht setzen: {:?}", e);
+    }
 
-    NUMBER_RESULTS_EMBEDDING
-        .set(config.number_results_embedding)
-        .expect("couldn't set num emb");
+    if let Err(e) = NUMBER_RESULTS_EMBEDDING.set(config.number_results_embedding) {
+        log::error!("Konnte number_results_embedding nicht setzen: {:?}", e);
+    }
 
-    NUMBER_RESULTS_LEVENSHTEIN
-        .set(config.number_results_levenshtein)
-        .expect("couldn't set num lev");
+    if let Err(e) = NUMBER_RESULTS_LEVENSHTEIN.set(config.number_results_levenshtein) {
+        log::error!("Konnte number_results_levenshtein nicht setzen: {:?}", e);
+    }
 
-    PATHS_TO_INDEX
-        .set(config.paths_to_index)
-        .expect("couldn't set paths to index");
+    if let Err(e) = PATHS_TO_INDEX.set(config.paths_to_index) {
+        log::error!("Konnte paths_to_index nicht setzen: {:?}", e);
+    }
 
-    INDEX_HIDDEN_FILES
-        .set(config.index_hidden_files)
-        .expect("couldn't set index hidden files");
+    if let Err(e) = INDEX_HIDDEN_FILES.set(config.index_hidden_files) {
+        log::error!("Konnte index_hidden_files nicht setzen: {:?}", e);
+    }
 
-    CREATE_BATCH_SIZE
-        .set(config.create_batch_size)
-        .expect("couldn't set create batch size");
+    if let Err(e) = INDEX_DIRECTORIES.set(config.index_directories) {
+        log::error!("Konnte index_directories nicht setzen: {:?}", e);
+    }
 
-    SEARCH_BATCH_SIZE
-        .set(config.search_batch_size)
-        .expect("couldn't set search batch size");
+    if let Err(e) = INDEX_BINARIES.set(config.index_binaries) {
+        log::error!("Konnte index_binaries nicht setzen: {:?}", e);
+    }
 
-    NUMBER_OF_THREADS
-        .set(config.number_of_threads)
-        .expect("couldn't set number of threads");
+    if let Err(e) = CREATE_BATCH_SIZE.set(config.create_batch_size) {
+        log::error!("Konnte create_batch_size nicht setzen: {:?}", e);
+    }
 
-    PATHS_TO_IGNORE
-        .set(config.paths_to_ignore)
-        .expect("couldn't set paths to ignore");
+    if let Err(e) = SEARCH_BATCH_SIZE.set(config.search_batch_size) {
+        log::error!("Konnte search_batch_size nicht setzen: {:?}", e);
+    }
 
-    PATH_TO_WEIGHTS
-        .set(config.path_to_weights)
-        .expect("couldn't set path to weights");
+    if let Err(e) = NUMBER_OF_THREADS.set(config.number_of_threads) {
+        log::error!("Konnte number_of_threads nicht setzen: {:?}", e);
+    }
 
-    PATH_TO_VOCAB
-        .set(config.path_to_vocab)
-        .expect("couldn't set path to vocab");
+    if let Err(e) = PATHS_TO_IGNORE.set(config.paths_to_ignore) {
+        log::error!("Konnte paths_to_ignore nicht setzen: {:?}", e);
+    }
 
-    EMBEDDING_DIMENSIONS
-        .set(config.embedding_dimensions)
-        .expect("couldn't set embedding dimensions");
+    if let Err(e) = PATH_TO_WEIGHTS.set(config.path_to_weights) {
+        log::error!("Konnte path_to_weights nicht setzen: {:?}", e);
+    }
+
+    if let Err(e) = PATH_TO_VOCAB.set(config.path_to_vocab) {
+        log::error!("Konnte path_to_vocab nicht setzen: {:?}", e);
+    }
+
+    if let Err(e) = EMBEDDING_DIMENSIONS.set(config.embedding_dimensions) {
+        log::error!("Konnte embedding_dimensions nicht setzen: {:?}", e);
+    }
 }
 
 // functions for retrieving the values of the constants
@@ -452,8 +476,8 @@ pub fn get_css_settings() -> ColorConfig {
     }
 }
 fn print_warning(var: &str) {
-    eprintln!(
-        "WARNING!!! the Variable {} could not be gotten, falling back to default Value",
+    log::warn!(
+        "Die Variable '{}' konnte nicht gelesen werden, es wird auf den Standardwert zurückgegriffen.",
         var
     );
 }
@@ -461,7 +485,7 @@ fn print_warning(var: &str) {
 fn default_paths_to_index() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
     {
-        vec![PathBuf::from("/Users")]
+        vec![PathBuf::from("C:\\Users")]
     }
 
     #[cfg(target_os = "macos")]
