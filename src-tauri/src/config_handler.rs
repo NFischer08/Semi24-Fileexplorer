@@ -19,6 +19,8 @@ pub static NUMBER_RESULTS_LEVENSHTEIN: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_RESULTS_EMBEDDING: OnceLock<usize> = OnceLock::new();
 pub static PATHS_TO_INDEX: OnceLock<Vec<PathBuf>> = OnceLock::new();
 pub static INDEX_HIDDEN_FILES: OnceLock<bool> = OnceLock::new();
+pub static INDEX_DIRECTORIES: OnceLock<bool> = OnceLock::new();
+pub static INDEX_BINARIES: OnceLock<bool> = OnceLock::new();
 pub static CREATE_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static SEARCH_BATCH_SIZE: OnceLock<usize> = OnceLock::new();
 pub static NUMBER_OF_THREADS: OnceLock<usize> = OnceLock::new();
@@ -45,6 +47,8 @@ struct RawSettings {
     number_results_embedding: usize,
     paths_to_index: Vec<String>,
     index_hidden_files: bool,
+    index_directories: bool,
+    index_binaries: bool,
     create_batch_size: usize,
     search_batch_size: usize,
     number_of_threads: usize,
@@ -63,6 +67,8 @@ pub struct Settings {
     number_results_embedding: usize,
     paths_to_index: Vec<PathBuf>,
     index_hidden_files: bool,
+    index_directories: bool,
+    index_binaries: bool,
     create_batch_size: usize,
     search_batch_size: usize,
     number_of_threads: usize,
@@ -110,6 +116,8 @@ impl Default for Settings {
             number_results_embedding: 25,
             paths_to_index: default_paths_to_index(),
             index_hidden_files: false,
+            index_directories: true,
+            index_binaries: true,
             create_batch_size: 250,
             search_batch_size: 2500,
             number_of_threads: num_cpus::get() - 1,
@@ -220,6 +228,8 @@ pub fn initialize_config() {
                             paths_to_index
                         },
                         index_hidden_files: settings.index_hidden_files,
+                        index_directories: settings.index_directories,
+                        index_binaries: settings.index_binaries,
                         create_batch_size: settings.create_batch_size,
                         search_batch_size: settings.search_batch_size,
                         number_of_threads: settings.number_of_threads,
@@ -275,6 +285,14 @@ pub fn initialize_config() {
     INDEX_HIDDEN_FILES
         .set(config.index_hidden_files)
         .expect("couldn't set index hidden files");
+
+    INDEX_DIRECTORIES
+        .set(config.index_directories)
+        .expect("couldn't set index directories");
+
+    INDEX_BINARIES
+        .set(config.index_binaries)
+        .expect("couldn't set index binaries");
 
     CREATE_BATCH_SIZE
         .set(config.create_batch_size)
@@ -461,7 +479,7 @@ fn print_warning(var: &str) {
 fn default_paths_to_index() -> Vec<PathBuf> {
     #[cfg(target_os = "windows")]
     {
-        vec![PathBuf::from("/Users")]
+        vec![PathBuf::from("C:\\Users")]
     }
 
     #[cfg(target_os = "macos")]
