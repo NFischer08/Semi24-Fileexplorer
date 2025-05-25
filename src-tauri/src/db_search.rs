@@ -19,7 +19,7 @@ use std::{
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
 
-/// Searches for similar File names in the Database via Levenshtein and a custome skip-gram model,
+/// Searches for similar File names in the Database via Levenshtein and a custom skip-gram model,
 /// it uses connection_pool, search_term, search_path, search_file_type, num_results_lev, num_results_emb and state
 
 #[tauri::command]
@@ -46,18 +46,15 @@ pub fn search_database(
     };
 
     //Making sure relecant Collums are Indexed
-    pooled_connection
-        .execute(
-            "CREATE INDEX IF NOT EXISTS idx_file_path ON files(file_path)",
-            [],
-        )
-        .expect("Failed to index ");
-    pooled_connection
-        .execute(
-            "CREATE INDEX IF NOT EXISTS idx_file_type ON files(file_type)",
-            [],
-        )
-        .expect("Failed to index ");
+    if let Err(e) = pooled_connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_file_path ON files(file_path)",
+        [],
+    ) {
+        log::error!(
+        "Fehler beim Erstellen des Index 'idx_file_path': {}",
+        e
+    );
+    }
 
     //Making sure there are no Spaces in file_types and also accounting for "."
     let search_file_types_vec: Vec<String> = search_file_types

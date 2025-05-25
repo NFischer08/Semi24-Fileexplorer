@@ -64,7 +64,7 @@ pub fn create_database(
 
     // Activating Write Ahead Logging which enables reading and writing at the same time, it should theoretically already be enabled but to be safe
     conn.execute_batch("PRAGMA journal_mode = WAL")
-        .expect("Could not execute");
+        .expect("Could not enable WAL");
 
     //Getting allowed file Extensions
     let allowed_file_extensions: HashSet<String> = get_allowed_file_extensions().clone();
