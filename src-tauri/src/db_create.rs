@@ -110,7 +110,7 @@ pub fn create_database(
                                     .unwrap_or_else(|_| println!("Failed to send batch"));
                             }
                         } else {
-                            println!(
+                            log::warn!(
                                 "Warning: Couldn't get file stem for {:?}, skipping entry.",
                                 entry.path()
                             );

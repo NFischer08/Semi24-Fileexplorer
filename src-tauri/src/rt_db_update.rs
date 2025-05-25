@@ -2,7 +2,7 @@ use crate::config_handler::{
     get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS,
     INDEX_HIDDEN_FILES,
 };
-use crate::db_util::{check_folder, delete_from_db, insert_into_db, is_hidden};
+use crate::db_util::{check_folder, delete_from_db, insert_into_db, is_allowed_file, is_hidden};
 use crate::manager::{manager_make_connection_pool, manager_populate_database};
 use notify::{
     self,
@@ -16,6 +16,7 @@ use notify::{
 };
 use r2d2::{Pool, PooledConnection};
 use r2d2_sqlite::SqliteConnectionManager;
+use std::hash::Hash;
 use std::{
     collections::HashSet,
     fs,
@@ -161,23 +162,23 @@ pub fn watch_folder(
 
 /// gets all elements from a given folder
 pub fn get_elements_in_dir(parent_path: &PathBuf) -> Result<HashSet<PathBuf>, ()> {
-    // create a new empty HashSet
-    let mut elements: HashSet<PathBuf> = HashSet::new();
-
     // get all entries from parent folder
-    let entries = match fs::read_dir(parent_path) {
-        Ok(entries) => entries,
-        Err(_) => return Err(()),
-    };
-
-    // iterate over each entry and add it to the HashSet
-    for entry in entries {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(_) => continue,
-        };
-        elements.insert(entry.path());
-    }
-
-    Ok(elements)
+    let entries = fs::read_dir(parent_path).map_err(|_| ())?;
+    Ok(entries
+        .into_iter()
+        .filter(|entry| entry.is_ok())
+        .map(|entry| {
+            entry
+                .expect("RIP, that should not be able to happen")
+                .path()
+        })
+        .filter(|path| {
+            is_allowed_file(
+                path,
+                ALLOWED_FILE_EXTENSIONS
+                    .get()
+                    .unwrap_or(&get_allowed_file_extensions()),
+            )
+        })
+        .collect())
 }

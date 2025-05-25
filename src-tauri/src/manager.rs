@@ -138,6 +138,7 @@ pub fn check_for_default_paths() {
     if !vocab_path.exists() {
         log::error!(
             "The default vocab file couldn't be found at {:?}",
-            CURRENT_DIR.clone().join("data/model/eng_vocab.json"));
+            CURRENT_DIR.clone().join("data/model/eng_vocab.json")
+        );
     }
 }

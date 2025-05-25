@@ -18,10 +18,10 @@ use crate::rt_db_update::start_file_watcher;
 use config_handler::{get_css_settings, get_fav_file_extensions, initialize_config};
 use context_actions::{copy_file, cut_file, delete_file, open_file, paste_file, rename_file};
 use file_information::format_file_data;
+use log::LevelFilter;
 use manager::manager_basic_search;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{fs::create_dir, thread};
-use log::LevelFilter;
 use tauri::Manager;
 
 fn setup_directory_structure() {
