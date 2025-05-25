@@ -79,7 +79,7 @@ pub fn copy_file(filepath: String) -> Result<(), String> {
     // get filename
     let filename: String = match source_path.file_name() {
         Some(name) => name.to_string_lossy().to_string(),
-        None => String::from("Unbenannt"),
+        None => String::from("Unnamed"),
     };
 
     // open copy file to store filename
@@ -249,9 +249,26 @@ pub fn open_file(filepath: String) -> Result<(), String> {
 }
 
 /// cleans and formats a given path (`String`) to a `PathBuf`
-fn clean_path(filepath: String) -> PathBuf {
+pub fn clean_path(filepath: String) -> PathBuf {
     // remove double slashes and backslashes
     let filepath: &str = &filepath.replace("\\", "/");
-    let parts: Vec<&str> = filepath.split('/').filter(|&s| !s.is_empty() && s != ".").collect();
+    let parts: Vec<&str> = filepath
+        .split('/')
+        .filter(|&s| !s.is_empty() && s != ".")
+        .collect();
+
+    // on windows the path has to start with C:
+    #[cfg(target_os = "windows")]
+    {
+        return if filepath.starts_with("/") {
+            PathBuf::from("C:/").join(parts.join("/"))
+        } else {
+            let path = PathBuf::from(parts.join("/"));
+            if !path.to_string_lossy().contains("/") {
+                return PathBuf::from(format!("{}/", path.to_string_lossy()));
+            }
+            return path;
+        };
+    }
     PathBuf::from("/").join(parts.join("/"))
 }

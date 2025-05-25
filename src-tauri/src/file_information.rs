@@ -1,3 +1,4 @@
+use crate::context_actions::clean_path;
 use chrono::{DateTime, Local, TimeZone};
 use std::{
     fs::{self, DirEntry},
@@ -81,8 +82,8 @@ impl Default for FileData {
     }
 }
 
-fn list_files_and_folders(filepath: &str) -> Result<Vec<FileData>, String> {
-    let path = PathBuf::from(&filepath);
+fn list_files_and_folders(filepath: String) -> Result<Vec<FileData>, String> {
+    let path = clean_path(filepath);
 
     // Check if the path exists
     if !path.exists() {
@@ -92,6 +93,11 @@ fn list_files_and_folders(filepath: &str) -> Result<Vec<FileData>, String> {
     // Check if the path is a directory
     if !path.is_dir() {
         return Err("The specified path is not a directory.".into());
+    }
+
+    if !path.to_string_lossy().to_string().contains("/") {
+        println!("{:?}", path.to_string_lossy().to_string());
+        return Err("The specified path is not valid. Seems like you forgot a slash.".into());
     }
 
     let mut entries: Vec<FileData> = Vec::new();
@@ -181,7 +187,7 @@ pub fn get_file_information(entry: &DirEntry) -> FileData {
 }
 
 #[command]
-pub fn format_file_data(path: &str) -> Result<Vec<FileDataFormatted>, String> {
+pub fn format_file_data(path: String) -> Result<Vec<FileDataFormatted>, String> {
     // gets the files from the current path
     let files: Result<Vec<FileData>, String> = list_files_and_folders(path);
 
