@@ -3,11 +3,11 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 
 # Parameters
-EMBEDDING_DIM = 300
-sample_words = ["test", "first", "king"]
+EMBEDDING_DIM = 150
+sample_words = ["laptop", "ocean", "harmony", "galaxy"]
 vocap_path = "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/data/model/eng_vocab.json"
-weights_path = "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/data/model/eng_weights_D300_E50"
-number_nearest_words = 10
+weights_path = "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/data/model/eng_weights_D150"
+number_nearest_words = 6
 
 
 def nearest_neighbor(word, embedding_weights, vocab, top_k=number_nearest_words, exclude_unk=True):
