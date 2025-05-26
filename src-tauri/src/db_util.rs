@@ -35,7 +35,7 @@ pub fn convert_to_forward_slashes(path: &Path) -> String {
 /// calculates the cosine similarity between two embeddings
 pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() {
-        eprintln!("Cosine similarity has been used wrong !!!");
+        log::error!("Dimensions of database and current model don‘t match");
         return 0.0;
     }
     let dot = a.iter().zip(b.iter()).map(|(&x, &y)| x * y).sum::<f32>();
