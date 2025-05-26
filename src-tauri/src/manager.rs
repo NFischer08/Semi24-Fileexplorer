@@ -61,12 +61,16 @@ pub fn manager_make_connection_pool() -> Pool<SqliteConnectionManager> {
     if PathBuf::from(&path).try_exists().expect("Reason") {
         path.push("files.sqlite3");
         let manager = SqliteConnectionManager::file(path);
-        Pool::new(manager).expect("Failed to create pool.")
+        let pool =Pool::new(manager).expect("Failed to create pool.");
+        initialize_database(&pool.get().expect("Initializing failed: "));
+        pool
     } else {
         create_dir(PathBuf::from(&path)).expect("Failed to create Dir");
         path.push("files.sqlite3");
         let manager = SqliteConnectionManager::file(path);
-        Pool::new(manager).expect("Failed to create pool.")
+        let pool =Pool::new(manager).expect("Failed to create pool.");
+        initialize_database(&pool.get().expect("Initializing failed: "));
+        pool
     }
 }
 
