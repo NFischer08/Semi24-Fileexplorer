@@ -4,6 +4,7 @@ use crate::config_handler::{
 };
 use crate::db_util::{check_folder, delete_from_db, insert_into_db, is_allowed_file, is_hidden};
 use crate::manager::{manager_make_connection_pool, manager_populate_database};
+use log::{error, info, warn};
 use notify::{
     self,
     event::{
@@ -23,26 +24,28 @@ use std::{
     sync::mpsc::channel,
     thread,
 };
-use log::warn;
 
 /// gets all paths which need to be watched from config and starts watching each path
 /// as well as that it initializes the db connection
 pub fn start_file_watcher() {
-    println!("File Watcher started");
+    info!("File Watcher started");
     // creates a HashSet with paths to ignore
     let ignore: HashSet<String> = get_paths_to_ignore()
         .iter()
         .map(|path| path.to_string_lossy().into_owned())
         .collect();
 
-    // get the connection pool from manager
+    // get the connection pool from the manager
     let connection_pool: Pool<SqliteConnectionManager> = manager_make_connection_pool();
 
     // start watching for changes in all paths to index
     for path in get_paths_to_index() {
         let conn = match connection_pool.get() {
             Ok(conn) => conn,
-            Err(_) => continue,
+            Err(e) => {
+                warn!("Failed to get connection from pool: {}", e);
+                continue;
+            }
         };
         let ignore = ignore.clone();
         thread::spawn(move || {
@@ -69,15 +72,21 @@ pub fn watch_folder(
     // Create a channel to receive filesystem events
     let (sender, receiver) = channel::<notify::Result<Event>>();
 
-    // Create a watcher and panic if an error occurs
-    let mut watcher = recommended_watcher(sender).expect("Error: Couldn't create watcher");
+    // Create a watcher and log error if an error occurs
+    let mut watcher = match recommended_watcher(sender) {
+        Ok(w) => w,
+        Err(e) => {
+            error!("Couldn't create watcher: {}", e);
+            return;
+        }
+    };
 
-    // Start watching the specified path and panic if an error occurs
+    // Start watching the specified path and log error if an error occurs
     if let Err(e) = watcher.watch(&watch_path, RecursiveMode::Recursive) {
         warn!(
             "Warning: Couldn't watch child path of {:?}: {}",
             watch_path, e
-        ); // If this happens we may have a problem, but if it panics here we have an even bigger problem
+        ); // If this happens, we may have a problem, but if it panics here, we have an even bigger problem
     }
 
     // Loop to receive events from the channel
@@ -93,7 +102,7 @@ pub fn watch_folder(
                         }
                     }
 
-                    if !*INDEX_HIDDEN_FILES.get().expect("") && is_hidden(&file_path) {
+                    if !*INDEX_HIDDEN_FILES.get().unwrap_or(&true) && is_hidden(&file_path) {
                         continue 'event;
                     }
 
@@ -102,7 +111,7 @@ pub fn watch_folder(
                         // get actual event kind and handle it
                         match event.kind {
                             Create(_) => {
-                                // insert file into db
+                                // insert a file into db
                                 insert_into_db(pooled_connection, &file_path);
 
                                 if file_path.is_dir() {
@@ -115,15 +124,15 @@ pub fn watch_folder(
                                 delete_from_db(pooled_connection, &file_path);
                             }
                             Modify(Name(mode)) => {
-                                // From gives old path, To gives new path
+                                // From gives an old path, To give a new path
                                 match mode {
                                     From => {
-                                        // remove file from db
+                                        // remove a file from db
                                         delete_from_db(pooled_connection, &file_path);
                                     }
                                     To => {
                                         if file_path.is_dir() {
-                                            // get parent path and check it
+                                            // get a parent path and check it
                                             let parent_path = file_path
                                                 .parent()
                                                 .unwrap_or(Path::new("/"))
@@ -131,14 +140,14 @@ pub fn watch_folder(
                                             check_folder(parent_path, pooled_connection)
                                                 .unwrap_or_default()
                                         } else {
-                                            // insert file into db
+                                            // insert a file into db
                                             insert_into_db(pooled_connection, &file_path);
                                         }
                                     }
-                                    // Other cases should not occur / are not from interest since they mean something don't go as planned
+                                    // Other cases should not occur / are not of interest since they mean something don't go as planned
                                     // Cap on Linux creating txt files is other
                                     _ => {
-                                        println!("Something else {:?}, ({:?})", file_path, mode)
+                                        warn!("Something else {:?}, ({:?})", file_path, mode)
                                     }
                                 }
                             }
@@ -147,23 +156,25 @@ pub fn watch_folder(
                     }
                 }
             }
-            Err(e) => println!("watch error: {:?}", e),
+            Err(e) => error!("watch error: {:?}", e),
         }
     }
-    println!("File watcher stopped");
+    info!("File watcher stopped");
 }
 
 /// gets all elements from a given folder
 pub fn get_elements_in_dir(parent_path: &PathBuf) -> Result<HashSet<PathBuf>, ()> {
-    // get all entries from parent folder
+    // get all entries from the parent folder
     let entries = fs::read_dir(parent_path).map_err(|_| ())?;
     Ok(entries
         .into_iter()
         .filter(|entry| entry.is_ok())
-        .map(|entry| {
-            entry
-                .expect("RIP, that should not be able to happen")
-                .path()
+        .map(|entry| match entry {
+            Ok(e) => e.path(),
+            Err(e) => {
+                error!("Failed to read entry in get_elements_in_dir: {}", e);
+                PathBuf::new()
+            }
         })
         .filter(|path| {
             is_allowed_file(

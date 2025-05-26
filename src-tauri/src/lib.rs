@@ -18,10 +18,10 @@ use crate::rt_db_update::start_file_watcher;
 use config_handler::{get_css_settings, get_fav_file_extensions, initialize_config};
 use context_actions::{copy_file, cut_file, delete_file, open_file, paste_file, rename_file};
 use file_information::format_file_data;
+use log::{error, warn, LevelFilter};
 use manager::manager_basic_search;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::{fs::create_dir, thread};
-use log::{warn, LevelFilter};
 use tauri::Manager;
 
 fn setup_directory_structure() {
@@ -39,14 +39,34 @@ fn setup_directory_structure() {
         tmp_dir.exists(),
     ) {
         (false, _, _, _) => {
-            create_dir(&data_dir).expect("Unable to create data directory");
-            create_dir(&model_dir).expect("Unable to create model directory");
-            create_dir(&config_dir).expect("Unable to create config directory");
-            create_dir(&tmp_dir).expect("Unable to create tmp directory");
+            if let Err(e) = create_dir(&data_dir) {
+                error!("Unable to create data directory: {}", e);
+            }
+            if let Err(e) = create_dir(&model_dir) {
+                error!("Unable to create model directory: {}", e);
+            }
+            if let Err(e) = create_dir(&config_dir) {
+                error!("Unable to create config directory: {}", e);
+            }
+            if let Err(e) = create_dir(&tmp_dir) {
+                error!("Unable to create tmp directory: {}", e);
+            }
         }
-        (true, false, _, _) => create_dir(&model_dir).expect("Unable to create model directory"),
-        (true, _, false, _) => create_dir(&config_dir).expect("Unable to create config directory"),
-        (true, _, _, false) => create_dir(&tmp_dir).expect("Unable to create tmp directory"),
+        (true, false, _, _) => {
+            if let Err(e) = create_dir(&model_dir) {
+                error!("Unable to create model directory: {}", e);
+            }
+        }
+        (true, _, false, _) => {
+            if let Err(e) = create_dir(&config_dir) {
+                error!("Unable to create config directory: {}", e);
+            }
+        }
+        (true, _, _, false) => {
+            if let Err(e) = create_dir(&tmp_dir) {
+                error!("Unable to create tmp directory: {}", e);
+            }
+        }
         _ => {}
     }
 
@@ -87,18 +107,23 @@ pub fn run() {
             initialize_config();
             initialize_globals();
 
-            rayon::ThreadPoolBuilder::new()
+            let thread_pool_result = rayon::ThreadPoolBuilder::new()
                 .panic_handler(|err| {
-                    eprintln!("A Rayon worker thread panicked: {:?}", err);
+                    error!("A Rayon worker thread panicked: {:?}", err);
                 })
                 .num_threads(get_number_of_threads()) // Reserve one core for OS
-                .build_global()
-                .expect("Couldn't build thread pool");
+                .build_global();
+
+            if let Err(e) = thread_pool_result {
+                error!("Couldn't build thread pool: {}", e);
+            }
 
             let paths_to_index = get_paths_to_index();
             thread::spawn(move || {
                 paths_to_index.par_iter().for_each(|path| {
-                    manager_populate_database(path.clone()).unwrap();
+                    if let Err(e) = manager_populate_database(path.clone()) {
+                        error!("Failed to populate database for {}: {}", path.display(), e);
+                    }
                 });
             });
 
@@ -121,5 +146,5 @@ pub fn run() {
             get_css_settings,
         ])
         .run(tauri::generate_context!("tauri.conf.json"))
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| error!("Error while running tauri application: {}", e));
 }

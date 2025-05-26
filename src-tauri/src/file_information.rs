@@ -1,11 +1,12 @@
 use crate::context_actions::clean_path;
 use chrono::{DateTime, Local, TimeZone};
+use log::{error, info, warn};
 use std::{
     fs::{self, DirEntry},
     path::PathBuf,
     time::SystemTime,
 };
-use tauri::command;
+use tauri::command; // <-- Add logging macros
 
 // custom enum to handle all possible file types
 #[derive(Debug)]
@@ -96,7 +97,10 @@ fn list_files_and_folders(filepath: String) -> Result<Vec<FileData>, String> {
     }
 
     if !path.to_string_lossy().to_string().contains("/") {
-        println!("{:?}", path.to_string_lossy().to_string());
+        warn!(
+            "The specified path '{}' is not valid. Seems like you forgot a slash.",
+            path.to_string_lossy()
+        );
         return Err("The specified path is not valid. Seems like you forgot a slash.".into());
     }
 
@@ -108,11 +112,17 @@ fn list_files_and_folders(filepath: String) -> Result<Vec<FileData>, String> {
             for entry in dir_entries {
                 match entry {
                     Ok(entry) => entries.push(get_file_information(&entry)),
-                    Err(e) => return Err(e.to_string()),
+                    Err(e) => {
+                        error!("Failed to read directory entry: {}", e);
+                        return Err(e.to_string());
+                    }
                 }
             }
         }
-        Err(e) => return Err(e.to_string()),
+        Err(e) => {
+            error!("Failed to read directory '{}': {}", path.display(), e);
+            return Err(e.to_string());
+        }
     }
 
     Ok(entries)
@@ -126,7 +136,8 @@ pub fn get_file_information(entry: &DirEntry) -> FileData {
     // get the metadata of the file
     let metadata = match entry.metadata() {
         Ok(metadata) => metadata,
-        Err(_) => {
+        Err(e) => {
+            warn!("Failed to get metadata for '{}': {}", path.display(), e);
             // if an Error occurs while catching metadata, the name gets return and the other values are set to the standard
             return FileData {
                 name: file_name,
@@ -138,24 +149,29 @@ pub fn get_file_information(entry: &DirEntry) -> FileData {
         }
     };
 
-    // get the filetype of file
+    // get the filetype of a file
     let file_type = if metadata.is_dir() {
         FileType::Directory // either type directory or ...
     } else {
         match entry.path().extension() {
-            Some(ext) => FileType::File(ext.to_string_lossy().into_owned()), // ... type actual file (-> extension as String) or ...
+            Some(ext) => FileType::File(ext.to_string_lossy().into_owned()), // ... type an actual file (-> extension as String) or ...
             None => FileType::None, // ... no file extension at all
         }
     };
 
-    // size of the file in KB, if folder: 0
+    // size of the file in KB, of folder: 0
     let size: u64 = metadata.len() / 1024;
 
     // get the last modified time of the file
     let modified_time = match metadata.modified() {
         Ok(time) => time,
-        Err(_) => {
-            // if it's unable to read the modified time it returns all information currently known
+        Err(e) => {
+            warn!(
+                "Failed to get modified time for '{}': {}",
+                path.display(),
+                e
+            );
+            // if it's unable to read the modified time, it returns all information currently known
             return FileData {
                 name: file_name,
                 path,
@@ -172,9 +188,19 @@ pub fn get_file_information(entry: &DirEntry) -> FileData {
             Local
                 .timestamp_opt(d.as_secs() as i64, d.subsec_nanos())
                 .single()
-                .unwrap_or_else(Local::now)
+                .unwrap_or_else(|| {
+                    warn!("Failed to convert timestamp for '{}'", path.display());
+                    Local::now()
+                })
         })
-        .unwrap_or_else(|_| Local::now()); // Fallback to current time if there's an error
+        .unwrap_or_else(|e| {
+            warn!(
+                "Failed to get duration since UNIX_EPOCH for '{}': {}",
+                path.display(),
+                e
+            );
+            Local::now()
+        }); // Fallback to current time if there's an error
 
     // append the important information to the Vector with the FileEntries
     FileData {

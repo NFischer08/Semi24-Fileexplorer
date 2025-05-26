@@ -3,6 +3,7 @@ use crate::config_handler::{
 };
 use crate::db_util::{convert_to_forward_slashes, full_emb, is_allowed_file, Files};
 use jwalk::WalkDir;
+use log::{error, info, warn};
 use ndarray::Array2;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -12,8 +13,8 @@ use rusqlite::{params, Result};
 use std::{collections::HashSet, path::PathBuf, time::Instant};
 
 /// This Function takes in a connection pool as well as a Path as Input
-/// and then recursivly checks for every file / dir from the Path and adds it to the database.
-/// The Vocabulary of the skip-gram model as well as the weights are being used via the pub static Oncelocks.
+/// and then recursively checks for every file / dir from the Path and adds it to the database.
+/// The Vocabulary of the skip-gram model as well as the weights are being used via the pub static Once locks.
 pub fn create_database(
     connection_pool: Pool<SqliteConnectionManager>,
     path: PathBuf,
@@ -31,20 +32,39 @@ pub fn create_database(
         let connection_pool = connection_pool.clone();
         move || {
             let mut existing_files = HashSet::new();
-            let connection = connection_pool
-                .get()
-                .expect("Unable to get connection from pool");
-            let mut stmt = connection
-                .prepare_cached("SELECT file_name, file_path FROM files")
-                .expect("Failed to prepare statement.");
-            let rows = stmt
-                .query_map([], |row| {
-                    Ok((
-                        row.get::<_, String>(0).expect("Problem with row_get"),
-                        row.get::<_, String>(1).expect("Rows failed"),
-                    ))
-                })
-                .expect("Failed to query result.");
+            let connection = match connection_pool.get() {
+                Ok(conn) => conn,
+                Err(e) => {
+                    error!("Unable to get connection from pool: {}", e);
+                    return existing_files;
+                }
+            };
+            let mut stmt = match connection.prepare_cached("SELECT file_name, file_path FROM files")
+            {
+                Ok(stmt) => stmt,
+                Err(e) => {
+                    error!("Failed to prepare statement: {}", e);
+                    return existing_files;
+                }
+            };
+            let rows = match stmt.query_map([], |row| {
+                Ok((
+                    row.get::<_, String>(0).unwrap_or_else(|e| {
+                        error!("Problem with row_get: {}", e);
+                        String::new()
+                    }),
+                    row.get::<_, String>(1).unwrap_or_else(|e| {
+                        error!("Rows failed: {}", e);
+                        String::new()
+                    }),
+                ))
+            }) {
+                Ok(rows) => rows,
+                Err(e) => {
+                    error!("Failed to query result: {}", e);
+                    return existing_files;
+                }
+            };
 
             for (name, path) in rows.flatten() {
                 existing_files.insert((name, path));
@@ -54,17 +74,27 @@ pub fn create_database(
     });
 
     //closing Thread and getting Values
-    let existing_files: HashSet<(String, String)> = existing_files_thread
-        .join()
-        .expect("Failed to join thread.");
+    let existing_files: HashSet<(String, String)> = match existing_files_thread.join() {
+        Ok(files) => files,
+        Err(_) => {
+            error!("Failed to join thread for existing files.");
+            return Err("Failed to join thread.".to_string());
+        }
+    };
 
-    let conn = connection_pool
-        .get()
-        .expect("Could not get connection from pool");
+    let conn = match connection_pool.get() {
+        Ok(conn) => conn,
+        Err(e) => {
+            error!("Could not get connection from pool: {}", e);
+            return Err("Could not get connection from pool".to_string());
+        }
+    };
 
-    // Activating Write Ahead Logging which enables reading and writing at the same time, it should theoretically already be enabled but to be safe
-    conn.execute_batch("PRAGMA journal_mode = WAL")
-        .expect("Could not enable WAL");
+    // Activating Write Ahead Logging, which enables reading and writing at the same time, it should theoretically already be enabled but to be safe
+    if let Err(e) = conn.execute_batch("PRAGMA journal_mode = WAL") {
+        error!("Could not enable WAL: {}", e);
+        return Err("Could not enable WAL".to_string());
+    }
 
     //Getting allowed file Extensions
     let allowed_file_extensions: HashSet<String> = get_allowed_file_extensions().clone();
@@ -106,11 +136,12 @@ pub fn create_database(
                             // Sends Batch as soon as it's Batch_Size or higher
                             batch.push(file);
                             if batch.len() >= batch_size {
-                                tx.send(std::mem::take(&mut batch))
-                                    .unwrap_or_else(|_| println!("Failed to send batch"));
+                                if let Err(e) = tx.send(std::mem::take(&mut batch)) {
+                                    error!("Failed to send batch: {}", e);
+                                }
                             }
                         } else {
-                            log::warn!(
+                            warn!(
                                 "Warning: Couldn't get file stem for {:?}, skipping entry.",
                                 entry.path()
                             );
@@ -121,8 +152,9 @@ pub fn create_database(
 
         // Sends the last Batch
         if !batch.is_empty() {
-            tx.send(batch)
-                .unwrap_or_else(|_| println!("Failed to send final batch"));
+            if let Err(e) = tx.send(batch) {
+                error!("Failed to send final batch: {}", e);
+            }
         }
     });
 
@@ -144,19 +176,32 @@ pub fn create_database(
             })
             .collect();
 
-        //If there is Batch Data start Processing and get Connections and prepare SQL Statement
+        //If there is Batch Data, start Processing and get Connections and prepare SQL Statement
         if !batch_data.is_empty() {
-            let mut connection = connection_pool
-                .get()
-                .expect("Unable to get connection from pool");
-            let transaction = connection
-                .transaction()
-                .expect("Unable to create transaction");
+            let mut connection = match connection_pool.get() {
+                Ok(conn) => conn,
+                Err(e) => {
+                    error!("Unable to get connection from pool: {}", e);
+                    continue;
+                }
+            };
+            let transaction = match connection.transaction() {
+                Ok(tx) => tx,
+                Err(e) => {
+                    error!("Unable to create transaction: {}", e);
+                    continue;
+                }
+            };
 
             {
                 //Preparing SQL Statement for Inserting Data into the DB
-                let mut insert_stmt = transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)")
-                    .expect("Failed to prepare insertion file");
+                let mut insert_stmt = match transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)") {
+                    Ok(stmt) => stmt,
+                    Err(e) => {
+                        error!("Failed to prepare insertion file: {}", e);
+                        continue;
+                    }
+                };
 
                 //The Embedding takes up like 80% of the time per Batch
 
@@ -171,11 +216,16 @@ pub fn create_database(
                         .collect();
 
                     let n_samples = embeddings.len();
-                    Array2::from_shape_vec(
+                    match Array2::from_shape_vec(
                         (n_samples, get_embedding_dimensions()),
                         embeddings.into_iter().flatten().collect(),
-                    )
-                    .expect("Shape mismatch")
+                    ) {
+                        Ok(arr) => arr,
+                        Err(e) => {
+                            error!("Shape mismatch in embedding: {}", e);
+                            continue;
+                        }
+                    }
                 };
 
                 // Transform the every Embedding into a Vec<u8> so that they can be stored in the Database
@@ -186,24 +236,34 @@ pub fn create_database(
                     })
                     .collect();
 
-                //c is a Counter that is used to check if there is a mismatch between embeddings_u8 and the Rest of the Dat
+                //c is a Counter used to check if there is a mismatch between embeddings_u8 and the Rest of the Dat
                 //The Batch Data is inserted into the Database
                 for (c, file_data) in batch_data.iter().enumerate() {
                     let file = &file_data.0;
                     if c < embeddings_u8.len() {
                         let vec = &embeddings_u8[c];
-                        insert_stmt
-                            .execute(params![file.file_name, file.file_path, file.file_type, vec])
-                            .unwrap_or_else(|_| panic!("Could not insert file {:?}", file));
+                        if let Err(e) = insert_stmt.execute(params![
+                            file.file_name,
+                            file.file_path,
+                            file.file_type,
+                            vec
+                        ]) {
+                            error!("Could not insert file {:?}: {}", file, e);
+                        }
                     }
                 }
             }
-            transaction.commit().expect("Unable to commit transaction");
+            if let Err(e) = transaction.commit() {
+                error!("Unable to commit transaction: {}", e);
+            }
         }
     }
-    file_walking_thread.join().expect("Failed to join thread.");
+    if let Err(_) = file_walking_thread.join() {
+        error!("Failed to join file walking thread.");
+        return Err("Failed to join file walking thread.".to_string());
+    }
 
-    println!(
+    info!(
         "Database population for {:?} took {}ms",
         path2,
         start_time.elapsed().as_millis()

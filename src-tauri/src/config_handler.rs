@@ -1,3 +1,4 @@
+use log::{error, info, warn};
 use num_cpus;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -9,7 +10,6 @@ use std::{
     path::{absolute, PathBuf},
     sync::{LazyLock, OnceLock},
 };
-use log::error;
 use tauri::command;
 
 // create each constant
@@ -33,9 +33,10 @@ pub static EMBEDDING_DIMENSIONS: OnceLock<usize> = OnceLock::new();
 
 // This should stay Lazy because it ensures that it can be used at all time
 pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    env::current_dir()
-        .and_then(absolute)
-        .expect("Failed to resolve absolute path")
+    env::current_dir().and_then(absolute).unwrap_or_else(|e| {
+        error!("Failed to resolve absolute path: {}", e);
+        PathBuf::from(".") // fallback to the current directory
+    })
 });
 
 // create structs
@@ -85,7 +86,7 @@ pub enum CopyMode {
     File,
 }
 impl Default for Settings {
-    /// creates some default values incase it's not able to read the json file properly
+    /// creates some default values incase it's not able to read the JSON file properly
     fn default() -> Self {
         let allowed_extensions: HashSet<String> = [
             "txt", "pdf", "doc", "docx", "xls", "xlsx", "csv", "ppt", "pptx", "jpg", "jpeg", "png",
@@ -163,33 +164,46 @@ impl Default for ColorConfig {
 pub fn build_config<T: serde::Serialize>(path: &PathBuf, settings: &T) -> bool {
     let json = match serde_json::to_string_pretty(&settings) {
         Ok(json) => json,
-        Err(_) => return false,
+        Err(e) => {
+            error!("Failed to serialize settings to JSON: {}", e);
+            return false;
+        }
     };
 
-    fs::write(path, json).is_ok()
+    if fs::write(path, json).is_err() {
+        error!("Failed to write config file at {:?}", path);
+        return false;
+    }
+    true
 }
 
-/// opens a file and returns it contents
+/// opens a file and returns its contents
 fn read_config(config_path: &PathBuf) -> Result<String, ()> {
     // Open the file
     let mut file = match File::open(config_path) {
         Ok(file) => file,
-        Err(_) => return Err(()),
+        Err(e) => {
+            error!("Failed to open config file {:?}: {}", config_path, e);
+            return Err(());
+        }
     };
 
     // Read the file contents into a string
     let mut contents = String::new();
     match file.read_to_string(&mut contents) {
         Ok(_) => (),
-        Err(_) => return Err(()),
+        Err(e) => {
+            error!("Failed to read config file {:?}: {}", config_path, e);
+            return Err(());
+        }
     }
-    println!("Successfully read config file");
+    info!("Successfully read config file {:?}", config_path);
     Ok(contents)
 }
 
-/// reads the config file and initialises the constants
+/// reads the config file and initializes the constants
 pub fn initialize_config() {
-    println!("Initializing config");
+    info!("Initializing config");
     let default_settings: Settings = Settings::default();
     // get the path to the config file
     let mut path: PathBuf = CURRENT_DIR.clone();
@@ -252,14 +266,14 @@ pub fn initialize_config() {
                         embedding_dimensions: settings.embedding_dimensions,
                     }
                 }
-                Err(_) => {
-                    log::warn!("Fehler beim Verarbeiten der Konfiguration, es werden für manche Variablen Standardwerte verwendet.");
+                Err(e) => {
+                    warn!("Fehler beim Verarbeiten der Konfiguration ({}), es werden für manche Variablen Standardwerte verwendet.", e);
                     default_settings
                 }
             }
         }
         Err(_) => {
-            log::warn!("Fehler beim Verarbeiten der Konfiguration, es werden für manche Variablen Standardwerte verwendet.");
+            warn!("Fehler beim Verarbeiten der Konfiguration, es werden für manche Variablen Standardwerte verwendet.");
             default_settings
         }
     };
@@ -463,21 +477,25 @@ pub fn get_embedding_dimensions() -> usize {
     }
 }
 
-/// retrieves the css config settings to send them to the frontend
+/// retrieves the CSS config settings to send them to the frontend
 #[command]
 pub fn get_css_settings() -> ColorConfig {
     // get the path to the color config file
     let mut path = CURRENT_DIR.clone();
     path.push("data/config/color-config.json");
 
-    // read it contents and parse it to the struct, or use the default values
+    // read its contents and parse it to the struct, or use the default values
     match read_config(&path) {
-        Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
+        Ok(config) => serde_json::from_str(&config).unwrap_or_else(|e| {
+            warn!("Failed to parse color-config.json: {}", e);
+            ColorConfig::default()
+        }),
         Err(_) => ColorConfig::default(),
     }
 }
+
 fn print_warning(var: &str) {
-    log::warn!(
+    warn!(
         "Die Variable '{}' konnte nicht gelesen werden, es wird auf den Standardwert zurückgegriffen.",
         var
     );

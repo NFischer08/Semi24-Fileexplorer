@@ -3,6 +3,7 @@ use crate::db_util::{
     bytes_to_vec, cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices,
 };
 use crate::manager::{build_struct, AppState, VOCAB};
+use log::{error, info};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::iter::ParallelIterator;
@@ -32,8 +33,14 @@ pub fn search_database(
     num_results_levenshtein: usize,
     state: State<AppState>,
 ) {
-    // Getting a Pooled Connetion
-    let pooled_connection = connection_pool.get().expect("get connection pool");
+    // Getting a Pooled Connection
+    let pooled_connection = match connection_pool.get() {
+        Ok(conn) => conn,
+        Err(e) => {
+            error!("Failed to get connection pool: {}", e);
+            return;
+        }
+    };
     let batch_size: usize = get_search_batch_size();
 
     let start_time = Instant::now();
@@ -45,15 +52,12 @@ pub fn search_database(
         search_path.to_str().unwrap_or("").to_string()
     };
 
-    //Making sure relecant Collums are Indexed
+    //Making sure relevant Columns are Indexed
     if let Err(e) = pooled_connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_file_path ON files(file_path)",
         [],
     ) {
-        log::error!(
-        "Fehler beim Erstellen des Index 'idx_file_path': {}",
-        e
-    );
+        error!("Fehler beim Erstellen des Index 'idx_file_path': {}", e);
     }
 
     //Making sure there are no Spaces in file_types and also accounting for "."
@@ -65,7 +69,7 @@ pub fn search_database(
         .map(|s| s.to_string())
         .collect();
 
-    println!("search file type: {:?}", search_file_types);
+    info!("search file type: {:?}", search_file_types);
 
     // Logic for making search with multiple types possible
     let sql_stmt: String = if search_file_types_vec.is_empty() {
@@ -95,13 +99,23 @@ pub fn search_database(
     //Creating channel
     let (sender, receiver) = crossbeam_channel::unbounded();
 
-    //Creating Thread that gets relevant Data from the Database, it already sorts for file_type and Path via the SQL Statement
+    //Creating a Thread that gets relevant Data from the Database, it already sorts for file_type and Path via the SQL Statement
     let mut count_rows = 0;
     let query_thread = std::thread::spawn(move || {
-        let mut pooled_connection = connection_pool.get().expect("Failed to get connection");
-        let tx = pooled_connection
-            .transaction()
-            .expect("Failed to begin transaction");
+        let mut pooled_connection = match connection_pool.get() {
+            Ok(conn) => conn,
+            Err(e) => {
+                error!("Failed to get connection: {}", e);
+                return;
+            }
+        };
+        let tx = match pooled_connection.transaction() {
+            Ok(tx) => tx,
+            Err(e) => {
+                error!("Failed to begin transaction: {}", e);
+                return;
+            }
+        };
 
         let search_pattern = format!("{}%", search_path_str);
         let mut params: Vec<&dyn rusqlite::ToSql> =
@@ -112,22 +126,40 @@ pub fn search_database(
         }
 
         let path_embs = {
-            let mut stmt = tx
-                .prepare_cached(&sql_stmt)
-                .expect("Failed to prepare statement");
-            stmt.query_map(params.as_slice(), |row| {
+            let mut stmt = match tx.prepare_cached(&sql_stmt) {
+                Ok(stmt) => stmt,
+                Err(e) => {
+                    error!("Failed to prepare statement: {}", e);
+                    return;
+                }
+            };
+            let query_result = stmt.query_map(params.as_slice(), |row| {
                 Ok((
                     row.get::<_, String>("file_path")?,
                     row.get::<_, Vec<u8>>("name_embeddings")?,
                 ))
-            })
-            .expect("Query execution failed")
-            .collect::<Result<Vec<_>, _>>()
-            .expect("Result collection failed")
+            });
+            let mapped = match query_result {
+                Ok(mapped) => mapped,
+                Err(e) => {
+                    error!("Query execution failed: {}", e);
+                    return;
+                }
+            };
+            let collected: Result<Vec<_>> = mapped.collect();
+            match collected {
+                Ok(vec) => vec,
+                Err(e) => {
+                    error!("Result collection failed: {}", e);
+                    return;
+                }
+            }
         };
         count_rows = path_embs.len();
 
-        tx.commit().expect("Failed to commit transaction");
+        if let Err(e) = tx.commit() {
+            error!("Failed to commit transaction: {}", e);
+        }
 
         //Pre AlLocating the Memory for batch_emb
         let mut batch_emb: Vec<(String, Vec<u8>)> = Vec::with_capacity(batch_size);
@@ -137,18 +169,20 @@ pub fn search_database(
             batch_emb.push(path_emb);
 
             if batch_emb.len() >= batch_size {
-                sender
-                    .send(std::mem::replace(
-                        &mut batch_emb, // Changed from `batch` to `batch_emb`
-                        Vec::with_capacity(batch_size),
-                    ))
-                    .expect("Failed to send result");
+                if let Err(e) = sender.send(std::mem::replace(
+                    &mut batch_emb,
+                    Vec::with_capacity(batch_size),
+                )) {
+                    error!("Failed to send result: {}", e);
+                }
             }
         }
 
         //Sending last Batch
         if !batch_emb.is_empty() {
-            sender.send(batch_emb).expect("Receiving thread: drop");
+            if let Err(e) = sender.send(batch_emb) {
+                error!("Receiving thread: drop: {}", e);
+            }
         }
     });
 
@@ -159,11 +193,10 @@ pub fn search_database(
 
     // Computes the Levenshtein distance / similarity as well as builds up a Vec of every batch
     let results_lev: Vec<(String, f32)> = receiver
-        .into_iter() // Convert to parallel iterator
+        .into_iter()
         .flat_map(|batch| {
-            // Lock and extend atomically
             search_query.extend(batch.clone());
-            batch.into_iter() // Process in parallel
+            batch.into_iter()
         })
         .par_bridge()
         .map(|(row, _)| {
@@ -177,63 +210,74 @@ pub fn search_database(
         })
         .collect();
 
-    // Transform the results into DireEntrys, sorts them and only give back the num_results_lev best results
+    // Transform the results into DirEntry's, sorts them and only give back the num_results_lev best results
     let ret_lev_dir = return_entries(results_lev, num_results_levenshtein);
 
-    // Transforms the results into FileDataFormatted which the FrontEnd uses
+    // Transforms the results into FileDataFormatted, which the FrontEnd uses
     let ret_lev = build_struct(ret_lev_dir);
 
     // Sends the result to the FrontEnd via a Tauri Signal
-    state.handle.emit("search-finished", &ret_lev).unwrap();
-    println!(
+    if let Err(e) = state.handle.emit("search-finished", &ret_lev) {
+        error!("Failed to emit 'search-finished' (levenshtein): {}", e);
+    }
+    info!(
         "levenshtein-finished {:?}",
         start_time.elapsed().as_millis()
     );
 
     // Computes the Embedding similarity / Cosine Similarity
     let results_emb: Vec<(String, f32)> = search_query
-        .into_par_iter() // Iterate over Vec<(String, Vec<u8>)>
+        .into_par_iter()
         .map(|(path, embedding)| {
-            // Destructure each tuple
-            let embedding_f32 = bytes_to_vec(&embedding); //THIS IS CORRECT
+            let embedding_f32 = bytes_to_vec(&embedding);
             let similarity = cosine_similarity(&embedding_f32, &embedded_vec_f32);
-            (path, similarity) // Return new tuple
+            (path, similarity)
         })
-        .collect(); // Collect results
+        .collect();
 
-    query_thread.join().expect("Query thread panicked");
+    if let Err(e) = query_thread.join() {
+        error!("Query thread panicked: {:?}", e);
+    }
 
     let tokenized_file_name = tokenize_file_name(search_term);
-    let tokens_indices = tokens_to_indices(tokenized_file_name, VOCAB.get().unwrap());
+    let tokens_indices = match VOCAB.get() {
+        Some(vocab) => tokens_to_indices(tokenized_file_name, vocab),
+        None => {
+            error!("VOCAB is not initialized");
+            Vec::new()
+        }
+    };
 
     // Checks if Model doesn't understand anything in search term
     let mut num_results_embeddings = num_results_embeddings;
     if tokens_indices.iter().all(|i| *i == 0) {
-        println!("Search Term isn't in Vocab");
+        info!("Search Term isn't in Vocab");
         num_results_embeddings = 0;
     }
 
-    // Transform the results into DireEntry's, sorts them and only give back the num_results_emb best results
+    // Transform the results into DirEntry's, sorts them and only give back the num_results_emb best results
     let ret_emb_dir = return_entries(results_emb, num_results_embeddings);
 
-    // Transforms the results into FileDataFormatted which the FrontEnd uses
+    // Transforms the results into FileDataFormatted, which the FrontEnd uses
     let ret_emb = build_struct(ret_emb_dir);
 
     // Adds the results embedding and levenshtein together
     let ret = [ret_lev, ret_emb].concat();
 
     // Sends final results to FrontEnd
-    state.handle.emit("search-finished", &ret).unwrap();
-    println!("embedding-finished {:?}", start_time.elapsed().as_millis());
-    println!("search took: {:?}", start_time.elapsed().as_millis());
+    if let Err(e) = state.handle.emit("search-finished", &ret) {
+        error!("Failed to emit 'search-finished' (final): {}", e);
+    }
+    info!("embedding-finished {:?}", start_time.elapsed().as_millis());
+    info!("search took: {:?}", start_time.elapsed().as_millis());
 }
 
-/// Support Function for searching which only gives back the best results in form of DirEntries
+/// Support Function for searching which only gives back the best results in the form of DirEntries
 fn return_entries(mut similarity_values: Vec<(String, f32)>, num_ret: usize) -> Vec<DirEntry> {
     similarity_values.par_sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(Ordering::Equal));
     similarity_values.truncate(num_ret);
 
-    //println!("Similarity values {:?}", similarity_values);
+    //info!("Similarity values {:?}", similarity_values);
     similarity_values
         .into_par_iter()
         .filter_map(|(s, _)| {
