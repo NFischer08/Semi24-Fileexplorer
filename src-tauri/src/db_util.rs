@@ -1,6 +1,9 @@
-use crate::config_handler::{get_paths_to_ignore, INDEX_BINARIES, INDEX_DIRECTORIES, INDEX_HIDDEN_FILES};
+use crate::config_handler::{
+    get_paths_to_ignore, INDEX_BINARIES, INDEX_DIRECTORIES, INDEX_HIDDEN_FILES,
+};
 use crate::manager::{manager_populate_database, VOCAB, WEIGHTS};
 use crate::rt_db_update::get_elements_in_dir;
+use log::{error, info};
 use ndarray::{Array2, Axis};
 use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -25,7 +28,7 @@ pub struct Files {
     pub(crate) file_type: String,
 }
 
-/// Converts "\\" into "/" so that Windows and Unix systems have same path structure
+/// Converts "\\" into "/" so that Windows and Unix systems have the same path structure
 pub fn convert_to_forward_slashes(path: &Path) -> String {
     path.to_str()
         .map(|s| s.replace('\\', "/"))
@@ -35,7 +38,7 @@ pub fn convert_to_forward_slashes(path: &Path) -> String {
 /// calculates the cosine similarity between two embeddings
 pub fn cosine_similarity(a: &[f32], b: &[f32]) -> f32 {
     if a.len() != b.len() {
-        log::error!("Dimensions of database and current model don‘t match");
+        error!("Dimensions of database and current model don‘t match");
         return 0.0;
     }
     let dot = a.iter().zip(b.iter()).map(|(&x, &y)| x * y).sum::<f32>();
@@ -56,20 +59,19 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
         }
     }
 
-    if !*INDEX_HIDDEN_FILES
-        .get()
-        .expect("Failed to get INDEX_HIDDEN_FILES ")
-        && is_hidden(path)
+    if !*INDEX_HIDDEN_FILES.get().unwrap_or_else(|| {
+        error!("Failed to get INDEX_HIDDEN_FILES");
+        &true
+    }) && is_hidden(path)
     {
         return false;
     }
 
     if path.is_dir() {
-        return *INDEX_DIRECTORIES.get().unwrap_or(&true)
+        return *INDEX_DIRECTORIES.get().unwrap_or(&true);
     }
 
-    path
-        .extension()
+    path.extension()
         .and_then(|s| s.to_str())
         .map(|ext| allowed_file_extensions.contains(ext))
         .unwrap_or(*INDEX_BINARIES.get().unwrap_or(&true))
@@ -78,40 +80,40 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
 /// Generates the Database if it doesn't already exist and makes sure that path is indexed
 pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnectionManager>) {
     if let Err(e) = pooled_connection.pragma_update(None, "journal_mode", "WAL") {
-        log::error!("journal_mode konnte nicht gesetzt werden: {}", e);
+        error!("journal_mode konnte nicht gesetzt werden: {}", e);
     }
 
     if let Err(e) = pooled_connection.pragma_update(None, "synchronous", "NORMAL") {
-        log::error!("synchronous konnte nicht gesetzt werden: {}", e);
+        error!("synchronous konnte nicht gesetzt werden: {}", e);
     }
 
     if let Err(e) = pooled_connection.pragma_update(None, "wal_autocheckpoint", "10000") {
-        log::error!("wal_autocheckpoint konnte nicht gesetzt werden: {}", e);
+        error!("wal_autocheckpoint konnte nicht gesetzt werden: {}", e);
     }
 
-    pooled_connection
-        .execute(
-            "CREATE TABLE IF NOT EXISTS files (
+    if let Err(e) = pooled_connection.execute(
+        "CREATE TABLE IF NOT EXISTS files (
             id   INTEGER PRIMARY KEY,
             file_name TEXT NOT NULL,
             file_path TEXT NOT NULL,
             file_type TEXT NOT NULL,
             name_embeddings BLOB NOT NULL
         )",
-            (),
-        )
-        .expect("Could not create database");
+        (),
+    ) {
+        error!("Could not create database: {}", e);
+    }
 
-    pooled_connection
-        .execute(
-            "CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)",
-            [],
-        )
-        .expect("Indexing failed: ");
+    if let Err(e) = pooled_connection.execute(
+        "CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)",
+        [],
+    ) {
+        error!("Indexing failed: {}", e);
+    }
 }
 
 /// Transforms Dates and Years into the Strings YEAR and DATE,
-/// so that they don't take up space in Vocab, look at pytorch script
+/// so that they don't take up space in Vocab, look at a pytorch script
 pub fn normalize_token(token: &str) -> String {
     // Match YYYY-MM-DD, YYYY:MM:DD, YYYY.MM.DD
     let date_re = Regex::new(r"^\d{4}[-:.]\d{2}[-:.]\d{2}$").unwrap();
@@ -144,13 +146,25 @@ pub fn tokens_to_indices(tokens: Vec<String>, vocab: &HashMap<String, usize>) ->
         .collect()
 }
 
-/// Loads the Vocab from vocab.json file
+/// Loads the Vocab from the vocab.json file
 pub fn load_vocab(path: &PathBuf) -> HashMap<String, usize> {
-    let vocab_json = fs::read_to_string(path).expect("Failed to read vocab file");
-    serde_json::from_str(&vocab_json).expect("Failed to parse vocab JSON")
+    let vocab_json = match fs::read_to_string(path) {
+        Ok(s) => s,
+        Err(e) => {
+            error!("Failed to read vocab file: {}", e);
+            return HashMap::new();
+        }
+    };
+    match serde_json::from_str(&vocab_json) {
+        Ok(vocab) => vocab,
+        Err(e) => {
+            error!("Failed to parse vocab JSON: {}", e);
+            HashMap::new()
+        }
+    }
 }
 
-/// Reads the correct Vecs from the weights matrix depending on the indices
+/// Reads the correct Vecs from the weight's matrix depending on the indices
 pub fn embedding_from_ind(token_indices: Vec<usize>, weights: &Array2<f32>) -> Vec<f32> {
     let selected = weights.select(Axis(0), &token_indices);
     let sum_embedding = selected.sum_axis(Axis(0));
@@ -166,7 +180,7 @@ pub fn full_emb(file_name: &str) -> Vec<f32> {
     embedding_from_ind(indexed_file_name, WEIGHTS.get().unwrap())
 }
 
-/// Transforms the &Vec<u8> into Vec<f32> primary use case is to test
+/// Transforms the &Vec<u8> into Vec<f32> the primary use case is to test
 /// if transformation between database and embedding is working correctly
 pub fn bytes_to_vec(bytes: &[u8]) -> Vec<f32> {
     bytes
@@ -184,21 +198,29 @@ pub fn check_folder(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
 ) -> Result<(), ()> {
     // read currently existing files in dir
-    let mut current_files: HashSet<PathBuf> = match get_elements_in_dir(&path)
-    {
+    let mut current_files: HashSet<PathBuf> = match get_elements_in_dir(&path) {
         Ok(paths) => paths,
         Err(_) => return Err(()),
     };
 
     // read currently existing files in db for that dir
     let pattern = format!("{}%", path.to_str().unwrap().replace("\\", "/"));
-    let mut stmt = pooled_connection
-        .prepare("SELECT file_path FROM files WHERE file_path LIKE ?1")
-        .expect("Failed to prepare statement");
+    let mut stmt =
+        match pooled_connection.prepare("SELECT file_path FROM files WHERE file_path LIKE ?1") {
+            Ok(stmt) => stmt,
+            Err(e) => {
+                error!("Failed to prepare statement: {}", e);
+                return Err(());
+            }
+        };
 
-    let paths_iter = stmt
-        .query_map(params![pattern], |row| row.get::<_, String>(0))
-        .expect("Failed to get file paths");
+    let paths_iter = match stmt.query_map(params![pattern], |row| row.get::<_, String>(0)) {
+        Ok(iter) => iter,
+        Err(e) => {
+            error!("Failed to get file paths: {}", e);
+            return Err(());
+        }
+    };
 
     let db_files_all: Vec<PathBuf> = paths_iter
         .filter_map(Result::ok)
@@ -231,23 +253,25 @@ pub fn check_folder(
         }
     }
 
-    // files which are still in the db, but don't exist anymore need to be removed
+    // files which are still in the db but don't exist anymore need to be removed
     for file in db_files {
         let pattern = format!("{}%", file.to_str().unwrap().replace("\\", "/"));
-        pooled_connection
-            .execute("DELETE FROM files WHERE file_path LIKE ?1", (pattern,))
-            .expect("Failed to execute statement");
+        if let Err(e) =
+            pooled_connection.execute("DELETE FROM files WHERE file_path LIKE ?1", (pattern,))
+        {
+            error!("Failed to execute statement: {}", e);
+        }
     }
 
     Ok(())
 }
 
-/// deletes a given file path from the db (therefor taking connection to it)
+/// deletes a given file path from the db (therefore taking connection to it)
 pub fn delete_from_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     file_path: &Path,
 ) {
-    println!("Deleting {:?}", &file_path);
+    info!("Deleting {:?}", &file_path);
 
     let path_str = file_path.to_string_lossy().replace("\\", "/");
     /*
@@ -258,12 +282,14 @@ pub fn delete_from_db(
      */
     let like_pattern = format!("{}%", path_str);
 
-    pooled_connection
-        .execute("DELETE FROM files WHERE file_path LIKE ?", (like_pattern,))
-        .expect("Error: Couldn't delete file in pooled connection");
+    if let Err(e) =
+        pooled_connection.execute("DELETE FROM files WHERE file_path LIKE ?", (like_pattern,))
+    {
+        error!("Couldn't delete file in pooled connection: {}", e);
+    }
 }
 
-/// inserts a given file path into the db (therefor taking connection to it)
+/// inserts a given file path into the db (therefore taking connection to it)
 pub fn insert_into_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     file_path: &Path,
@@ -287,12 +313,12 @@ pub fn insert_into_db(
         .iter()
         .flat_map(|f| f.to_le_bytes())
         .collect();
-    pooled_connection
-        .execute(
-            "INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)",
-            (name, path, file_type, embedding),
-        )
-        .expect("Error: Couldn't insert file in pooled connection");
+    if let Err(e) = pooled_connection.execute(
+        "INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)",
+        (name, path, file_type, embedding),
+    ) {
+        error!("Couldn't insert file in pooled connection: {}", e);
+    }
 }
 
 /// A functon for knowing if a folder or any parent is hidden for Unix Systems (macOS + Linux)

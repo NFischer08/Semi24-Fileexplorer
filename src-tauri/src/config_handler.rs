@@ -1,3 +1,4 @@
+use log::{error, info, warn};
 use num_cpus;
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -9,7 +10,6 @@ use std::{
     path::{absolute, PathBuf},
     sync::{LazyLock, OnceLock},
 };
-use log::error;
 use tauri::command;
 
 // create each constant
@@ -33,9 +33,10 @@ pub static EMBEDDING_DIMENSIONS: OnceLock<usize> = OnceLock::new();
 
 // This should stay Lazy because it ensures that it can be used at all time
 pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
-    env::current_dir()
-        .and_then(absolute)
-        .expect("Failed to resolve absolute path")
+    env::current_dir().and_then(absolute).unwrap_or_else(|e| {
+        error!("Failed to resolve absolute path: {}", e);
+        PathBuf::from(".") // fallback to the current directory
+    })
 });
 
 // create structs
@@ -85,7 +86,7 @@ pub enum CopyMode {
     File,
 }
 impl Default for Settings {
-    /// creates some default values incase it's not able to read the json file properly
+    /// creates some default values incase it's not able to read the JSON file properly
     fn default() -> Self {
         let allowed_extensions: HashSet<String> = [
             "txt", "pdf", "doc", "docx", "xls", "xlsx", "csv", "ppt", "pptx", "jpg", "jpeg", "png",
@@ -163,33 +164,46 @@ impl Default for ColorConfig {
 pub fn build_config<T: serde::Serialize>(path: &PathBuf, settings: &T) -> bool {
     let json = match serde_json::to_string_pretty(&settings) {
         Ok(json) => json,
-        Err(_) => return false,
+        Err(e) => {
+            error!("Failed to serialize settings to JSON: {}", e);
+            return false;
+        }
     };
 
-    fs::write(path, json).is_ok()
+    if fs::write(path, json).is_err() {
+        error!("Failed to write config file at {:?}", path);
+        return false;
+    }
+    true
 }
 
-/// opens a file and returns it contents
+/// opens a file and returns its contents
 fn read_config(config_path: &PathBuf) -> Result<String, ()> {
     // Open the file
     let mut file = match File::open(config_path) {
         Ok(file) => file,
-        Err(_) => return Err(()),
+        Err(e) => {
+            error!("Failed to open config file {:?}: {}", config_path, e);
+            return Err(());
+        }
     };
 
     // Read the file contents into a string
     let mut contents = String::new();
     match file.read_to_string(&mut contents) {
         Ok(_) => (),
-        Err(_) => return Err(()),
+        Err(e) => {
+            error!("Failed to read config file {:?}: {}", config_path, e);
+            return Err(());
+        }
     }
-    println!("Successfully read config file");
+    info!("Successfully read config file {:?}", config_path);
     Ok(contents)
 }
 
-/// reads the config file and initialises the constants
+/// reads the config file and initializes the constants
 pub fn initialize_config() {
-    println!("Initializing config");
+    info!("Initializing config");
     let default_settings: Settings = Settings::default();
     // get the path to the config file
     let mut path: PathBuf = CURRENT_DIR.clone();
@@ -252,81 +266,81 @@ pub fn initialize_config() {
                         embedding_dimensions: settings.embedding_dimensions,
                     }
                 }
-                Err(_) => {
-                    log::warn!("Error when reading config.json: Using default values.");
+                Err(e) => {
+                    warn!("Fehler beim Verarbeiten der Konfiguration ({}), es werden für manche Variablen Standardwerte verwendet.", e);
                     default_settings
                 }
             }
         }
         Err(_) => {
-            log::warn!("Error when reading config.json: Using default values.");
+            warn!("Fehler beim Verarbeiten der Konfiguration, es werden für manche Variablen Standardwerte verwendet.");
             default_settings
         }
     };
 
     // set every constant, if something fails, the whole program immediately stops executing due to panicking
     if let Err(e) = FAVOURITE_FILE_EXTENSIONS.set(config.favourite_extensions) {
-        log::error!("Couldn't set favourite extensions: {:?}", e);
+        error!("Konnte favourite extensions nicht setzen: {:?}", e);
     }
 
     if let Err(e) = ALLOWED_FILE_EXTENSIONS.set(config.allowed_extensions) {
-        log::error!("Couldn't set allowed extensions: {:?}", e);
+        error!("Konnte allowed extensions nicht setzen: {:?}", e);
     }
 
     if let Err(e) = COPY_MODE.set(config.copy_mode) {
-        log::error!("Couldn't set copy mode: {:?}", e);
+        error!("Konnte copy mode nicht setzen: {:?}", e);
     }
 
     if let Err(e) = NUMBER_RESULTS_EMBEDDING.set(config.number_results_embedding) {
-        log::error!("Couldn't set number_results_embedding: {:?}", e);
+        error!("Konnte number_results_embedding nicht setzen: {:?}", e);
     }
 
     if let Err(e) = NUMBER_RESULTS_LEVENSHTEIN.set(config.number_results_levenshtein) {
-        log::error!("Couldn't set number_results_levenshtein: {:?}", e);
+        error!("Konnte number_results_levenshtein nicht setzen: {:?}", e);
     }
 
     if let Err(e) = PATHS_TO_INDEX.set(config.paths_to_index) {
-        log::error!("Couldn't set paths_to_index: {:?}", e);
+        error!("Konnte paths_to_index nicht setzen: {:?}", e);
     }
 
     if let Err(e) = INDEX_HIDDEN_FILES.set(config.index_hidden_files) {
-        log::error!("Couldn't set index_hidden_files: {:?}", e);
+        error!("Konnte index_hidden_files nicht setzen: {:?}", e);
     }
 
     if let Err(e) = INDEX_DIRECTORIES.set(config.index_directories) {
-        log::error!("Couldn't set index_directories: {:?}", e);
+        error!("Konnte index_directories nicht setzen: {:?}", e);
     }
 
     if let Err(e) = INDEX_BINARIES.set(config.index_binaries) {
-        log::error!("Couldn't set index_binaries: {:?}", e);
+        error!("Konnte index_binaries nicht setzen: {:?}", e);
     }
 
     if let Err(e) = CREATE_BATCH_SIZE.set(config.create_batch_size) {
-        log::error!("Couldn't set create_batch_size: {:?}", e);
+        error!("Konnte create_batch_size nicht setzen: {:?}", e);
     }
 
     if let Err(e) = SEARCH_BATCH_SIZE.set(config.search_batch_size) {
-        log::error!("Couldn't set search_batch_size: {:?}", e);
+        error!("Konnte search_batch_size nicht setzen: {:?}", e);
     }
 
     if let Err(e) = NUMBER_OF_THREADS.set(config.number_of_threads) {
-        log::error!("Couldn't set number_of_threads: {:?}", e);
+        error!("Konnte number_of_threads nicht setzen: {:?}", e);
     }
 
     if let Err(e) = PATHS_TO_IGNORE.set(config.paths_to_ignore) {
-        log::error!("Couldn't set paths_to_ignore: {:?}", e);
+        error!("Konnte paths_to_ignore nicht setzen: {:?}", e);
     }
 
     if let Err(e) = PATH_TO_WEIGHTS.set(config.path_to_weights) {
-        log::error!("Couldn't set path_to_weights: {:?}", e);
+        error!("Konnte path_to_weights nicht setzen: {:?}", e);
     }
 
     if let Err(e) = PATH_TO_VOCAB.set(config.path_to_vocab) {
-        log::error!("Couldn't set path_to_vocab: {:?}", e);
+        error!("Konnte path_to_vocab nicht setzen: {:?}", e);
     }
 
     if let Err(e) = EMBEDDING_DIMENSIONS.set(config.embedding_dimensions) {
-        log::error!("Couldn't set embedding_dimensions: {:?}", e);
+        error!("Konnte embedding_dimensions nicht setzen: {:?}", e);
     }
 }
 
@@ -335,7 +349,7 @@ pub fn initialize_config() {
 pub fn get_fav_file_extensions() -> HashMap<String, String> {
     match FAVOURITE_FILE_EXTENSIONS.get() {
         None => {
-            log_warning("FAVOURITE_FILE_EXTENSIONS");
+            print_warning("FAVOURITE_FILE_EXTENSIONS");
             Settings::default().favourite_extensions
         }
         Some(val) => val.to_owned(),
@@ -346,7 +360,7 @@ pub fn get_fav_file_extensions() -> HashMap<String, String> {
 pub fn get_allowed_file_extensions() -> HashSet<String> {
     match ALLOWED_FILE_EXTENSIONS.get() {
         None => {
-            log_warning("ALLOWED_FILE_EXTENSIONS");
+            print_warning("ALLOWED_FILE_EXTENSIONS");
             Settings::default().allowed_extensions
         }
         Some(val) => val.to_owned(),
@@ -356,7 +370,7 @@ pub fn get_allowed_file_extensions() -> HashSet<String> {
 pub fn get_copy_mode() -> CopyMode {
     match COPY_MODE.get() {
         None => {
-            log_warning("COPY_MODE");
+            print_warning("COPY_MODE");
             Settings::default().copy_mode
         }
         Some(val) => val.to_owned(),
@@ -366,7 +380,7 @@ pub fn get_copy_mode() -> CopyMode {
 pub fn get_number_results_levenshtein() -> usize {
     match NUMBER_RESULTS_LEVENSHTEIN.get() {
         None => {
-            log_warning("NUMBER_RESULTS_LEVENSHTEIN");
+            print_warning("NUMBER_RESULTS_LEVENSHTEIN");
             Settings::default().number_results_levenshtein
         }
         Some(val) => val.to_owned(),
@@ -376,7 +390,7 @@ pub fn get_number_results_levenshtein() -> usize {
 pub fn get_number_results_embedding() -> usize {
     match NUMBER_RESULTS_EMBEDDING.get() {
         None => {
-            log_warning("NUMBER_RESULTS_EMBEDDING");
+            print_warning("NUMBER_RESULTS_EMBEDDING");
             Settings::default().number_results_embedding
         }
         Some(val) => val.to_owned(),
@@ -386,7 +400,7 @@ pub fn get_number_results_embedding() -> usize {
 pub fn get_paths_to_index() -> Vec<PathBuf> {
     match PATHS_TO_INDEX.get() {
         None => {
-            log_warning("PATHS_TO_INDEX");
+            print_warning("PATHS_TO_INDEX");
             Settings::default().paths_to_index
         }
         Some(val) => val.to_owned(),
@@ -396,7 +410,7 @@ pub fn get_paths_to_index() -> Vec<PathBuf> {
 pub fn get_create_batch_size() -> usize {
     match CREATE_BATCH_SIZE.get() {
         None => {
-            log_warning("CREATE_BATCH_SIZE");
+            print_warning("CREATE_BATCH_SIZE");
             Settings::default().create_batch_size
         }
         Some(val) => val.to_owned(),
@@ -406,7 +420,7 @@ pub fn get_create_batch_size() -> usize {
 pub fn get_search_batch_size() -> usize {
     match SEARCH_BATCH_SIZE.get() {
         None => {
-            log_warning("SEARCH_BATCH_SIZE");
+            print_warning("SEARCH_BATCH_SIZE");
             Settings::default().search_batch_size
         }
         Some(val) => val.to_owned(),
@@ -416,7 +430,7 @@ pub fn get_search_batch_size() -> usize {
 pub fn get_number_of_threads() -> usize {
     match NUMBER_OF_THREADS.get() {
         None => {
-            log_warning("NUMBER_OF_THREADS");
+            print_warning("NUMBER_OF_THREADS");
             Settings::default().number_of_threads
         }
         Some(val) => val.to_owned(),
@@ -426,7 +440,7 @@ pub fn get_number_of_threads() -> usize {
 pub fn get_paths_to_ignore() -> Vec<PathBuf> {
     match PATHS_TO_IGNORE.get() {
         None => {
-            log_warning("PATHS_TO_IGNORE");
+            print_warning("PATHS_TO_IGNORE");
             Settings::default().paths_to_ignore
         }
         Some(val) => val.to_owned(),
@@ -436,7 +450,7 @@ pub fn get_paths_to_ignore() -> Vec<PathBuf> {
 pub fn get_path_to_weights() -> PathBuf {
     match PATH_TO_WEIGHTS.get() {
         None => {
-            log_warning("PATH_TO_WEIGHTS");
+            print_warning("PATH_TO_WEIGHTS");
             Settings::default().path_to_weights
         }
         Some(path) => path.to_owned(),
@@ -446,7 +460,7 @@ pub fn get_path_to_weights() -> PathBuf {
 pub fn get_path_to_vocab() -> PathBuf {
     match PATH_TO_VOCAB.get() {
         None => {
-            log_warning("PATH_TO_VOCAB");
+            print_warning("PATH_TO_VOCAB");
             Settings::default().path_to_vocab
         }
         Some(path) => path.to_owned(),
@@ -456,29 +470,33 @@ pub fn get_path_to_vocab() -> PathBuf {
 pub fn get_embedding_dimensions() -> usize {
     match EMBEDDING_DIMENSIONS.get() {
         None => {
-            log_warning("EMBEDDING_DIMENSIONS");
+            print_warning("EMBEDDING_DIMENSIONS");
             Settings::default().embedding_dimensions
         }
         Some(val) => val.to_owned(),
     }
 }
 
-/// retrieves the css config settings to send them to the frontend
+/// retrieves the CSS config settings to send them to the frontend
 #[command]
 pub fn get_css_settings() -> ColorConfig {
     // get the path to the color config file
     let mut path = CURRENT_DIR.clone();
     path.push("data/config/color-config.json");
 
-    // read it contents and parse it to the struct, or use the default values
+    // read its contents and parse it to the struct, or use the default values
     match read_config(&path) {
-        Ok(config) => serde_json::from_str(&config).unwrap_or_else(|_| ColorConfig::default()),
+        Ok(config) => serde_json::from_str(&config).unwrap_or_else(|e| {
+            warn!("Failed to parse color-config.json: {}", e);
+            ColorConfig::default()
+        }),
         Err(_) => ColorConfig::default(),
     }
 }
-fn log_warning(var: &str) {
-    log::warn!(
-        "The var '{}' could not be read. Using default value.",
+
+fn print_warning(var: &str) {
+    warn!(
+        "Die Variable '{}' konnte nicht gelesen werden, es wird auf den Standardwert zurückgegriffen.",
         var
     );
 }

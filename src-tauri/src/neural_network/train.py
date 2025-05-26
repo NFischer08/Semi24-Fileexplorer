@@ -74,21 +74,22 @@ def main():
             total_loss += loss.item()
             progress_bar.set_postfix(loss=loss.item())
 
+        avg_loss = total_loss / len(dataloader)
         checkpoint = {
             'epoch': epoch + 1,
             'model_state_dict': model.state_dict(),
             'optimizer_state_dict': optimizer.state_dict(),
-            'loss': total_loss,
+            'loss': avg_loss,
         }
         torch.save(checkpoint, CHECKPOINT_PATH)
 
         with open("training_log.txt", "a") as log_file:
             log_file.write(
                 f"Epoch: {epoch + 1}, "
-                f"Total Loss: {total_loss:.4f}\n"
+                f"Average Loss: {avg_loss:.4f}\n"
             )
 
-        if prev_loss is not None and prev_loss < total_loss:
+        if prev_loss is not None and prev_loss < avg_loss:
             consecutive_increases += 1
             with open("training_log.txt", "a") as log_file:
                 log_file.write(
@@ -103,7 +104,7 @@ def main():
             break
 
     embedding_weights = model.target_embeddings.weight.data.cpu().numpy()
-    embedding_weights.tofile("eng_weights_D300")
+    embedding_weights.tofile(WEIGHTS_NAME)
     print("Embeddings saved")
 
     with open("training_log.txt", "a") as log_file:
