@@ -13,12 +13,9 @@ In this project, we have implemented a file explorer with fast and efficient sea
 - Modern and responsive user interface
 
 ## Installation
-
-If there is no release for your system, you have to build the application from source code.
-
 ### Option 1: Using the Executable
 
-1. Download the latest release from the Releases page
+1. Download the latest release from the Releases page for your system, if there is none, you will have to build from source
 2. Run the installer
 3. Launch the application from your system's application menu or by double-clicking it
 
@@ -60,7 +57,7 @@ Since it will still need the model and weights ([here](src-tauri/data/model)) ma
 After that you can configure the program to your preferences (see [config](CONFIG.md)).
 After restarting it, you can use the program just like you want to.
 Note that it may take a bit to initialize the database depending on the size of your filesystem.
-Searching will therefore take some seconds until it will work properly.
+Searching will therefore take some seconds until it works properly.
 
 Our program supports the following aspects:
 
