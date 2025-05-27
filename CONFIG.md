@@ -1,21 +1,21 @@
 # Config
 
 Our project has a config file with which you can change important parameters for your preferences. 
-Furthermore, there is a color config file for changing the appereance of the program.
+Furthermore, there is a color config file for changing the appearance of the program.
 
 Note that you have to restart the program for changes to take effect.
-If you change anything affecting the files to index it is recommended to delete the database, since the program will only insert new files, but won't remove files you don't want to index anymore.
+If you change anything affecting the files to index, it is recommended to delete the database, since the program will only insert new files but won't remove files you don't want to index anymore.
 
 ## General Config
 You can find it [here](src-tauri/data/config/config.json).
 
 ### `file_extensions_to_index` 
-A list containing all file extensions that should be indexed (added to database) of type string. 
+A list containing all file extensions that should be indexed (added to a database) of type string. 
 All filetypes not found in this list will be ignored and can therefore not be searched for.
 
 ### `favourite_extensions`
-An dictionary where you can add your favourite file extensions. 
-The key is the label and the value contains the extensions sperated by a comma.
+A dictionary where you can add your favourite file extensions. 
+The key is the label, and the value contains the extensions separated by a comma.
 Both the key and the value are of type string.
 The label will be displayed in the file explorer search settings as a checkbox.
 
@@ -23,7 +23,7 @@ The label will be displayed in the file explorer search settings as a checkbox.
 The copy mode determines how files are copied. 
 Since it is of type CopyMode (custom Enum), you can choose between:
 1. `Clipboard`: The file contents will be copied to the clipboard. 
-This is recommended for small files and if you want to paste the file contents into another program.
+This is recommended for small files, and if you want to paste the file contents into another program.
 2. `File`: The file will be copied to `src-tauri/data/tmp/CONTENT` and the filename will be stored in `src-tauri/data/tmp/copy.txt`.
 This is recommended for large files.
 
@@ -36,7 +36,7 @@ An integer determining the number of results from the Levenshtein-Distance that 
 An integer determining the number of results from the embedding similarity (from our "Skip-Gram-Model") that should be displayed.
 
 ### `paths_to_index`
-A list containing all paths that should be indexed (added to database) of type string.
+A list containing all paths that should be indexed (added to a database) of type string.
 All children of the paths will be indexed as well.
 
 ### `index_hidden_files`
@@ -56,16 +56,16 @@ An integer determining the number of files that should be processed for at once 
 
 ### `number_of_threads`
 An integer determining the number of threads that should be used for processing. 
-By entering somthing non valid (like `None`), the default value will be used.
+By entering somthing non-valid (like `None`), the default value will be used.
 That value is automatically adjusted to one below the number of logical cores of your computer.
 
 ### `paths_to_ignore`
 A list containing all paths that should be ignored of type string.
-This is usefull if you want to ignore specific folders that normally would be indexed.
+This is useful if you want to ignore specific folders that normally would be indexed.
 
 ### `path_to_weights`
-A string containing the path to the weights file.
-Incase you leave the weights file where it is, you can leave this field empty or write `None`, because it will just use the [default path](src-tauri/data/model).
+A string containing the path to the weight file.
+Incase you leave the weight file where it is, you can leave this field empty or write `None`, because it will just use the [default path](src-tauri/data/model).
 
 ### `path_to_vocab`
 A string containing the path to the vocab file.
@@ -73,7 +73,7 @@ Incase you leave the vocab file where it is, you can leave this field empty or w
 
 ### `embedding_dimensions`
 An integer determining the dimension of the embedding model.
-It represents the amount of floats each Entry in the vocab file is embedded into.
+It represents the number of floats each Entry in the vocab file is embedded into.
 
 ## Color Config
 
@@ -102,7 +102,7 @@ Defines the border color of the input fields.
 Defines the font color of the top buttons when hovered.
 
 ### `modal_background`
-Defines the background color of all modals including the rightclick menu, the search settings and the rename form.
+Defines the background color of all modals, including the right-click menu, the search settings and the rename form.
 
 ### `modal_hover`
 Defines the background color of buttons in modals when hovered.

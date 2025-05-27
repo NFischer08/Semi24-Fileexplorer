@@ -1,13 +1,13 @@
 # A File Explorer with fast and efficient search
 
-In this project, we have implemented a file explorer with fast and efficient search. The application is written in Rust and uses the Tauri framework. The main featuares are:
+In this project, we have implemented a file explorer with fast and efficient search. The application is written in Rust and uses the Tauri framework. The main features are:
 
 ## Features
 
 - File system navigation
-- Multi-threaded search algorithm
+- Multithreaded search algorithm
 - search options to search for specific file types
-- Vector space-based file indexing
+- Vector-space-based file indexing
 - SQLite database integration for search optimization
 - Cross-platform support (Windows, macOS, Linux)
 - Modern and responsive user interface
@@ -25,9 +25,9 @@ If there is no release for your system, you have to build the application from s
 ### Option 2: Building from Source Code
 
 1. Install Rust:
-   ```bash
-   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-   ```
+   visit [rust-lang.org/tools/install](https://www.rust-lang.org/tools/install) to install Rustup.
+    
+    You may need to restart the command line after installing.
 
 2. Install Tauri CLI:
    ```bash
@@ -40,22 +40,32 @@ If there is no release for your system, you have to build the application from s
    cd Semi24-Fileexplorer
    ```
    
-4. Run
+4. Compile
 
    |        in development mode         |      in release mode      |
    |:----------------------------------:|:-------------------------:|
    | ``` cargo tauri dev --no-watch ``` | ``` cargo tauri build ``` |
 
+5. Run
+
+    When using development mode, this step isn't needed. 
+However, if you build it in release mode, you first need to locate your executable (`src-tauri/target/release/`).
+Now you can either run it there or move it to a place of your preference.
+
+
 ## How to use it
-First of all you should start the program. 
-It will initialise the needed path structure. 
+First, you should start the program. 
+It will initialize the necessary path structure.
+Since it will still need the model and weights ([here](src-tauri/data/model)) make sure to insert them.
 After that you can configure the program to your preferences (see [config](CONFIG.md)).
-Now you can use the program just like you want to.
+After restarting it, you can use the program just like you want to.
+Note that it may take a bit to initialize the database depending on the size of your filesystem.
+Searching will therefore take some seconds until it will work properly.
 
-The following apects are supported by our program:
+Our program supports the following aspects:
 
-- **right click** on entries (copy, paste, cut, delete, rename and open)
-- **double click** on entries to open them
+- **right click** on entries (copy, paste, cut, delete, rename, and open)
+- **double-click** on entries to open them
 - **navigation buttons**: up to go to the parent folder, left to go to the previous folder and right to revert your click on the left button
 - input field to enter a filepath
 - input field to enter your search term
@@ -63,18 +73,18 @@ The following apects are supported by our program:
 
    In here you can either enter custom extensions you want to query for or click on some favourites (set in config).
    You have to use "dir" for directories and "binary" for files without extensions.
-   By clicking on the trash can your search setting inputs will be reset.
+   By clicking on the trash can, your search setting inputs will be reset.
 - pressing _enter_ will submit if you're currently in an input field
 
-Now have fun using our File Explorer 🎉🎉🎉
+Now have fun using our File Explorer.
 
 ## Error Handling
-In case you encounter any problems try what the error messages tell you to do.
-If that doesn't work or the program crashes when starting it often helps to just restart the program.
-Furthermore deleting the [database](src-tauri/data/db) (`~/data/db/..`) or deleting the [config files](src-tauri/data/config) can help too
+In case you encounter any problems, try what the error messages tell you to do.
+If that doesn't work or the program crashes when starting, it often helps to just restart the program.
+Furthermore, deleting the [database](src-tauri/data/db) (`~/data/db/..`) or deleting the [config files](src-tauri/data/config) can help too.
 
 ## Project configuration
-There are two config files (`~/data/config/..`) for customising the File Explorer:
+There are two config files (`~/data/config/..`) for customizing the File Explorer:
 1. [config.json](src-tauri/data/config/config.json)
 2. [color-config.json](src-tauri/data/config/color-config.json)
 
@@ -92,8 +102,8 @@ This project was created by:
 - [Jessica Nolle](https://github.com/Haloooo212)
 - [Magnus Schultheis](https://github.com/magnus-52)
 
-... as a _Seminarfach_-project at the [Albert-Schweitzer grammer school Erfurt specializing in computer science, natural science and mathematics](https://web.asgspez.de/).
-View our coressponding cientific paper: [scientific paper](Seminarfacharbeit.pdf) (German)
+... as a _Seminarfach_-project at the [Albert Schweitzer grammar school Erfurt specializing in computer science, natural science, and mathematics](https://web.asgspez.de/).
+View our corresponding scientific paper: [scientific paper](Seminarfacharbeit.pdf) (German)
 
 ## License
 
