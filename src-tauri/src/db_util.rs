@@ -18,6 +18,12 @@ use std::{
 };
 
 pub static PATHS_TO_IGNORE: LazyLock<Vec<PathBuf>> = LazyLock::new(get_paths_to_ignore);
+// const for Windows storing the Regex Expression for matching drive letters and the root path /
+#[cfg(windows)]
+pub static WINDOWS_FS_ROOTS: LazyLock<(Regex, &Path)> = LazyLock::new(|| {
+    (Regex::new(r"^[A-Z]:(/|\\|\\\\)").unwrap(),
+     Path::new("/"))
+});
 
 #[derive(Debug, Clone)]
 pub struct Files {
@@ -338,10 +344,11 @@ pub fn is_hidden(path: &Path) -> bool {
     use std::fs;
     use std::os::windows::fs::MetadataExt;
     const FILE_ATTRIBUTE_HIDDEN: u32 = 0x2;
+    let (re_root, slash_path) = WINDOWS_FS_ROOTS.clone();
 
     for ancestor in path.ancestors() {
         if let Ok(metadata) = fs::metadata(ancestor) {
-            if ancestor == Path::new("/") {
+            if (re_root.is_match(&ancestor.to_string_lossy().to_string()) && ancestor.to_string_lossy().len() <= 4) || ancestor == slash_path {
                 break;
             }
             if (metadata.file_attributes() & FILE_ATTRIBUTE_HIDDEN) != 0 {
