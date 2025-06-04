@@ -48,6 +48,7 @@ In this project, we have implemented a file explorer with fast and efficient sea
     When using development mode, this step isn't needed. 
 However, if you build it in release mode, you first need to locate your executable (`src-tauri/target/release/`).
 Now you can either run it there or move it to a place of your preference.
+It is recommended to run it with administrator privileges to prevent any errors occuring.
 
 
 ## How to use it
@@ -82,8 +83,8 @@ Furthermore, deleting the [database](src-tauri/data/db) (`~/data/db/..`) or dele
 
 ## Project configuration
 There are two config files (`~/data/config/..`) for customizing the File Explorer:
-1. [config.json](src-tauri/data/config/config.json)
-2. [color-config.json](src-tauri/data/config/color-config.json)
+1. config.json
+2. color-config.json
 
 Read [here](CONFIG.md) to learn more.
 
