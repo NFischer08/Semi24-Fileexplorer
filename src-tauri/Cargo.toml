@@ -1,8 +1,8 @@
 [package]
 name = "file_explorer"
-version = "0.1.0"
+version = "1.0.0"
 description = "File Explorer with a fast searching algorithm"
-authors = ["you"]
+authors = ["Nino Fischer", "Jessica Nolle", "Magnus Schultheis"]
 edition = "2021"
 license = "CC-BY-NC-4.0"
 
