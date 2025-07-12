@@ -19,17 +19,69 @@ use std::{
 };
 use tauri::{command, AppHandle, State};
 
+/// Simple memory usage logging function
+pub fn log_memory_usage(context: &str) {
+    // Read from /proc/self/status on Linux
+    if let Ok(status) = std::fs::read_to_string("/proc/self/status") {
+        for line in status.lines() {
+            if line.starts_with("VmRSS:") {
+                if let Some(memory_str) = line.split_whitespace().nth(1) {
+                    if let Ok(memory_kb) = memory_str.parse::<u64>() {
+                        let memory_mb = memory_kb / 1024;
+                        info!("{context}: Memory usage: {memory_mb} MB");
+                        return;
+                    }
+                }
+            }
+        }
+    }
+    info!("{context}: Memory usage unavailable");
+}
+
 #[derive(Debug)]
 pub struct AppState {
     pub handle: AppHandle,
 }
 
-pub static WEIGHTS: OnceLock<Array2<f32>> = OnceLock::new();
+#[derive(Debug, Clone)]
+pub struct QuantizedWeights {
+    pub weights: Array2<i8>,
+    pub scale: f32,
+    pub zero_point: i8,
+}
+
+impl QuantizedWeights {
+    /// Dequantize a single value from i8 to f32
+    pub fn dequantize_value(&self, quantized: i8) -> f32 {
+        (quantized as f32 - self.zero_point as f32) * self.scale
+    }
+    
+    /// Dequantize an entire row to f32 for computation
+    pub fn dequantize_row(&self, row_idx: usize) -> Vec<f32> {
+        if let Some(row) = self.weights.row(row_idx).as_slice() {
+            row.iter()
+                .map(|&q| self.dequantize_value(q))
+                .collect()
+        } else {
+            Vec::new()
+        }
+    }
+    
+    /// Quantize f32 values to i8
+    pub fn quantize_value(&self, value: f32) -> i8 {
+        let quantized = (value / self.scale) + self.zero_point as f32;
+        quantized.round().clamp(i8::MIN as f32, i8::MAX as f32) as i8
+    }
+}
+
+pub static WEIGHTS: OnceLock<QuantizedWeights> = OnceLock::new();
 pub static VOCAB: OnceLock<HashMap<String, usize>> = OnceLock::new();
 
 /// Initializes VOCAB and WEIGHTS to be their respective files
 pub fn initialize_globals() {
     info!("Initializing globals");
+    log_memory_usage("Before model loading");
+    
     WEIGHTS.get_or_init(|| {
         let embedding_dim = get_embedding_dimensions();
 
@@ -37,9 +89,16 @@ pub fn initialize_globals() {
             Ok(bytes) => bytes,
             Err(e) => {
                 error!("Could not read weights: {e}");
-                return Array2::zeros((0, 0));
+                return QuantizedWeights {
+                    weights: Array2::zeros((0, 0)),
+                    scale: 1.0,
+                    zero_point: 0,
+                };
             }
         };
+        
+        log_memory_usage("After reading weights file");
+        
         let weights_as_f32: &[f32] = cast_slice(&weights_bytes);
 
         let vocab_size = if embedding_dim == 0 {
@@ -48,18 +107,57 @@ pub fn initialize_globals() {
             weights_as_f32.len() / embedding_dim
         };
 
-        match Array2::from_shape_vec((vocab_size, embedding_dim), weights_as_f32.to_vec()) {
-            Ok(arr) => arr,
+        let quantized_weights = match Array2::from_shape_vec((vocab_size, embedding_dim), weights_as_f32.to_vec()) {
+            Ok(arr) => {
+                log_memory_usage("After creating f32 array");
+                
+                // Calculate proper quantization parameters
+                let min_val = arr.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+                let max_val = arr.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+                
+                let scale = (max_val - min_val) / (i8::MAX as f32 - i8::MIN as f32);
+                let zero_point = ((min_val / scale).round() - i8::MIN as f32) as i8;
+                
+                info!("Quantization params - Scale: {scale}, Zero point: {zero_point}, Min: {min_val}, Max: {max_val}");
+                
+                // Quantize the weights
+                let quantized_data: Vec<i8> = arr.iter()
+                    .map(|&x| {
+                        let quantized = (x / scale) + zero_point as f32;
+                        quantized.round().clamp(i8::MIN as f32, i8::MAX as f32) as i8
+                    })
+                    .collect();
+                    
+                drop(arr); // Free the f32 array memory
+                log_memory_usage("After quantizing and dropping f32 array");
+                    
+                let quantized_array = Array2::from_shape_vec((vocab_size, embedding_dim), quantized_data).unwrap();
+
+                QuantizedWeights {
+                    weights: quantized_array,
+                    scale,
+                    zero_point,
+                }
+            },
             Err(e) => {
                 error!("Shape mismatch in weights: {e}");
-                Array2::zeros((0, 0))
+                QuantizedWeights {
+                    weights: Array2::zeros((0, 0)),
+                    scale: 1.0,
+                    zero_point: 0,
+                }
             }
-        }
+        };
+
+        quantized_weights
     });
 
-    VOCAB.get_or_init(|| load_vocab(&get_path_to_vocab()));
-}
+    log_memory_usage("After quantized weights loading");
 
+    VOCAB.get_or_init(|| load_vocab(&get_path_to_vocab()));
+    
+    log_memory_usage("After vocab loading - initialization complete");
+}
 /// Builds up the FileDataFormatted Struct from DireEntries
 pub fn build_struct(entries: Vec<DirEntry>) -> Vec<FileDataFormatted> {
     entries
@@ -101,13 +199,17 @@ pub fn manager_make_connection_pool() -> Pool<SqliteConnectionManager> {
         }
         path.push("files.sqlite3");
         let manager = SqliteConnectionManager::file(path);
-        let pool = match Pool::new(manager) {
-            Ok(pool) => pool,
-            Err(e) => {
-                error!("Failed to create pool: {e}");
-                panic!("Failed to create pool: {e}");
-            }
-        };
+        let pool = match Pool::builder()
+            .max_size(5)  // Reduce from default (usually 10)
+            .min_idle(Some(1))  // Keep minimum connections
+            .build(manager) 
+            {
+                Ok(pool) => pool,
+                Err(e) => {
+                    error!("Failed to create pool: {e}");
+                    panic!("Failed to create pool: {e}");
+                }
+            };
         if let Ok(conn) = pool.get() {
             initialize_database(&conn);
         } else {

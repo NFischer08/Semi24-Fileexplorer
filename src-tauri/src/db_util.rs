@@ -4,7 +4,6 @@ use crate::config_handler::{
 use crate::manager::{manager_populate_database, VOCAB, WEIGHTS};
 use crate::rt_db_update::get_elements_in_dir;
 use log::{error, info};
-use ndarray::{Array2, Axis};
 use r2d2::PooledConnection;
 use r2d2_sqlite::SqliteConnectionManager;
 use regex::Regex;
@@ -169,12 +168,25 @@ pub fn load_vocab(path: &PathBuf) -> HashMap<String, usize> {
 }
 
 /// Reads the correct Vecs from the weight's matrix depending on the indices
-pub fn embedding_from_ind(token_indices: Vec<usize>, weights: &Array2<f32>) -> Vec<f32> {
-    let selected = weights.select(Axis(0), &token_indices);
-    let sum_embedding = selected.sum_axis(Axis(0));
+pub fn embedding_from_ind(token_indices: Vec<usize>, weights: &crate::manager::QuantizedWeights) -> Vec<f32> {
+    // For quantized weights, we need to dequantize the selected rows
+    let mut sum_embedding = vec![0.0f32; weights.weights.ncols()];
+    
+    for &token_idx in &token_indices {
+        if token_idx < weights.weights.nrows() {
+            let dequantized_row = weights.dequantize_row(token_idx);
+            for (i, val) in dequantized_row.iter().enumerate() {
+                sum_embedding[i] += val;
+            }
+        }
+    }
+    
     let count = token_indices.len() as f32;
-    let avg_embedding = &sum_embedding / count;
-    avg_embedding.to_vec()
+    if count > 0.0 {
+        sum_embedding.iter().map(|x| x / count).collect()
+    } else {
+        sum_embedding
+    }
 }
 
 /// Makes embedding simple via using the other functions
@@ -184,9 +196,18 @@ pub fn full_emb(file_name: &str) -> Vec<f32> {
     embedding_from_ind(indexed_file_name, WEIGHTS.get().unwrap())
 }
 
-/// Transforms the &Vec<u8> into Vec<f32> the primary use case is to test
-/// if transformation between database and embedding is working correctly
+/// Transforms the &Vec<u8> into Vec<f32> - handles both quantized and f32 data
 pub fn bytes_to_vec(bytes: &[u8]) -> Vec<f32> {
+    if let Some(weights) = WEIGHTS.get() {
+        // Check if this looks like quantized data (length matches embedding dim)
+        let embedding_dim = weights.weights.ncols();
+        if bytes.len() == embedding_dim {
+            // Treat as quantized i8 data
+            return dequantize_bytes_to_embedding(bytes);
+        }
+    }
+    
+    // Fallback: treat as f32 bytes
     bytes
         .chunks_exact(4)
         .map(|chunk| {
@@ -279,7 +300,6 @@ pub fn delete_from_db(
     if !path_str.ends_with('/') {
         path_str.push('/');
     }
-
      */
     let like_pattern = format!("{path_str}%");
 
@@ -310,15 +330,39 @@ pub fn insert_into_db(
             .to_string_lossy()
             .to_string()
     };
-    let embedding: Vec<u8> = full_emb(&name)
-        .iter()
-        .flat_map(|f| f.to_le_bytes())
-        .collect();
+    let embedding: Vec<u8> = quantize_embedding_to_bytes(&full_emb(&name));
     if let Err(e) = pooled_connection.execute(
         "INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)",
         (name, path, file_type, embedding),
     ) {
         error!("Couldn't insert file in pooled connection: {e}");
+    }
+}
+
+/// Convert f32 embedding to quantized i8 bytes for database storage
+pub fn quantize_embedding_to_bytes(embedding: &[f32]) -> Vec<u8> {
+    if let Some(weights) = WEIGHTS.get() {
+        let quantized: Vec<i8> = embedding.iter()
+            .map(|&val| weights.quantize_value(val))
+            .collect();
+        quantized.iter().map(|&x| x as u8).collect()
+    } else {
+        // Fallback to f32 bytes if weights not initialized
+        embedding.iter().flat_map(|f| f.to_le_bytes()).collect()
+    }
+}
+
+/// Convert quantized i8 bytes from database back to f32 embedding
+pub fn dequantize_bytes_to_embedding(bytes: &[u8]) -> Vec<f32> {
+    if let Some(weights) = WEIGHTS.get() {
+        // Convert u8 back to i8, then dequantize
+        bytes.iter()
+            .map(|&b| b as i8)
+            .map(|q| weights.dequantize_value(q))
+            .collect()
+    } else {
+        // Fallback: assume it's f32 bytes
+        bytes_to_vec(bytes)
     }
 }
 

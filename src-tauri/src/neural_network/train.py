@@ -30,7 +30,7 @@ def main():
     dataloader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=DATASET_WORKERS, prefetch_factor=4, pin_memory=True, persistent_workers=True)
 
     model = SkipGramNegSampling(len(vocab), EMBEDDING_DIM).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    optimizer = optim.Adam(model.parameters(), lr=0.003)
     word_prob_tensor = torch.tensor(dataset.word_prob, dtype=torch.float32, device=device)
 
     start_epoch = 0

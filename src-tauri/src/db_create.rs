@@ -1,7 +1,7 @@
 use crate::config_handler::{
     get_allowed_file_extensions, get_create_batch_size, get_embedding_dimensions,
 };
-use crate::db_util::{convert_to_forward_slashes, full_emb, is_allowed_file, Files};
+use crate::db_util::{convert_to_forward_slashes, full_emb, is_allowed_file, quantize_embedding_to_bytes, Files};
 use jwalk::WalkDir;
 use log::{error, info, warn};
 use ndarray::Array2;
@@ -229,11 +229,12 @@ pub fn create_database(
                     }
                 };
 
-                // Transform the every Embedding into a Vec<u8> so that they can be stored in the Database
+                // Transform the every Embedding into a Vec<u8> so that they can be stored in the Database (quantized)
                 let embeddings_u8: Vec<Vec<u8>> = batch_embeddings
                     .outer_iter()
                     .map(|embedding_row| {
-                        embedding_row.iter().flat_map(|f| f.to_le_bytes()).collect()
+                        let embedding_slice: Vec<f32> = embedding_row.to_vec();
+                        quantize_embedding_to_bytes(&embedding_slice)
                     })
                     .collect();
 
