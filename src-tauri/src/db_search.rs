@@ -15,7 +15,7 @@ use std::iter::repeat_n;
 use std::{
     fs::{self, DirEntry},
     path::{Path, PathBuf},
-    time::Instant,
+    time::Instant
 };
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
@@ -97,7 +97,7 @@ pub fn search_database(
     };
 
     //Creating channel
-    let (sender, receiver) = crossbeam_channel::unbounded();
+    let (sender, receiver) = crossbeam_channel::bounded(batch_size * 2);
 
     //Creating a Thread that gets relevant Data from the Database, it already sorts for file_type and Path via the SQL Statement
     let mut count_rows = 0;
@@ -109,6 +109,7 @@ pub fn search_database(
                 return;
             }
         };
+
         let tx = match pooled_connection.transaction() {
             Ok(tx) => tx,
             Err(e) => {
@@ -125,7 +126,7 @@ pub fn search_database(
             params.push(file_type);
         }
 
-        let path_embs = {
+        {
             let mut stmt = match tx.prepare_cached(&sql_stmt) {
                 Ok(stmt) => stmt,
                 Err(e) => {
@@ -133,56 +134,56 @@ pub fn search_database(
                     return;
                 }
             };
-            let query_result = stmt.query_map(params.as_slice(), |row| {
+
+            let mapped = match stmt.query_map(params.as_slice(), |row| {
                 Ok((
                     row.get::<_, String>("file_path")?,
                     row.get::<_, Vec<u8>>("name_embeddings")?,
                 ))
-            });
-            let mapped = match query_result {
+            }) {
                 Ok(mapped) => mapped,
                 Err(e) => {
                     error!("Query execution failed: {}", e);
                     return;
                 }
             };
-            let collected: Result<Vec<_>> = mapped.collect();
-            match collected {
-                Ok(vec) => vec,
-                Err(e) => {
-                    error!("Result collection failed: {}", e);
-                    return;
+
+            println!("Before streaming mapped rows, time is: {}", start_time.elapsed().as_millis());
+            
+            // Pre-allocating the memory for batch_emb and streaming directly
+            let mut batch_emb: Vec<(String, Vec<u8>)> = Vec::with_capacity(batch_size);
+            
+            for row in mapped {
+                match row {
+                    Ok(path_emb) => {
+                        batch_emb.push(path_emb);
+                        if batch_emb.len() >= batch_size {
+                            if let Err(e) = sender.send(std::mem::replace(&mut batch_emb, Vec::with_capacity(batch_size))) {
+                                error!("Failed to send result: {}", e);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error!("Row error: {}", e);
+                    }
                 }
             }
+            
+            // Send any remaining rows as the last batch
+            if !batch_emb.is_empty() {
+                if let Err(e) = sender.send(batch_emb) {
+                    error!("Receiving thread: drop: {}", e);
+                }
+            }
+            
+            println!("After streaming mapped rows, time is: {}", start_time.elapsed().as_millis());
+            
+            // Drop the statement to release the borrow on tx
+            drop(stmt);
         };
-        count_rows = path_embs.len();
 
         if let Err(e) = tx.commit() {
             error!("Failed to commit transaction: {}", e);
-        }
-
-        //Pre AlLocating the Memory for batch_emb
-        let mut batch_emb: Vec<(String, Vec<u8>)> = Vec::with_capacity(batch_size);
-
-        //Splitting the Data into Batches which are sent to processing
-        for path_emb in path_embs {
-            batch_emb.push(path_emb);
-
-            if batch_emb.len() >= batch_size {
-                if let Err(e) = sender.send(std::mem::replace(
-                    &mut batch_emb,
-                    Vec::with_capacity(batch_size),
-                )) {
-                    error!("Failed to send result: {}", e);
-                }
-            }
-        }
-
-        //Sending last Batch
-        if !batch_emb.is_empty() {
-            if let Err(e) = sender.send(batch_emb) {
-                error!("Receiving thread: drop: {}", e);
-            }
         }
     });
 
@@ -249,27 +250,27 @@ pub fn search_database(
     };
 
     // Checks if Model doesn't understand anything in search term
-    let mut num_results_embeddings = num_results_embeddings;
-    if tokens_indices.iter().all(|i| *i == 0) {
+    let mut num_results_embeddings: usize = num_results_embeddings;
+    if tokens_indices.iter().all(|i: &usize| *i == 0) {
         info!("Search Term isn't in Vocab");
         num_results_embeddings = 0;
     }
 
     // Transform the results into DirEntry's, sorts them and only give back the num_results_emb best results
-    let ret_emb_dir = return_entries(results_emb, num_results_embeddings);
+    let ret_emb_dir: Vec<DirEntry> = return_entries(results_emb, num_results_embeddings);
 
     // Transforms the results into FileDataFormatted, which the FrontEnd uses
-    let ret_emb = build_struct(ret_emb_dir);
+    let ret_emb: Vec<crate::file_information::FileDataFormatted> = build_struct(ret_emb_dir);
 
     // Adds the results embedding and levenshtein together
-    let ret = [ret_lev, ret_emb].concat();
+    let ret: Vec<crate::file_information::FileDataFormatted> = [ret_lev, ret_emb].concat();
 
     // Sends final results to FrontEnd
     if let Err(e) = state.handle.emit("search-finished", &ret) {
         error!("Failed to emit 'search-finished' (final): {}", e);
     }
     info!("embedding-finished {:?}", start_time.elapsed().as_millis());
-    info!("search took: {:?}", start_time.elapsed().as_millis());
+    println!("search took: {:?}", start_time.elapsed().as_millis());
 }
 
 /// Support Function for searching which only gives back the best results in the form of DirEntries
