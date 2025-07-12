@@ -138,7 +138,7 @@ pub fn create_database(
                             if batch.len() >= batch_size {
                                 if let Err(e) = tx.send(std::mem::replace(&mut batch, Vec::with_capacity(batch_size))) {
                                     error!("Failed to send batch: {e}");
-                                    return; // Stop walking if receiver is gone
+                                    // Stop walking if receiver is gone
                                 }
                             }
                         } else {
@@ -249,7 +249,7 @@ pub fn create_database(
                             file.file_type,
                             vec
                         ]) {
-                            error!("Could not insert file {:?}: {e}", file);
+                            error!("Could not insert file {file:?}: {e}");
                         }
                     }
                 }
@@ -259,7 +259,7 @@ pub fn create_database(
             }
         }
     }
-    if let Err(_) = file_walking_thread.join() {
+    if file_walking_thread.join().is_err() {
         error!("Failed to join file walking thread.");
         return Err("Failed to join file walking thread.".to_string());
     }

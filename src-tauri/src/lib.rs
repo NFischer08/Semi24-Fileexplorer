@@ -40,31 +40,31 @@ fn setup_directory_structure() {
     ) {
         (false, _, _, _) => {
             if let Err(e) = create_dir(&data_dir) {
-                error!("Unable to create data directory: {}", e);
+                error!("Unable to create data directory: {e}");
             }
             if let Err(e) = create_dir(&model_dir) {
-                error!("Unable to create model directory: {}", e);
+                error!("Unable to create model directory: {e}");
             }
             if let Err(e) = create_dir(&config_dir) {
-                error!("Unable to create config directory: {}", e);
+                error!("Unable to create config directory: {e}");
             }
             if let Err(e) = create_dir(&tmp_dir) {
-                error!("Unable to create tmp directory: {}", e);
+                error!("Unable to create tmp directory: {e}");
             }
         }
         (true, false, _, _) => {
             if let Err(e) = create_dir(&model_dir) {
-                error!("Unable to create model directory: {}", e);
+                error!("Unable to create model directory: {e}");
             }
         }
         (true, _, false, _) => {
             if let Err(e) = create_dir(&config_dir) {
-                error!("Unable to create config directory: {}", e);
+                error!("Unable to create config directory: {e}");
             }
         }
         (true, _, _, false) => {
             if let Err(e) = create_dir(&tmp_dir) {
-                error!("Unable to create tmp directory: {}", e);
+                error!("Unable to create tmp directory: {e}");
             }
         }
         _ => {}
@@ -92,7 +92,7 @@ pub fn run() {
             tauri_plugin_log::Builder::new()
                 .target(tauri_plugin_log::Target::new(
                     tauri_plugin_log::TargetKind::Folder {
-                        path: std::path::PathBuf::from(CURRENT_DIR.clone()),
+                        path: CURRENT_DIR.clone(),
                         file_name: None,
                     },
                 ))
@@ -109,20 +109,20 @@ pub fn run() {
 
             let thread_pool_result = rayon::ThreadPoolBuilder::new()
                 .panic_handler(|err| {
-                    error!("A Rayon worker thread panicked: {:?}", err);
+                    error!("A Rayon worker thread panicked: {err:?}");
                 })
                 .num_threads(get_number_of_threads()) // Reserve one core for OS
                 .build_global();
 
             if let Err(e) = thread_pool_result {
-                error!("Couldn't build thread pool: {}", e);
+                error!("Couldn't build thread pool: {e}");
             }
 
             let paths_to_index = get_paths_to_index();
             thread::spawn(move || {
                 paths_to_index.par_iter().for_each(|path| {
                     if let Err(e) = manager_populate_database(path.clone()) {
-                        error!("Failed to populate database for {}: {}", path.display(), e);
+                        error!("Failed to populate database for {}: {e}", path.display());
                     }
                 });
             });
@@ -146,5 +146,5 @@ pub fn run() {
             get_css_settings,
         ])
         .run(tauri::generate_context!("tauri.conf.json"))
-        .unwrap_or_else(|e| error!("Error while running tauri application: {}", e));
+        .unwrap_or_else(|e| error!("Error while running tauri application: {e}"));
 }

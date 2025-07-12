@@ -43,7 +43,7 @@ pub fn start_file_watcher() {
         let conn = match connection_pool.get() {
             Ok(conn) => conn,
             Err(e) => {
-                warn!("Failed to get connection from pool: {}", e);
+                warn!("Failed to get connection from pool: {e}");
                 continue;
             }
         };
@@ -76,7 +76,7 @@ pub fn watch_folder(
     let mut watcher = match recommended_watcher(sender) {
         Ok(w) => w,
         Err(e) => {
-            error!("Couldn't create watcher: {}", e);
+            error!("Couldn't create watcher: {e}");
             return;
         }
     };
@@ -84,8 +84,7 @@ pub fn watch_folder(
     // Start watching the specified path and log error if an error occurs
     if let Err(e) = watcher.watch(&watch_path, RecursiveMode::Recursive) {
         warn!(
-            "Warning: Couldn't watch child path of {:?}: {}",
-            watch_path, e
+            "Warning: Couldn't watch child path of {watch_path:?}: {e}"
         ); // If this happens, we may have a problem, but if it panics here, we have an even bigger problem
     }
 
@@ -147,7 +146,7 @@ pub fn watch_folder(
                                     // Other cases should not occur / are not of interest since they mean something don't go as planned
                                     // Cap on Linux creating txt files is other
                                     _ => {
-                                        warn!("Something else {:?}, ({:?})", file_path, mode)
+                                        warn!("Something else {file_path:?}, ({mode:?})")
                                     }
                                 }
                             }
@@ -156,23 +155,23 @@ pub fn watch_folder(
                     }
                 }
             }
-            Err(e) => error!("watch error: {:?}", e),
+            Err(e) => error!("watch error: {e:?}"),
         }
     }
     info!("File watcher stopped");
 }
 
 /// gets all elements from a given folder
-pub fn get_elements_in_dir(parent_path: &PathBuf) -> Result<HashSet<PathBuf>, ()> {
+pub fn get_elements_in_dir(parent_path: &PathBuf) -> Result<HashSet<PathBuf>, Box<dyn std::error::Error>> {
     // get all entries from the parent folder
-    let entries = fs::read_dir(parent_path).map_err(|_| ())?;
+    let entries = fs::read_dir(parent_path)?;
     Ok(entries
         .into_iter()
         .filter(|entry| entry.is_ok())
         .map(|entry| match entry {
             Ok(e) => e.path(),
             Err(e) => {
-                error!("Failed to read entry in get_elements_in_dir: {}", e);
+                error!("Failed to read entry in get_elements_in_dir: {e}");
                 PathBuf::new()
             }
         })

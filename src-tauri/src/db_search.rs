@@ -69,7 +69,7 @@ pub fn search_database(
         .map(|s| s.to_string())
         .collect();
 
-    info!("search file type: {:?}", search_file_types);
+    info!("search file type: {search_file_types:?}");
 
     // Logic for making search with multiple types possible
     let sql_stmt: String = if search_file_types_vec.is_empty() {
@@ -90,9 +90,8 @@ pub fn search_database(
             SELECT file_path, name_embeddings
             FROM files
             WHERE file_path LIKE ?1
-            AND file_type IN ({})
-            "#,
-            placeholders
+            AND file_type IN ({placeholders})
+            "#
         )
     };
 
@@ -237,7 +236,7 @@ pub fn search_database(
         .collect();
 
     if let Err(e) = query_thread.join() {
-        error!("Query thread panicked: {:?}", e);
+        error!("Query thread panicked: {e:?}");
     }
 
     let tokenized_file_name = tokenize_file_name(search_term);

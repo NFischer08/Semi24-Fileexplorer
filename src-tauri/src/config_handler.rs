@@ -34,7 +34,7 @@ pub static EMBEDDING_DIMENSIONS: OnceLock<usize> = OnceLock::new();
 // This should stay Lazy because it ensures that it can be used at all time
 pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     env::current_dir().and_then(absolute).unwrap_or_else(|e| {
-        error!("Failed to resolve absolute path: {}", e);
+        error!("Failed to resolve absolute path: {e}");
         PathBuf::from(".") // fallback to the current directory
     })
 });
@@ -165,13 +165,13 @@ pub fn build_config<T: serde::Serialize>(path: &PathBuf, settings: &T) -> bool {
     let json = match serde_json::to_string_pretty(&settings) {
         Ok(json) => json,
         Err(e) => {
-            error!("Failed to serialize settings to JSON: {}", e);
+            error!("Failed to serialize settings to JSON: {e}");
             return false;
         }
     };
 
     if fs::write(path, json).is_err() {
-        error!("Failed to write config file at {:?}", path);
+        error!("Failed to write config file at {path:?}");
         return false;
     }
     true
@@ -183,7 +183,7 @@ fn read_config(config_path: &PathBuf) -> Result<String, ()> {
     let mut file = match File::open(config_path) {
         Ok(file) => file,
         Err(e) => {
-            error!("Failed to open config file {:?}: {}", config_path, e);
+            error!("Failed to open config file {config_path:?}: {e}");
             return Err(());
         }
     };
@@ -193,11 +193,11 @@ fn read_config(config_path: &PathBuf) -> Result<String, ()> {
     match file.read_to_string(&mut contents) {
         Ok(_) => (),
         Err(e) => {
-            error!("Failed to read config file {:?}: {}", config_path, e);
+            error!("Failed to read config file {config_path:?}: {e}");
             return Err(());
         }
     }
-    info!("Successfully read config file {:?}", config_path);
+    info!("Successfully read config file {config_path:?}");
     Ok(contents)
 }
 
@@ -267,7 +267,7 @@ pub fn initialize_config() {
                     }
                 }
                 Err(e) => {
-                    warn!("Fehler beim Verarbeiten der Konfiguration ({}), es werden für manche Variablen Standardwerte verwendet.", e);
+                    warn!("Fehler beim Verarbeiten der Konfiguration ({e}), es werden für manche Variablen Standardwerte verwendet.");
                     default_settings
                 }
             }
@@ -280,67 +280,67 @@ pub fn initialize_config() {
 
     // set every constant, if something fails, the whole program immediately stops executing due to panicking
     if let Err(e) = FAVOURITE_FILE_EXTENSIONS.set(config.favourite_extensions) {
-        error!("Konnte favourite extensions nicht setzen: {:?}", e);
+        error!("Konnte favourite extensions nicht setzen: {e:?}");
     }
 
     if let Err(e) = ALLOWED_FILE_EXTENSIONS.set(config.allowed_extensions) {
-        error!("Konnte allowed extensions nicht setzen: {:?}", e);
+        error!("Konnte allowed extensions nicht setzen: {e:?}");
     }
 
     if let Err(e) = COPY_MODE.set(config.copy_mode) {
-        error!("Konnte copy mode nicht setzen: {:?}", e);
+        error!("Konnte copy mode nicht setzen: {e:?}");
     }
 
     if let Err(e) = NUMBER_RESULTS_EMBEDDING.set(config.number_results_embedding) {
-        error!("Konnte number_results_embedding nicht setzen: {:?}", e);
+        error!("Konnte number_results_embedding nicht setzen: {e:?}");
     }
 
     if let Err(e) = NUMBER_RESULTS_LEVENSHTEIN.set(config.number_results_levenshtein) {
-        error!("Konnte number_results_levenshtein nicht setzen: {:?}", e);
+        error!("Konnte number_results_levenshtein nicht setzen: {e:?}");
     }
 
     if let Err(e) = PATHS_TO_INDEX.set(config.paths_to_index) {
-        error!("Konnte paths_to_index nicht setzen: {:?}", e);
+        error!("Konnte paths_to_index nicht setzen: {e:?}");
     }
 
     if let Err(e) = INDEX_HIDDEN_FILES.set(config.index_hidden_files) {
-        error!("Konnte index_hidden_files nicht setzen: {:?}", e);
+        error!("Konnte index_hidden_files nicht setzen: {e:?}");
     }
 
     if let Err(e) = INDEX_DIRECTORIES.set(config.index_directories) {
-        error!("Konnte index_directories nicht setzen: {:?}", e);
+        error!("Konnte index_directories nicht setzen: {e:?}");
     }
 
     if let Err(e) = INDEX_BINARIES.set(config.index_binaries) {
-        error!("Konnte index_binaries nicht setzen: {:?}", e);
+        error!("Konnte index_binaries nicht setzen: {e:?}");
     }
 
     if let Err(e) = CREATE_BATCH_SIZE.set(config.create_batch_size) {
-        error!("Konnte create_batch_size nicht setzen: {:?}", e);
+        error!("Konnte create_batch_size nicht setzen: {e:?}");
     }
 
     if let Err(e) = SEARCH_BATCH_SIZE.set(config.search_batch_size) {
-        error!("Konnte search_batch_size nicht setzen: {:?}", e);
+        error!("Konnte search_batch_size nicht setzen: {e:?}");
     }
 
     if let Err(e) = NUMBER_OF_THREADS.set(config.number_of_threads) {
-        error!("Konnte number_of_threads nicht setzen: {:?}", e);
+        error!("Konnte number_of_threads nicht setzen: {e:?}");
     }
 
     if let Err(e) = PATHS_TO_IGNORE.set(config.paths_to_ignore) {
-        error!("Konnte paths_to_ignore nicht setzen: {:?}", e);
+        error!("Konnte paths_to_ignore nicht setzen: {e:?}");
     }
 
     if let Err(e) = PATH_TO_WEIGHTS.set(config.path_to_weights) {
-        error!("Konnte path_to_weights nicht setzen: {:?}", e);
+        error!("Konnte path_to_weights nicht setzen: {e:?}");
     }
 
     if let Err(e) = PATH_TO_VOCAB.set(config.path_to_vocab) {
-        error!("Konnte path_to_vocab nicht setzen: {:?}", e);
+        error!("Konnte path_to_vocab nicht setzen: {e:?}");
     }
 
     if let Err(e) = EMBEDDING_DIMENSIONS.set(config.embedding_dimensions) {
-        error!("Konnte embedding_dimensions nicht setzen: {:?}", e);
+        error!("Konnte embedding_dimensions nicht setzen: {e:?}");
     }
 }
 
@@ -487,7 +487,7 @@ pub fn get_css_settings() -> ColorConfig {
     // read its contents and parse it to the struct, or use the default values
     match read_config(&path) {
         Ok(config) => serde_json::from_str(&config).unwrap_or_else(|e| {
-            warn!("Failed to parse color-config.json: {}", e);
+            warn!("Failed to parse color-config.json: {e}");
             ColorConfig::default()
         }),
         Err(_) => ColorConfig::default(),
@@ -496,8 +496,7 @@ pub fn get_css_settings() -> ColorConfig {
 
 fn print_warning(var: &str) {
     warn!(
-        "Die Variable '{}' konnte nicht gelesen werden, es wird auf den Standardwert zurückgegriffen.",
-        var
+        "Die Variable '{var}' konnte nicht gelesen werden, es wird auf den Standardwert zurückgegriffen."
     );
 }
 

@@ -91,11 +91,11 @@ pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnection
     }
 
     if let Err(e) = pooled_connection.pragma_update(None, "synchronous", "NORMAL") {
-        error!("synchronous konnte nicht gesetzt werden: {}", e);
+        error!("synchronous konnte nicht gesetzt werden: {e}");
     }
 
     if let Err(e) = pooled_connection.pragma_update(None, "wal_autocheckpoint", "10000") {
-        error!("wal_autocheckpoint konnte nicht gesetzt werden: {}", e);
+        error!("wal_autocheckpoint konnte nicht gesetzt werden: {e}");
     }
 
     if let Err(e) = pooled_connection.execute(
@@ -108,14 +108,14 @@ pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnection
         )",
         (),
     ) {
-        error!("Could not create database: {}", e);
+        error!("Could not create database: {e}");
     }
 
     if let Err(e) = pooled_connection.execute(
         "CREATE INDEX IF NOT EXISTS idx_file_path ON files (file_path)",
         [],
     ) {
-        error!("Indexing failed: {}", e);
+        error!("Indexing failed: {e}");
     }
 }
 
@@ -158,12 +158,12 @@ pub fn load_vocab(path: &PathBuf) -> HashMap<String, usize> {
     let vocab_json = match fs::read_to_string(path) {
         Ok(s) => s,
         Err(e) => {
-            error!("Failed to read vocab file: {}", e);
+            error!("Failed to read vocab file: {e}");
             return HashMap::new();
         }
     };
     serde_json::from_str(&vocab_json).unwrap_or_else(|e| {
-        error!("Failed to parse vocab JSON: {}", e);
+        error!("Failed to parse vocab JSON: {e}");
         HashMap::new()
     })
 }
@@ -200,29 +200,26 @@ pub fn bytes_to_vec(bytes: &[u8]) -> Vec<f32> {
 pub fn check_folder(
     path: PathBuf,
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
-) -> Result<(), ()> {
+) -> Result<(), Box<dyn std::error::Error>> {
     // read currently existing files in dir
-    let mut current_files: HashSet<PathBuf> = match get_elements_in_dir(&path) {
-        Ok(paths) => paths,
-        Err(_) => return Err(()),
-    };
+    let mut current_files: HashSet<PathBuf> = get_elements_in_dir(&path)?;
 
     // read currently existing files in db for that dir
-    let pattern = format!("{}%", path.to_str().unwrap().replace("\\", "/"));
+    let pattern = format!("{path}%", path = path.to_str().unwrap().replace("\\", "/"));
     let mut stmt =
         match pooled_connection.prepare("SELECT file_path FROM files WHERE file_path LIKE ?1") {
             Ok(stmt) => stmt,
             Err(e) => {
-                error!("Failed to prepare statement: {}", e);
-                return Err(());
+                error!("Failed to prepare statement: {e}");
+                return Err(Box::new(e));
             }
         };
 
     let paths_iter = match stmt.query_map(params![pattern], |row| row.get::<_, String>(0)) {
         Ok(iter) => iter,
         Err(e) => {
-            error!("Failed to get file paths: {}", e);
-            return Err(());
+            error!("Failed to get file paths: {e}");
+            return Err(Box::new(e));
         }
     };
 
@@ -259,11 +256,11 @@ pub fn check_folder(
 
     // files which are still in the db but don't exist anymore need to be removed
     for file in db_files {
-        let pattern = format!("{}%", file.to_str().unwrap().replace("\\", "/"));
+        let pattern = format!("{file}%", file = file.to_str().unwrap().replace("\\", "/"));
         if let Err(e) =
             pooled_connection.execute("DELETE FROM files WHERE file_path LIKE ?1", (pattern,))
         {
-            error!("Failed to execute statement: {}", e);
+            error!("Failed to execute statement: {e}");
         }
     }
 
@@ -284,12 +281,12 @@ pub fn delete_from_db(
     }
 
      */
-    let like_pattern = format!("{}%", path_str);
+    let like_pattern = format!("{path_str}%");
 
     if let Err(e) =
         pooled_connection.execute("DELETE FROM files WHERE file_path LIKE ?", (like_pattern,))
     {
-        error!("Couldn't delete file in pooled connection: {}", e);
+        error!("Couldn't delete file in pooled connection: {e}");
     }
 }
 
@@ -321,7 +318,7 @@ pub fn insert_into_db(
         "INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)",
         (name, path, file_type, embedding),
     ) {
-        error!("Couldn't insert file in pooled connection: {}", e);
+        error!("Couldn't insert file in pooled connection: {e}");
     }
 }
 
