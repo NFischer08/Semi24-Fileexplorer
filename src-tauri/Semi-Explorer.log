@@ -1,0 +1,11 @@
+[2025-05-25][13:36:12][file_explorer_lib::config_handler][WARN] Error when reading config.json: Using default values.
+[2025-05-25][13:39:18][file_explorer_lib::config_handler][WARN] Error when reading config.json: Using default values.
+[2025-05-25][15:28:53][file_explorer_lib::config_handler][WARN] Error when reading config.json: Using default values.
+[2025-05-25][15:35:00][file_explorer_lib::config_handler][WARN] Error when reading config.json: Using default values.
+[2025-05-25][15:36:05][tao::platform_impl::platform::event_loop::runner][WARN] NewEvents emitted without explicit RedrawEventsCleared
+[2025-05-25][15:36:05][tao::platform_impl::platform::event_loop::runner][WARN] RedrawEventsCleared emitted without explicit MainEventsCleared
+[2025-05-25][15:36:32][tao::platform_impl::platform::event_loop::runner][WARN] NewEvents emitted without explicit RedrawEventsCleared
+[2025-05-25][15:36:32][tao::platform_impl::platform::event_loop::runner][WARN] RedrawEventsCleared emitted without explicit MainEventsCleared
+[2025-05-26][15:30:06][file_explorer_lib::config_handler][WARN] Error when reading config.json: Using default values.
+[2025-05-26][15:33:20][file_explorer_lib::config_handler][WARN] Error when reading config.json: Using default values: missing field `index_directories` at line 30 column 1
+[2025-05-26][15:34:12][file_explorer_lib][WARN] Config file didn't exist, created new one
