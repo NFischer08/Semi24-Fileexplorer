@@ -35,7 +35,7 @@ pub fn create_database(
             let connection = match connection_pool.get() {
                 Ok(conn) => conn,
                 Err(e) => {
-                    error!("Unable to get connection from pool: {}", e);
+                    error!("Unable to get connection from pool: {e}");
                     return existing_files;
                 }
             };
@@ -43,25 +43,25 @@ pub fn create_database(
             {
                 Ok(stmt) => stmt,
                 Err(e) => {
-                    error!("Failed to prepare statement: {}", e);
+                    error!("Failed to prepare statement: {e}");
                     return existing_files;
                 }
             };
             let rows = match stmt.query_map([], |row| {
                 Ok((
                     row.get::<_, String>(0).unwrap_or_else(|e| {
-                        error!("Problem with row_get: {}", e);
+                        error!("Problem with row_get: {e}");
                         String::new()
                     }),
                     row.get::<_, String>(1).unwrap_or_else(|e| {
-                        error!("Rows failed: {}", e);
+                        error!("Rows failed: {e}");
                         String::new()
                     }),
                 ))
             }) {
                 Ok(rows) => rows,
                 Err(e) => {
-                    error!("Failed to query result: {}", e);
+                    error!("Failed to query result: {e}");
                     return existing_files;
                 }
             };
@@ -85,14 +85,14 @@ pub fn create_database(
     let conn = match connection_pool.get() {
         Ok(conn) => conn,
         Err(e) => {
-            error!("Could not get connection from pool: {}", e);
+            error!("Could not get connection from pool: {e}");
             return Err("Could not get connection from pool".to_string());
         }
     };
 
     // Activating Write Ahead Logging, which enables reading and writing at the same time, it should theoretically already be enabled but to be safe
     if let Err(e) = conn.execute_batch("PRAGMA journal_mode = WAL") {
-        error!("Could not enable WAL: {}", e);
+        error!("Could not enable WAL: {e}");
         return Err("Could not enable WAL".to_string());
     }
 
@@ -136,8 +136,9 @@ pub fn create_database(
                             // Sends Batch as soon as it's Batch_Size or higher
                             batch.push(file);
                             if batch.len() >= batch_size {
-                                if let Err(e) = tx.send(std::mem::take(&mut batch)) {
-                                    error!("Failed to send batch: {}", e);
+                                if let Err(e) = tx.send(std::mem::replace(&mut batch, Vec::with_capacity(batch_size))) {
+                                    error!("Failed to send batch: {e}");
+                                    return; // Stop walking if receiver is gone
                                 }
                             }
                         } else {
@@ -153,7 +154,7 @@ pub fn create_database(
         // Sends the last Batch
         if !batch.is_empty() {
             if let Err(e) = tx.send(batch) {
-                error!("Failed to send final batch: {}", e);
+                error!("Failed to send final batch: {e}");
             }
         }
     });
@@ -181,14 +182,14 @@ pub fn create_database(
             let mut connection = match connection_pool.get() {
                 Ok(conn) => conn,
                 Err(e) => {
-                    error!("Unable to get connection from pool: {}", e);
+                    error!("Unable to get connection from pool: {e}");
                     continue;
                 }
             };
             let transaction = match connection.transaction() {
                 Ok(tx) => tx,
                 Err(e) => {
-                    error!("Unable to create transaction: {}", e);
+                    error!("Unable to create transaction: {e}");
                     continue;
                 }
             };
@@ -198,7 +199,7 @@ pub fn create_database(
                 let mut insert_stmt = match transaction.prepare("INSERT INTO files (file_name, file_path, file_type, name_embeddings) VALUES (?, ?, ?, ?)") {
                     Ok(stmt) => stmt,
                     Err(e) => {
-                        error!("Failed to prepare insertion file: {}", e);
+                        error!("Failed to prepare insertion file: {e}");
                         continue;
                     }
                 };
@@ -222,7 +223,7 @@ pub fn create_database(
                     ) {
                         Ok(arr) => arr,
                         Err(e) => {
-                            error!("Shape mismatch in embedding: {}", e);
+                            error!("Shape mismatch in embedding: {e}");
                             continue;
                         }
                     }
@@ -248,13 +249,13 @@ pub fn create_database(
                             file.file_type,
                             vec
                         ]) {
-                            error!("Could not insert file {:?}: {}", file, e);
+                            error!("Could not insert file {:?}: {e}", file);
                         }
                     }
                 }
             }
             if let Err(e) = transaction.commit() {
-                error!("Unable to commit transaction: {}", e);
+                error!("Unable to commit transaction: {e}");
             }
         }
     }

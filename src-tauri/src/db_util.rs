@@ -87,7 +87,7 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
 /// Generates the Database if it doesn't already exist and makes sure that path is indexed
 pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnectionManager>) {
     if let Err(e) = pooled_connection.pragma_update(None, "journal_mode", "WAL") {
-        error!("journal_mode konnte nicht gesetzt werden: {}", e);
+        error!("journal_mode konnte nicht gesetzt werden: {e}");
     }
 
     if let Err(e) = pooled_connection.pragma_update(None, "synchronous", "NORMAL") {

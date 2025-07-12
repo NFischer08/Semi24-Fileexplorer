@@ -7,7 +7,7 @@ use crate::db_search::search_database;
 use crate::db_util::{initialize_database, load_vocab};
 use crate::file_information::{get_file_information, FileData, FileDataFormatted};
 use bytemuck::cast_slice;
-use log::{error, info, warn};
+use log::{error, info};
 use ndarray::Array2;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
@@ -36,7 +36,7 @@ pub fn initialize_globals() {
         let weights_bytes: Vec<u8> = match fs::read(get_path_to_weights()) {
             Ok(bytes) => bytes,
             Err(e) => {
-                error!("Could not read weights: {}", e);
+                error!("Could not read weights: {e}");
                 return Array2::zeros((0, 0));
             }
         };
@@ -51,7 +51,7 @@ pub fn initialize_globals() {
         match Array2::from_shape_vec((vocab_size, embedding_dim), weights_as_f32.to_vec()) {
             Ok(arr) => arr,
             Err(e) => {
-                error!("Shape mismatch in weights: {}", e);
+                error!("Shape mismatch in weights: {e}");
                 Array2::zeros((0, 0))
             }
         }
@@ -75,7 +75,7 @@ pub fn manager_make_connection_pool() -> Pool<SqliteConnectionManager> {
     let db_exists = match PathBuf::from(&path).try_exists() {
         Ok(exists) => exists,
         Err(e) => {
-            error!("Failed to check db dir existence: {}", e);
+            error!("Failed to check db dir existence: {e}");
             false
         }
     };
@@ -85,8 +85,8 @@ pub fn manager_make_connection_pool() -> Pool<SqliteConnectionManager> {
         let pool = match Pool::new(manager) {
             Ok(pool) => pool,
             Err(e) => {
-                error!("Failed to create pool: {}", e);
-                panic!("Failed to create pool: {}", e);
+                error!("Failed to create pool: {e}");
+                panic!("Failed to create pool: {e}");
             }
         };
         if let Ok(conn) = pool.get() {
@@ -97,15 +97,15 @@ pub fn manager_make_connection_pool() -> Pool<SqliteConnectionManager> {
         pool
     } else {
         if let Err(e) = create_dir(PathBuf::from(&path)) {
-            error!("Failed to create Dir: {}", e);
+            error!("Failed to create Dir: {e}");
         }
         path.push("files.sqlite3");
         let manager = SqliteConnectionManager::file(path);
         let pool = match Pool::new(manager) {
             Ok(pool) => pool,
             Err(e) => {
-                error!("Failed to create pool: {}", e);
-                panic!("Failed to create pool: {}", e);
+                error!("Failed to create pool: {e}");
+                panic!("Failed to create pool: {e}");
             }
         };
         if let Ok(conn) = pool.get() {
@@ -131,19 +131,19 @@ pub fn manager_populate_database(database_scan_start: PathBuf) -> Result<(), Str
     let pooled_connection = match connection_pool.get() {
         Ok(conn) => conn,
         Err(e) => {
-            error!("Failed to get pooled connection: {}", e);
+            error!("Failed to get pooled connection: {e}");
             return Err(e.to_string());
         }
     };
 
     if let Err(e) = pooled_connection.pragma_update(None, "journal_mode", "WAL") {
-        error!("journal_mode failed: {}", e);
+        error!("journal_mode failed: {e}");
     }
     if let Err(e) = pooled_connection.pragma_update(None, "synchronous", "NORMAL") {
-        error!("synchronous failed: {}", e);
+        error!("synchronous failed: {e}");
     }
     if let Err(e) = pooled_connection.pragma_update(None, "wal_autocheckpoint", "1000") {
-        error!("wal auto checkpoint failed: {}", e);
+        error!("wal auto checkpoint failed: {e}");
     }
 
     match create_database(connection_pool, database_scan_start) {

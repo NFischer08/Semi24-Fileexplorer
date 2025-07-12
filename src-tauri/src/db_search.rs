@@ -37,7 +37,7 @@ pub fn search_database(
     let pooled_connection = match connection_pool.get() {
         Ok(conn) => conn,
         Err(e) => {
-            error!("Failed to get connection pool: {}", e);
+            error!("Failed to get connection pool: {e}");
             return;
         }
     };
@@ -57,7 +57,7 @@ pub fn search_database(
         "CREATE INDEX IF NOT EXISTS idx_file_path ON files(file_path)",
         [],
     ) {
-        error!("Fehler beim Erstellen des Index 'idx_file_path': {}", e);
+        error!("Fehler beim Erstellen des Index 'idx_file_path': {e}");
     }
 
     //Making sure there are no Spaces in file_types and also accounting for "."
@@ -100,12 +100,11 @@ pub fn search_database(
     let (sender, receiver) = crossbeam_channel::bounded(batch_size * 2);
 
     //Creating a Thread that gets relevant Data from the Database, it already sorts for file_type and Path via the SQL Statement
-    let mut count_rows = 0;
     let query_thread = std::thread::spawn(move || {
         let mut pooled_connection = match connection_pool.get() {
             Ok(conn) => conn,
             Err(e) => {
-                error!("Failed to get connection: {}", e);
+                error!("Failed to get connection: {e}");
                 return;
             }
         };
@@ -113,12 +112,12 @@ pub fn search_database(
         let tx = match pooled_connection.transaction() {
             Ok(tx) => tx,
             Err(e) => {
-                error!("Failed to begin transaction: {}", e);
+                error!("Failed to begin transaction: {e}");
                 return;
             }
         };
 
-        let search_pattern = format!("{}%", search_path_str);
+        let search_pattern = format!("{search_path_str}%");
         let mut params: Vec<&dyn rusqlite::ToSql> =
             Vec::with_capacity(1 + search_file_types_vec.len());
         params.push(&search_pattern);
@@ -130,7 +129,7 @@ pub fn search_database(
             let mut stmt = match tx.prepare_cached(&sql_stmt) {
                 Ok(stmt) => stmt,
                 Err(e) => {
-                    error!("Failed to prepare statement: {}", e);
+                    error!("Failed to prepare statement: {e}");
                     return;
                 }
             };
@@ -143,7 +142,7 @@ pub fn search_database(
             }) {
                 Ok(mapped) => mapped,
                 Err(e) => {
-                    error!("Query execution failed: {}", e);
+                    error!("Query execution failed: {e}");
                     return;
                 }
             };
@@ -159,12 +158,12 @@ pub fn search_database(
                         batch_emb.push(path_emb);
                         if batch_emb.len() >= batch_size {
                             if let Err(e) = sender.send(std::mem::replace(&mut batch_emb, Vec::with_capacity(batch_size))) {
-                                error!("Failed to send result: {}", e);
+                                error!("Failed to send result: {e}");
                             }
                         }
                     }
                     Err(e) => {
-                        error!("Row error: {}", e);
+                        error!("Row error: {e}");
                     }
                 }
             }
@@ -172,7 +171,7 @@ pub fn search_database(
             // Send any remaining rows as the last batch
             if !batch_emb.is_empty() {
                 if let Err(e) = sender.send(batch_emb) {
-                    error!("Receiving thread: drop: {}", e);
+                    error!("Receiving thread: drop: {e}");
                 }
             }
             
@@ -183,14 +182,15 @@ pub fn search_database(
         };
 
         if let Err(e) = tx.commit() {
-            error!("Failed to commit transaction: {}", e);
+            error!("Failed to commit transaction: {e}");
         }
     });
 
     // Creating the Vec
     let embedded_vec_f32 = full_emb(search_term);
 
-    let mut search_query: Vec<(String, Vec<u8>)> = Vec::with_capacity(count_rows);
+    //TODO : Pre-allocate memory for search_query
+    let mut search_query: Vec<(String, Vec<u8>)> = Vec::new();
 
     // Computes the Levenshtein distance / similarity as well as builds up a Vec of every batch
     let results_lev: Vec<(String, f32)> = receiver
@@ -219,7 +219,7 @@ pub fn search_database(
 
     // Sends the result to the FrontEnd via a Tauri Signal
     if let Err(e) = state.handle.emit("search-finished", &ret_lev) {
-        error!("Failed to emit 'search-finished' (levenshtein): {}", e);
+        error!("Failed to emit 'search-finished' (levenshtein): {e}");
     }
     info!(
         "levenshtein-finished {:?}",
@@ -267,7 +267,7 @@ pub fn search_database(
 
     // Sends final results to FrontEnd
     if let Err(e) = state.handle.emit("search-finished", &ret) {
-        error!("Failed to emit 'search-finished' (final): {}", e);
+        error!("Failed to emit 'search-finished' (final): {e}");
     }
     info!("embedding-finished {:?}", start_time.elapsed().as_millis());
     println!("search took: {:?}", start_time.elapsed().as_millis());

@@ -1,6 +1,6 @@
 use crate::context_actions::clean_path;
 use chrono::{DateTime, Local, TimeZone};
-use log::{error, info, warn};
+use log::{error, warn};
 use std::{
     fs::{self, DirEntry},
     path::PathBuf,
@@ -59,7 +59,7 @@ impl FileData {
             let rounded_size = (size * 10.0).round() / 10.0;
 
             // Format the output
-            format!("{:.1} {}", rounded_size, unit)
+            format!("{rounded_size:.1} {unit}")
         };
         FileDataFormatted {
             name: self.name,
@@ -113,14 +113,14 @@ fn list_files_and_folders(filepath: String) -> Result<Vec<FileData>, String> {
                 match entry {
                     Ok(entry) => entries.push(get_file_information(&entry)),
                     Err(e) => {
-                        error!("Failed to read directory entry: {}", e);
+                        error!("Failed to read directory entry: {e}");
                         return Err(e.to_string());
                     }
                 }
             }
         }
         Err(e) => {
-            error!("Failed to read directory '{}': {}", path.display(), e);
+            error!("Failed to read directory '{}': {e}", path.display());
             return Err(e.to_string());
         }
     }
@@ -137,7 +137,7 @@ pub fn get_file_information(entry: &DirEntry) -> FileData {
     let metadata = match entry.metadata() {
         Ok(metadata) => metadata,
         Err(e) => {
-            warn!("Failed to get metadata for '{}': {}", path.display(), e);
+            warn!("Failed to get metadata for '{}': {e}", path.display());
             // if an Error occurs while catching metadata, the name gets return and the other values are set to the standard
             return FileData {
                 name: file_name,

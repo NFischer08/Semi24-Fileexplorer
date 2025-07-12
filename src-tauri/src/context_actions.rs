@@ -40,7 +40,7 @@ pub fn copy_file(filepath: String) -> Result<(), String> {
             let mut file = match fs::File::open(&source_path) {
                 Ok(file) => file,
                 Err(e) => {
-                    error!("Failed to open file '{}': {}", source_path.display(), e);
+                    error!("Failed to open file '{}': {e}", source_path.display());
                     return Err("Failed to open file.".to_string());
                 }
             };
@@ -50,7 +50,7 @@ pub fn copy_file(filepath: String) -> Result<(), String> {
             match file.read_to_string(&mut contents) {
                 Ok(_) => {}
                 Err(e) => {
-                    error!("Failed to read file '{}': {}", source_path.display(), e);
+                    error!("Failed to read file '{}': {e}", source_path.display());
                     return Err("Failed to read file.".to_string());
                 }
             };
@@ -59,7 +59,7 @@ pub fn copy_file(filepath: String) -> Result<(), String> {
             let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
                 Ok(ctx) => ctx,
                 Err(e) => {
-                    error!("Failed to access clipboard: {}", e);
+                    error!("Failed to access clipboard: {e}");
                     return Err("Failed to access clipboard.".to_string());
                 }
             };
@@ -73,7 +73,7 @@ pub fn copy_file(filepath: String) -> Result<(), String> {
                     );
                 }
                 Err(e) => {
-                    error!("Failed to copy to clipboard: {}", e);
+                    error!("Failed to copy to clipboard: {e}");
                     return Err("Failed to copy to clipboard.".to_string());
                 }
             };
@@ -83,13 +83,13 @@ pub fn copy_file(filepath: String) -> Result<(), String> {
             if copy_path.join("CONTENT").exists() {
                 if let Err(e) = delete_file(copy_path.join("CONTENT").to_string_lossy().to_string())
                 {
-                    error!("Failed to delete previous CONTENT: {}", e);
+                    error!("Failed to delete previous CONTENT: {e}");
                     return Err(e);
                 }
             }
             // copy a file or folder to paste it later
             if let Err(e) = copy_dir(&source_path, copy_path.join("CONTENT")) {
-                error!("Failed to copy dir/file: {}", e);
+                error!("Failed to copy dir/file: {e}");
                 return Err(e.to_string());
             }
         }
@@ -113,7 +113,7 @@ pub fn copy_file(filepath: String) -> Result<(), String> {
     {
         Ok(file) => file,
         Err(e) => {
-            error!("Failed to open copy.txt for writing: {}", e);
+            error!("Failed to open copy.txt for writing: {e}");
             return Err(e.to_string());
         }
     };
@@ -122,7 +122,7 @@ pub fn copy_file(filepath: String) -> Result<(), String> {
     match file.write(filename.as_ref()) {
         Ok(_) => {}
         Err(e) => {
-            error!("Failed to write filename to copy.txt: {}", e);
+            error!("Failed to write filename to copy.txt: {e}");
             return Err(e.to_string());
         }
     }
@@ -157,7 +157,7 @@ pub fn paste_file(destination: String) -> Result<(), String> {
     let file = match fs::File::open(copy_path.join("copy.txt")) {
         Ok(file) => file,
         Err(e) => {
-            error!("Failed to open copy.txt: {}", e);
+            error!("Failed to open copy.txt: {e}");
             return Err(e.to_string());
         }
     };
@@ -166,10 +166,7 @@ pub fn paste_file(destination: String) -> Result<(), String> {
     match reader.read_to_string(&mut filename) {
         Ok(_) => {}
         Err(e) => {
-            warn!(
-                "Failed to read filename from copy.txt: {}, using 'Unnamed'",
-                e
-            );
+            warn!("Failed to read filename from copy.txt: {e}, using 'Unnamed'");
             filename = String::from("Unnamed");
         }
     };
@@ -188,7 +185,7 @@ pub fn paste_file(destination: String) -> Result<(), String> {
             let mut clipboard: ClipboardContext = match ClipboardProvider::new() {
                 Ok(ctx) => ctx,
                 Err(e) => {
-                    error!("Failed to access clipboard: {}", e);
+                    error!("Failed to access clipboard: {e}");
                     return Err("Failed to access clipboard.".to_string());
                 }
             };
@@ -197,7 +194,7 @@ pub fn paste_file(destination: String) -> Result<(), String> {
             let contents = match clipboard.get_contents() {
                 Ok(contents) => contents,
                 Err(e) => {
-                    error!("Failed to read clipboard: {}", e);
+                    error!("Failed to read clipboard: {e}");
                     return Err("Failed to read clipboard.".to_string());
                 }
             };
@@ -206,7 +203,7 @@ pub fn paste_file(destination: String) -> Result<(), String> {
             let mut file = match fs::File::create(&dest_path) {
                 Ok(file) => file,
                 Err(e) => {
-                    error!("Failed to create file '{}': {}", dest_path.display(), e);
+                    error!("Failed to create file '{}': {e}", dest_path.display());
                     return Err(e.to_string());
                 }
             };
@@ -215,7 +212,7 @@ pub fn paste_file(destination: String) -> Result<(), String> {
             match file.write_all(contents.as_bytes()) {
                 Ok(_) => {}
                 Err(e) => {
-                    error!("Failed to write to file '{}': {}", dest_path.display(), e);
+                    error!("Failed to write to file '{}': {e}", dest_path.display());
                     return Err("Failed write to file!".to_string());
                 }
             }
@@ -263,19 +260,14 @@ pub fn rename_file(filepath: String, new_filename: &str) -> Result<(), String> {
 
     // Check if the new file already exists
     if new_filepath.exists() {
-        warn!(
-            "A file with the name '{}' already exists in the directory.",
-            new_filename
-        );
-        return Err(format!(
-            "A file with the name '{}' already exists in the directory.",
-            new_filename
-        ));
+        warn!("A file with the name '{new_filename}' already exists in the directory.");
+        return Err(format!("A file with the name '{new_filename}' already exists in the directory.")
+    );
     }
 
     // Rename the file
     fs::rename(&path, &new_filepath).map_err(|e| {
-        error!("Failed to rename file: {}", e);
+        error!("Failed to rename file: {e}");
         e.to_string()
     })?;
 
@@ -296,7 +288,7 @@ pub fn delete_file(filepath: String) -> Result<(), String> {
     // delete dir / file
     if path.is_dir() {
         fs::remove_dir_all(&path).map_err(|e| {
-            error!("Failed to remove directory '{}': {}", path.display(), e);
+            error!("Failed to remove directory '{}': {e}", path.display());
             e.to_string()
         })?;
         // get the connection pool from the manager
@@ -307,7 +299,7 @@ pub fn delete_file(filepath: String) -> Result<(), String> {
         }
     } else if path.is_file() {
         fs::remove_file(&path).map_err(|e| {
-            error!("Failed to remove file '{}': {}", path.display(), e);
+            error!("Failed to remove file '{}': {e}", path.display());
             e.to_string()
         })?;
     } else {
@@ -324,7 +316,7 @@ pub fn open_file(filepath: String) -> Result<(), String> {
     match open(path) {
         Ok(_) => Ok(()),
         Err(e) => {
-            error!("Failed to open file: {}", e);
+            error!("Failed to open file: {e}");
             Err(e.to_string())
         }
     }
