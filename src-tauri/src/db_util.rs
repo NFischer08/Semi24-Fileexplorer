@@ -162,13 +162,10 @@ pub fn load_vocab(path: &PathBuf) -> HashMap<String, usize> {
             return HashMap::new();
         }
     };
-    match serde_json::from_str(&vocab_json) {
-        Ok(vocab) => vocab,
-        Err(e) => {
-            error!("Failed to parse vocab JSON: {}", e);
-            HashMap::new()
-        }
-    }
+    serde_json::from_str(&vocab_json).unwrap_or_else(|e| {
+        error!("Failed to parse vocab JSON: {}", e);
+        HashMap::new()
+    })
 }
 
 /// Reads the correct Vecs from the weight's matrix depending on the indices
