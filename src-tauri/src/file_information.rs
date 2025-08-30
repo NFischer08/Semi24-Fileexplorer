@@ -6,7 +6,7 @@ use std::{
     path::PathBuf,
     time::SystemTime,
 };
-use tauri::command; // <-- Add logging macros
+use tauri::command;
 
 // custom enum to handle all possible file types
 #[derive(Debug)]
@@ -88,12 +88,12 @@ fn list_files_and_folders(filepath: String) -> Result<Vec<FileData>, String> {
 
     // Check if the path exists
     if !path.exists() {
-        return Err("The specified path does not exist.".into());
+        return Err(String::from("The specified path does not exist."));
     }
 
     // Check if the path is a directory
     if !path.is_dir() {
-        return Err("The specified path is not a directory.".into());
+        return Err(String::from("The specified path is not a directory."));
     }
 
     if !path.to_string_lossy().to_string().contains("/") {
@@ -101,7 +101,7 @@ fn list_files_and_folders(filepath: String) -> Result<Vec<FileData>, String> {
             "The specified path '{}' is not valid. Seems like you forgot a slash.",
             path.to_string_lossy()
         );
-        return Err("The specified path is not valid. Seems like you forgot a slash.".into());
+        return Err(String::from("The specified path is not valid. Seems like you forgot a slash."));
     }
 
     let mut entries: Vec<FileData> = Vec::new();
@@ -215,17 +215,8 @@ pub fn get_file_information(entry: &DirEntry) -> FileData {
 #[command]
 pub fn format_file_data(path: String) -> Result<Vec<FileDataFormatted>, String> {
     // gets the files from the current path
-    let files: Result<Vec<FileData>, String> = list_files_and_folders(path);
+    let files: Vec<FileData> = list_files_and_folders(path)?;
 
     // iterate through every file and format it, so js can work with it
-    match files {
-        Ok(files) => {
-            let mut formatted_files: Vec<FileDataFormatted> = Vec::new();
-            for file in files {
-                formatted_files.push(file.format());
-            }
-            Ok(formatted_files)
-        }
-        Err(error) => Err(error),
-    }
+    Ok(files.into_iter().map(|f| f.format()).collect())
 }

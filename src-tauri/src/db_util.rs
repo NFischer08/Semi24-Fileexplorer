@@ -37,9 +37,7 @@ pub struct Files {
 
 /// Converts "\\" into "/" so that Windows and Unix systems have the same path structure
 pub fn convert_to_forward_slashes(path: &Path) -> String {
-    path.to_str()
-        .map(|s| s.replace('\\', "/"))
-        .unwrap_or_default()
+    path.to_string_lossy().replace("\\", "/")
 }
 
 /// calculates the cosine similarity between two embeddings
