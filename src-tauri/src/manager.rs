@@ -13,7 +13,7 @@ use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use std::{
     collections::HashMap,
-    fs::{self, create_dir, DirEntry},
+    fs::{self, DirEntry},
     path::PathBuf,
     sync::OnceLock,
 };
@@ -26,6 +26,20 @@ pub struct AppState {
 
 pub static WEIGHTS: OnceLock<Array2<f32>> = OnceLock::new();
 pub static VOCAB: OnceLock<HashMap<String, usize>> = OnceLock::new();
+
+#[derive(Debug)]
+struct SqliteCustomizer;
+
+impl r2d2::CustomizeConnection<rusqlite::Connection, rusqlite::Error> for SqliteCustomizer {
+    fn on_acquire(&self, conn: &mut rusqlite::Connection) -> Result<(), rusqlite::Error> {
+        conn.execute_batch(
+            "PRAGMA mmap_size = 268435456;
+             PRAGMA cache_size = -64000;
+             PRAGMA synchronous = OFF;
+             PRAGMA journal_mode = WAL;",
+        )
+    }
+}
 
 /// Initializes VOCAB and WEIGHTS to be their respective files
 pub fn initialize_globals() {
@@ -72,49 +86,18 @@ pub fn build_struct(entries: Vec<DirEntry>) -> Vec<FileDataFormatted> {
 pub fn manager_make_connection_pool() -> Pool<SqliteConnectionManager> {
     let mut path = CURRENT_DIR.clone();
     path.push("data/db");
-    let db_exists = match PathBuf::from(&path).try_exists() {
-        Ok(exists) => exists,
-        Err(e) => {
-            error!("Failed to check db dir existence: {e}");
-            false
-        }
-    };
-    if db_exists {
-        path.push("files.sqlite3");
-        let manager = SqliteConnectionManager::file(path);
-        let pool = match Pool::new(manager) {
-            Ok(pool) => pool,
-            Err(e) => {
-                error!("Failed to create pool: {e}");
-                panic!("Failed to create pool: {e}");
-            }
-        };
-        if let Ok(conn) = pool.get() {
-            initialize_database(&conn);
-        } else {
-            error!("Initializing failed: could not get connection from pool");
-        }
-        pool
-    } else {
-        if let Err(e) = create_dir(PathBuf::from(&path)) {
-            error!("Failed to create Dir: {e}");
-        }
-        path.push("files.sqlite3");
-        let manager = SqliteConnectionManager::file(path);
-        let pool = match Pool::new(manager) {
-            Ok(pool) => pool,
-            Err(e) => {
-                error!("Failed to create pool: {e}");
-                panic!("Failed to create pool: {e}");
-            }
-        };
-        if let Ok(conn) = pool.get() {
-            initialize_database(&conn);
-        } else {
-            error!("Initializing failed: could not get connection from pool");
-        }
-        pool
+
+    if !path.exists() {
+        let _ = fs::create_dir_all(&path);
     }
+
+    path.push("files.sqlite3");
+    let manager = SqliteConnectionManager::file(path);
+
+    Pool::builder()
+        .connection_customizer(Box::new(SqliteCustomizer))
+        .build(manager)
+        .expect("Failed to create pool")
 }
 
 /// Populates the database with the files which are under the Path given

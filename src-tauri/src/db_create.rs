@@ -136,7 +136,10 @@ pub fn create_database(
                             // Sends Batch as soon as it's Batch_Size or higher
                             batch.push(file);
                             if batch.len() >= batch_size {
-                                if let Err(e) = tx.send(std::mem::replace(&mut batch, Vec::with_capacity(batch_size))) {
+                                if let Err(e) = tx.send(std::mem::replace(
+                                    &mut batch,
+                                    Vec::with_capacity(batch_size),
+                                )) {
                                     error!("Failed to send batch: {e}");
                                     // Stop walking if receiver is gone
                                 }

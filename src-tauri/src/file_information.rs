@@ -27,11 +27,11 @@ pub struct FileData {
 
 #[derive(Debug, serde::Serialize, Clone)]
 pub struct FileDataFormatted {
-    name: String,
-    path: String,
-    last_modified: String,
-    file_type: String,
-    size: String,
+    pub(crate) name: String,
+    pub(crate) path: String,
+    pub(crate) last_modified: String,
+    pub(crate) file_type: String,
+    pub(crate) size: String,
 }
 
 impl FileData {

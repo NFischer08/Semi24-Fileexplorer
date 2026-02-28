@@ -83,9 +83,7 @@ pub fn watch_folder(
 
     // Start watching the specified path and log error if an error occurs
     if let Err(e) = watcher.watch(&watch_path, RecursiveMode::Recursive) {
-        warn!(
-            "Warning: Couldn't watch child path of {watch_path:?}: {e}"
-        ); // If this happens, we may have a problem, but if it panics here, we have an even bigger problem
+        warn!("Warning: Couldn't watch child path of {watch_path:?}: {e}"); // If this happens, we may have a problem, but if it panics here, we have an even bigger problem
     }
 
     // Loop to receive events from the channel
@@ -162,7 +160,9 @@ pub fn watch_folder(
 }
 
 /// gets all elements from a given folder
-pub fn get_elements_in_dir(parent_path: &PathBuf) -> Result<HashSet<PathBuf>, Box<dyn std::error::Error>> {
+pub fn get_elements_in_dir(
+    parent_path: &PathBuf,
+) -> Result<HashSet<PathBuf>, Box<dyn std::error::Error>> {
     // get all entries from the parent folder
     let entries = fs::read_dir(parent_path)?;
     Ok(entries

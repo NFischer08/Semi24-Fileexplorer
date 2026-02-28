@@ -261,8 +261,9 @@ pub fn rename_file(filepath: String, new_filename: &str) -> Result<(), String> {
     // Check if the new file already exists
     if new_filepath.exists() {
         warn!("A file with the name '{new_filename}' already exists in the directory.");
-        return Err(format!("A file with the name '{new_filename}' already exists in the directory.")
-    );
+        return Err(format!(
+            "A file with the name '{new_filename}' already exists in the directory."
+        ));
     }
 
     // Rename the file
