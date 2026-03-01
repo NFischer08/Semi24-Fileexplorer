@@ -1,4 +1,7 @@
-use crate::config_handler::{get_allowed_file_extensions, get_create_batch_size, get_embedding_dimensions, get_path_to_weights};
+use crate::config_handler::{
+    get_allowed_file_extensions, get_create_batch_size, get_embedding_dimensions,
+    get_path_to_weights,
+};
 use crate::db_util::{convert_to_forward_slashes, full_emb, is_allowed_file, Files};
 use jwalk::WalkDir;
 use log::{error, info, warn};
@@ -266,11 +269,11 @@ pub fn create_database(
                     let file = &file_data.0;
                     if let Some(vec) = embeddings_u8.get(c) {
                         if let Err(e) = insert_stmt.execute(params![
-                        file.file_name,
-                        file.file_path,
-                        file.file_type,
-                        vec
-                    ]) {
+                            file.file_name,
+                            file.file_path,
+                            file.file_type,
+                            vec
+                        ]) {
                             error!("Could not insert file {file:?}: {e}");
                         }
                     }

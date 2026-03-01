@@ -54,13 +54,21 @@ pub fn initialize_globals() {
             Vec::new()
         });
 
-        if weights_bytes.is_empty() { return Array2::zeros((0, 0)); }
+        if weights_bytes.is_empty() {
+            return Array2::zeros((0, 0));
+        }
 
         let weights_f32: Vec<f32> = if filename.contains("_Q8") {
             let scale = crate::config_handler::get_q8_scale();
-            weights_bytes.iter().map(|&b| (b as i8 as f32) * (scale / 127.0)).collect()
+            weights_bytes
+                .iter()
+                .map(|&b| (b as i8 as f32) * (scale / 127.0))
+                .collect()
         } else if filename.contains("_Q16") {
-            cast_slice::<u8, half::f16>(&weights_bytes).iter().map(|f| f.to_f32()).collect()
+            cast_slice::<u8, half::f16>(&weights_bytes)
+                .iter()
+                .map(|f| f.to_f32())
+                .collect()
         } else {
             cast_slice::<u8, f32>(&weights_bytes).to_vec()
         };
@@ -80,11 +88,10 @@ pub fn initialize_globals() {
         let vocab_size = total_elements / embedding_dim;
         info!("Model Loaded: Vocab={}, Dim={}", vocab_size, embedding_dim);
 
-        Array2::from_shape_vec((vocab_size, embedding_dim), weights_f32)
-            .unwrap_or_else(|e| {
-                error!("Shape error: {e}");
-                Array2::zeros((0, 0))
-            })
+        Array2::from_shape_vec((vocab_size, embedding_dim), weights_f32).unwrap_or_else(|e| {
+            error!("Shape error: {e}");
+            Array2::zeros((0, 0))
+        })
     });
 
     VOCAB.get_or_init(|| load_vocab(&get_path_to_vocab()));

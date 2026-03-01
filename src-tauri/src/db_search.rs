@@ -1,15 +1,13 @@
 use crate::config_handler::{get_search_batch_size, EMBEDDING_DIMENSIONS};
-use crate::db_util::{cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices,
-};
+use crate::db_util::{cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices};
 use crate::file_information::FileDataFormatted;
-use crate::manager::{AppState, VOCAB,
-};
+use crate::manager::{AppState, VOCAB};
 use log::{error, info};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
+use rayon::iter::ParallelBridge;
 use rayon::iter::ParallelIterator;
-use rayon::iter::{ParallelBridge};
-use rayon::prelude::{ParallelSliceMut};
+use rayon::prelude::ParallelSliceMut;
 use std::cmp::Ordering;
 use std::iter::repeat_n;
 use std::sync::Arc;
@@ -30,7 +28,6 @@ pub struct FlatBatch {
 
 /// Searches for similar File names in the Database via Levenshtein and a custom skip-gram model,
 /// it uses connection_pool, search_term, search_path, search_file_type, num_results_lev, num_results_emb and state
-
 #[tauri::command]
 pub fn search_database(
     connection_pool: Pool<SqliteConnectionManager>,

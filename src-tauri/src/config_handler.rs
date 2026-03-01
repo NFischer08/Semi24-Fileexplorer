@@ -96,9 +96,9 @@ impl Default for Settings {
             "gif", "mp3", "wav", "mp4", "avi", "mov", "mkv", "zip", "rar", "7z", "tar", "gz",
             "html", "css", "js", "py", "java", "c", "cpp", "rs", "json", "xml", "sql", "log",
         ]
-            .iter()
-            .map(|&s| String::from(s))
-            .collect();
+        .iter()
+        .map(|&s| String::from(s))
+        .collect();
 
         let favourite_extensions: HashMap<String, String> = [
             ("Images", "png,jpg,jpeg,gif"),
@@ -109,16 +109,16 @@ impl Default for Settings {
                 "c,cpp,cs,java,js,html,css,php,py,rs,sh,swift,ts,xml",
             ),
         ]
-            .iter()
-            .map(|&(key, value)| (String::from(key), String::from(value)))
-            .collect();
+        .iter()
+        .map(|&(key, value)| (String::from(key), String::from(value)))
+        .collect();
 
         Settings {
             allowed_extensions,
             favourite_extensions,
             copy_mode: CopyMode::File,
-            number_results_levenshtein: 15,
-            number_results_embedding: 25,
+            number_results_levenshtein: 5,
+            number_results_embedding: 5,
             paths_to_index: default_paths_to_index(),
             index_hidden_files: false,
             index_directories: true,
@@ -127,10 +127,10 @@ impl Default for Settings {
             search_batch_size: 2500,
             number_of_threads: num_cpus::get() - 1,
             paths_to_ignore: Vec::new(),
-            path_to_weights: CURRENT_DIR.clone().join("data/model/eng_weights_D300"),
-            path_to_vocab: CURRENT_DIR.clone().join("data/model/eng_vocab.json"),
+            path_to_weights: CURRENT_DIR.clone().join("data/model/en_weights_D300_Q8"),
+            path_to_vocab: CURRENT_DIR.clone().join("data/model/en_vocab.json"),
             embedding_dimensions: 300,
-            q8_scale: 1.0,
+            q8_scale: 3.9672408,
         }
     }
 }
@@ -290,7 +290,7 @@ pub fn initialize_config() {
         // This matches your actual file: en_weights_scale_D150_Q8.txt
         let scale_path = weights_path.to_str().unwrap().replace(
             &format!("_D{}", config.embedding_dimensions),
-            &format!("_scale_D{}", config.embedding_dimensions)
+            &format!("_scale_D{}", config.embedding_dimensions),
         ) + ".txt"; // Add the .txt extension explicitly
 
         config.q8_scale = fs::read_to_string(&scale_path)

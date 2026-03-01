@@ -1,15 +1,19 @@
 use criterion::{criterion_group, criterion_main, Criterion};
+use file_explorer_lib::config_handler::EMBEDDING_DIMENSIONS;
 use file_explorer_lib::db_search::run_search_logic;
-use file_explorer_lib::manager::{initialize_globals, manager_make_connection_pool, VOCAB, WEIGHTS};
+use file_explorer_lib::manager::{
+    initialize_globals, manager_make_connection_pool, VOCAB, WEIGHTS,
+};
 use std::hint::black_box;
 use std::path::PathBuf;
-use file_explorer_lib::config_handler::EMBEDDING_DIMENSIONS;
 
 fn bench_search(c: &mut Criterion) {
     // --- BENCHMARK OVERRIDE ---
     // We manually populate the globals to force D150 Q8 behavior
     let weights_path = PathBuf::from("/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/data/model/en_weights_D300_Q8");
-    let vocab_path = PathBuf::from("/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/data/model/en_vocab.json");
+    let vocab_path = PathBuf::from(
+        "/home/magnus/RustroverProjects/Semi24-Fileexplorer/src-tauri/data/model/en_vocab.json",
+    );
     let target_dim = 300;
 
     // 1. Force the Dimension Global
@@ -44,8 +48,13 @@ fn bench_search(c: &mut Criterion) {
     let pool = manager_make_connection_pool();
 
     if let Ok(conn) = pool.get() {
-        let count: i64 = conn.query_row("SELECT COUNT(*) FROM files", [], |r| r.get(0)).unwrap_or(0);
-        eprintln!("\x1b[93m[BENCHMARK] Database entries found: {}\x1b[0m", count);
+        let count: i64 = conn
+            .query_row("SELECT COUNT(*) FROM files", [], |r| r.get(0))
+            .unwrap_or(0);
+        eprintln!(
+            "\x1b[93m[BENCHMARK] Database entries found: {}\x1b[0m",
+            count
+        );
     }
 
     c.bench_function("search_database_performance", |b| {

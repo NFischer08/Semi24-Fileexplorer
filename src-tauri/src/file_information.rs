@@ -101,7 +101,9 @@ fn list_files_and_folders(filepath: String) -> Result<Vec<FileData>, String> {
             "The specified path '{}' is not valid. Seems like you forgot a slash.",
             path.to_string_lossy()
         );
-        return Err(String::from("The specified path is not valid. Seems like you forgot a slash."));
+        return Err(String::from(
+            "The specified path is not valid. Seems like you forgot a slash.",
+        ));
     }
 
     let mut entries: Vec<FileData> = Vec::new();
