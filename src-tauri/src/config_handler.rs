@@ -30,6 +30,7 @@ pub static PATHS_TO_IGNORE: OnceLock<Vec<PathBuf>> = OnceLock::new();
 pub static PATH_TO_WEIGHTS: OnceLock<PathBuf> = OnceLock::new();
 pub static PATH_TO_VOCAB: OnceLock<PathBuf> = OnceLock::new();
 pub static EMBEDDING_DIMENSIONS: OnceLock<usize> = OnceLock::new();
+pub static Q8_SCALE: OnceLock<f32> = OnceLock::new();
 
 // This should stay Lazy because it ensures that it can be used at all time
 pub static CURRENT_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
@@ -78,6 +79,8 @@ pub struct Settings {
     path_to_weights: PathBuf,
     path_to_vocab: PathBuf,
     embedding_dimensions: usize,
+    #[serde(skip)] // Don't save this to config.json, it's derived from the model file
+    pub q8_scale: f32,
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -93,9 +96,9 @@ impl Default for Settings {
             "gif", "mp3", "wav", "mp4", "avi", "mov", "mkv", "zip", "rar", "7z", "tar", "gz",
             "html", "css", "js", "py", "java", "c", "cpp", "rs", "json", "xml", "sql", "log",
         ]
-        .iter()
-        .map(|&s| String::from(s))
-        .collect();
+            .iter()
+            .map(|&s| String::from(s))
+            .collect();
 
         let favourite_extensions: HashMap<String, String> = [
             ("Images", "png,jpg,jpeg,gif"),
@@ -106,9 +109,9 @@ impl Default for Settings {
                 "c,cpp,cs,java,js,html,css,php,py,rs,sh,swift,ts,xml",
             ),
         ]
-        .iter()
-        .map(|&(key, value)| (String::from(key), String::from(value)))
-        .collect();
+            .iter()
+            .map(|&(key, value)| (String::from(key), String::from(value)))
+            .collect();
 
         Settings {
             allowed_extensions,
@@ -127,6 +130,7 @@ impl Default for Settings {
             path_to_weights: CURRENT_DIR.clone().join("data/model/eng_weights_D300"),
             path_to_vocab: CURRENT_DIR.clone().join("data/model/eng_vocab.json"),
             embedding_dimensions: 300,
+            q8_scale: 1.0,
         }
     }
 }
@@ -210,7 +214,7 @@ pub fn initialize_config() {
     path.push("data/config/config.json");
 
     // read the config file and parse it into the Settings struct (use default values when an error occurs)
-    let config: Settings = match read_config(&path) {
+    let mut config: Settings = match read_config(&path) {
         Ok(config) => {
             let raw_settings: serde_json::error::Result<RawSettings> =
                 serde_json::from_str(&config);
@@ -264,6 +268,7 @@ pub fn initialize_config() {
                             default_settings.path_to_vocab
                         },
                         embedding_dimensions: settings.embedding_dimensions,
+                        q8_scale: 1.0,
                     }
                 }
                 Err(e) => {
@@ -278,7 +283,23 @@ pub fn initialize_config() {
         }
     };
 
-    // set every constant, if something fails, the whole program immediately stops executing due to panicking
+    // Attempt to load the Q8 Scale if applicable
+    let weights_path = config.path_to_weights.clone();
+    let filename = weights_path.to_string_lossy();
+    if filename.contains("_Q8") {
+        // This matches your actual file: en_weights_scale_D150_Q8.txt
+        let scale_path = weights_path.to_str().unwrap().replace(
+            &format!("_D{}", config.embedding_dimensions),
+            &format!("_scale_D{}", config.embedding_dimensions)
+        ) + ".txt"; // Add the .txt extension explicitly
+
+        config.q8_scale = fs::read_to_string(&scale_path)
+            .map(|s| s.trim().parse().unwrap_or(1.0))
+            .unwrap_or(1.0);
+        info!("Loaded Q8 scale: {} from {:?}", config.q8_scale, scale_path);
+    }
+
+    // set every constant
     if let Err(e) = FAVOURITE_FILE_EXTENSIONS.set(config.favourite_extensions) {
         error!("Konnte favourite extensions nicht setzen: {e:?}");
     }
@@ -341,6 +362,10 @@ pub fn initialize_config() {
 
     if let Err(e) = EMBEDDING_DIMENSIONS.set(config.embedding_dimensions) {
         error!("Konnte embedding_dimensions nicht setzen: {e:?}");
+    }
+
+    if let Err(e) = Q8_SCALE.set(config.q8_scale) {
+        error!("Konnte Q8_SCALE nicht setzen: {e:?}");
     }
 }
 
@@ -474,6 +499,13 @@ pub fn get_embedding_dimensions() -> usize {
             Settings::default().embedding_dimensions
         }
         Some(val) => val.to_owned(),
+    }
+}
+
+pub fn get_q8_scale() -> f32 {
+    match Q8_SCALE.get() {
+        None => 1.0,
+        Some(val) => *val,
     }
 }
 

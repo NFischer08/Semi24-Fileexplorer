@@ -100,7 +100,7 @@ pub fn initialize_database(pooled_connection: &PooledConnection<SqliteConnection
             file_name TEXT NOT NULL,
             file_path TEXT NOT NULL,
             file_type TEXT NOT NULL,
-            name_embeddings BLOB NOT NULL
+            name_embeddings BLOB
         )",
         (),
     ) {

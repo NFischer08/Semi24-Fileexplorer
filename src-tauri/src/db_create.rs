@@ -1,6 +1,4 @@
-use crate::config_handler::{
-    get_allowed_file_extensions, get_create_batch_size, get_embedding_dimensions,
-};
+use crate::config_handler::{get_allowed_file_extensions, get_create_batch_size, get_embedding_dimensions, get_path_to_weights};
 use crate::db_util::{convert_to_forward_slashes, full_emb, is_allowed_file, Files};
 use jwalk::WalkDir;
 use log::{error, info, warn};
@@ -209,49 +207,70 @@ pub fn create_database(
 
                 //The Embedding takes up like 80% of the time per Batch
 
-                //Embeds the Batch and writes it as a Matrix
-                let batch_embeddings: Array2<f32> = {
-                    let embeddings: Vec<Vec<f32>> = batch_data
-                        .par_iter()
-                        .map(|file_data| {
-                            let file_name = &file_data.1;
-                            full_emb(file_name)
-                        })
-                        .collect();
+                // 1. Setup Quantization Metadata (Unchanged, but ensure get_q8_scale() is used)
+                let weights_path = get_path_to_weights();
+                let filename_str = weights_path.to_string_lossy();
+                let dim = get_embedding_dimensions();
+                let q8_scale = crate::config_handler::get_q8_scale();
+                let vocab = crate::manager::VOCAB.get().unwrap(); // Get vocab for the UNK check
 
-                    let n_samples = embeddings.len();
-                    match Array2::from_shape_vec(
-                        (n_samples, get_embedding_dimensions()),
-                        embeddings.into_iter().flatten().collect(),
-                    ) {
-                        Ok(arr) => arr,
-                        Err(e) => {
-                            error!("Shape mismatch in embedding: {e}");
-                            continue;
+                // 2. Embeds the Batch conditionally
+                // We use Option<Vec<f32>> to represent "meaningful" vs "junk" embeddings
+                let batch_embeddings_opt: Vec<Option<Vec<f32>>> = batch_data
+                    .par_iter()
+                    .map(|file_data| {
+                        let file_name = &file_data.1;
+
+                        // --- NEW CHECK: Is this name just UNK tokens? ---
+                        let tokens = crate::db_util::tokenize_file_name(file_name);
+                        let indices = crate::db_util::tokens_to_indices(tokens, vocab);
+
+                        if indices.is_empty() || indices.iter().all(|&idx| idx == 0) {
+                            None // Mark as junk/NULL
+                        } else {
+                            Some(full_emb(file_name)) // Generate real embedding
                         }
-                    }
-                };
-
-                // Transform the every Embedding into a Vec<u8> so that they can be stored in the Database
-                let embeddings_u8: Vec<Vec<u8>> = batch_embeddings
-                    .outer_iter()
-                    .map(|embedding_row| {
-                        embedding_row.iter().flat_map(|f| f.to_le_bytes()).collect()
                     })
                     .collect();
 
-                //c is a Counter used to check if there is a mismatch between embeddings_u8 and the Rest of the Dat
-                //The Batch Data is inserted into the Database
+                // 3. Transform into Vec<Option<Vec<u8>>>
+                // This allows the DB layer to insert NULL for the None variants
+                let embeddings_u8: Vec<Option<Vec<u8>>> = batch_embeddings_opt
+                    .into_iter()
+                    .map(|opt_emb| {
+                        let embedding_vec = opt_emb?; // If None, returns None for the whole map
+
+                        let row = if filename_str.contains("_Q8") {
+                            let mut r = Vec::with_capacity(dim);
+                            for f in embedding_vec {
+                                let quantized = (f * 127.0 / q8_scale).clamp(-128.0, 127.0) as i8;
+                                r.push(quantized as u8);
+                            }
+                            r
+                        } else if filename_str.contains("_Q16") {
+                            let mut r = Vec::with_capacity(dim * 2);
+                            for f in embedding_vec {
+                                r.extend_from_slice(&half::f16::from_f32(f).to_le_bytes());
+                            }
+                            r
+                        } else {
+                            embedding_vec.iter().flat_map(|f| f.to_le_bytes()).collect()
+                        };
+
+                        Some(row)
+                    })
+                    .collect();
+
+                // 4. Batch Data Insertion
                 for (c, file_data) in batch_data.iter().enumerate() {
                     let file = &file_data.0;
-                    if c < embeddings_u8.len() {
-                        let vec = &embeddings_u8[c];
+                    if let Some(vec) = embeddings_u8.get(c) {
                         if let Err(e) = insert_stmt.execute(params![
-                            file.file_name,
-                            file.file_path,
-                            file.file_type,
-                            vec
-                        ]) {
+                        file.file_name,
+                        file.file_path,
+                        file.file_type,
+                        vec
+                    ]) {
                             error!("Could not insert file {file:?}: {e}");
                         }
                     }

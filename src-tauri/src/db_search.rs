@@ -120,7 +120,7 @@ pub fn run_search_logic(
     //Creating channel
     let (sender, receiver) = crossbeam_channel::bounded(batch_size * 2);
 
-    // 1. Start the Query Thread with Zero-Copy Casting
+    // 1. Start the Query Thread with De-Quantization support
     let query_thread = std::thread::spawn(move || {
         let mut pooled_connection = match connection_pool.get() {
             Ok(conn) => conn,
@@ -158,7 +158,7 @@ pub fn run_search_logic(
             let mapped = match stmt.query_map(params.as_slice(), |row| {
                 let path: String = row.get(0)?;
                 let name: String = row.get(1)?;
-                let bytes: Vec<u8> = row.get(2)?;
+                let bytes: Option<Vec<u8>> = row.get(2)?;
                 Ok((path, name, bytes))
             }) {
                 Ok(mapped) => mapped,
@@ -169,28 +169,49 @@ pub fn run_search_logic(
             };
 
             let dim = *EMBEDDING_DIMENSIONS.get().unwrap_or(&300);
+            let weights_path = crate::config_handler::get_path_to_weights();
+            let filename = weights_path.to_string_lossy();
+            let q8_multiplier = crate::config_handler::get_q8_scale() / 127.0;
+
             let mut current_paths = Vec::with_capacity(batch_size);
             let mut current_names = Vec::with_capacity(batch_size);
             let mut current_embs = Vec::with_capacity(batch_size * dim);
 
-            for (path, name, bytes) in mapped.flatten() {
-                if bytes.len() == dim * 4 {
-                    let f32_slice: &[f32] = bytemuck::cast_slice(&bytes);
+            for (path, name, bytes_opt) in mapped.flatten() {
+                let mut f32_vec = Vec::with_capacity(dim);
 
-                    current_paths.push(path);
-                    current_names.push(name);
-                    current_embs.extend_from_slice(f32_slice);
-
-                    if current_paths.len() >= batch_size {
-                        let _ = sender.send(FlatBatch {
-                            paths: std::mem::take(&mut current_paths),
-                            names: std::mem::take(&mut current_names),
-                            embeddings: std::mem::take(&mut current_embs),
-                        });
-                        current_paths = Vec::with_capacity(batch_size);
-                        current_names = Vec::with_capacity(batch_size);
-                        current_embs = Vec::with_capacity(batch_size * dim);
+                if let Some(bytes) = bytes_opt {
+                    if filename.contains("_Q8") && bytes.len() == dim {
+                        for &b in &bytes {
+                            f32_vec.push((b as i8 as f32) * q8_multiplier);
+                        }
+                    } else if filename.contains("_Q16") && bytes.len() == dim * 2 {
+                        let f16_slice: &[half::f16] = bytemuck::cast_slice(&bytes);
+                        f32_vec.extend(f16_slice.iter().map(|f| f.to_f32()));
+                    } else if bytes.len() == dim * 4 {
+                        f32_vec.extend_from_slice(bytemuck::cast_slice(&bytes));
                     }
+                }
+
+                // If f32_vec is empty (NULL in DB), we fill it with zeros.
+                // This allows the file to be processed for Levenshtein results.
+                if f32_vec.is_empty() {
+                    f32_vec.resize(dim, 0.0);
+                }
+
+                current_paths.push(path);
+                current_names.push(name);
+                current_embs.extend(f32_vec);
+
+                if current_paths.len() >= batch_size {
+                    let _ = sender.send(FlatBatch {
+                        paths: std::mem::take(&mut current_paths),
+                        names: std::mem::take(&mut current_names),
+                        embeddings: std::mem::take(&mut current_embs),
+                    });
+                    current_paths = Vec::with_capacity(batch_size);
+                    current_names = Vec::with_capacity(batch_size);
+                    current_embs = Vec::with_capacity(batch_size * dim);
                 }
             }
 
@@ -204,7 +225,6 @@ pub fn run_search_logic(
         }
         let _ = tx.commit();
     });
-
     // 2. Pre-calculate search embedding
     let embedded_vec_f32 = full_emb(search_term);
     let dim = *EMBEDDING_DIMENSIONS.get().unwrap_or(&300);

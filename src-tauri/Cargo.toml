@@ -43,6 +43,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-log = "2"
 log = "0.4.27"
 tempfile = "3.26.0"
+half = { version = "2.7.1", features = ["bytemuck"] }
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3.9", features = ["shellapi", "winuser"] }

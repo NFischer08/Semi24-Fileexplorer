@@ -45,30 +45,46 @@ impl r2d2::CustomizeConnection<rusqlite::Connection, rusqlite::Error> for Sqlite
 pub fn initialize_globals() {
     info!("Initializing globals");
     WEIGHTS.get_or_init(|| {
-        let embedding_dim = get_embedding_dimensions();
+        let embedding_dim = get_embedding_dimensions(); // Currently returns 300 (WRONG)
+        let weights_path = get_path_to_weights();
+        let filename = weights_path.to_string_lossy();
 
-        let weights_bytes: Vec<u8> = match fs::read(get_path_to_weights()) {
-            Ok(bytes) => bytes,
-            Err(e) => {
-                error!("Could not read weights: {e}");
-                return Array2::zeros((0, 0));
-            }
-        };
-        let weights_as_f32: &[f32] = cast_slice(&weights_bytes);
+        let weights_bytes = fs::read(&weights_path).unwrap_or_else(|e| {
+            error!("Could not read weights: {e}");
+            Vec::new()
+        });
 
-        let vocab_size = if embedding_dim == 0 {
-            0
+        if weights_bytes.is_empty() { return Array2::zeros((0, 0)); }
+
+        let weights_f32: Vec<f32> = if filename.contains("_Q8") {
+            let scale = crate::config_handler::get_q8_scale();
+            weights_bytes.iter().map(|&b| (b as i8 as f32) * (scale / 127.0)).collect()
+        } else if filename.contains("_Q16") {
+            cast_slice::<u8, half::f16>(&weights_bytes).iter().map(|f| f.to_f32()).collect()
         } else {
-            weights_as_f32.len() / embedding_dim
+            cast_slice::<u8, f32>(&weights_bytes).to_vec()
         };
 
-        match Array2::from_shape_vec((vocab_size, embedding_dim), weights_as_f32.to_vec()) {
-            Ok(arr) => arr,
-            Err(e) => {
-                error!("Shape mismatch in weights: {e}");
-                Array2::zeros((0, 0))
-            }
+        let total_elements = weights_f32.len();
+
+        // Check if the data actually fits the dimensions
+        if total_elements % embedding_dim != 0 {
+            error!(
+                "CRITICAL: Model file has {} elements, which is not divisible by dim {}.
+                Is your config.json set to 150?",
+                total_elements, embedding_dim
+            );
+            return Array2::zeros((0, 0));
         }
+
+        let vocab_size = total_elements / embedding_dim;
+        info!("Model Loaded: Vocab={}, Dim={}", vocab_size, embedding_dim);
+
+        Array2::from_shape_vec((vocab_size, embedding_dim), weights_f32)
+            .unwrap_or_else(|e| {
+                error!("Shape error: {e}");
+                Array2::zeros((0, 0))
+            })
     });
 
     VOCAB.get_or_init(|| load_vocab(&get_path_to_vocab()));
