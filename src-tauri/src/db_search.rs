@@ -156,15 +156,10 @@ pub fn run_search_logic(
             };
 
             let mapped = match stmt.query_map(params.as_slice(), |row| {
-                // 1. Fetch as ValueRef to look at the memory directly
                 let path: String = row.get(0)?;
                 let name: String = row.get(1)?;
-                let blob_ref = row.get_ref(2)?.as_blob()?; // Zero-copy access to SQLite memory
-
-                // 2. Cast and then extend into your batch (reducing to 1 copy total)
-                let f32_slice: &[f32] = bytemuck::cast_slice(blob_ref);
-
-                Ok((path, name, f32_slice.to_vec())) // This is the only copy that happens
+                let bytes: Vec<u8> = row.get(2)?;
+                Ok((path, name, bytes))
             }) {
                 Ok(mapped) => mapped,
                 Err(e) => {
@@ -297,7 +292,10 @@ fn build_results(
                 last_modified: metadata
                     .as_ref()
                     .and_then(|m| m.modified().ok())
-                    .map(|t| format!("{:?}", t))
+                    .map(|t| {
+                        let datetime: chrono::DateTime<chrono::Local> = t.into();
+                        datetime.format("%d.%m.%Y %H:%M").to_string()
+                    })
                     .unwrap_or_else(|| "Unknown".to_string()),
                 size: metadata
                     .map(|m| format!("{} KB", m.len() / 1024))
