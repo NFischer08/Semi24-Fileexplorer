@@ -168,7 +168,10 @@ pub fn run_search_logic(
                 }
             };
 
-            let dim = *EMBEDDING_DIMENSIONS.get().unwrap_or(&300);
+            let dim = *EMBEDDING_DIMENSIONS.get().unwrap_or_else(|| {
+                error!("EMBEDDING_DIMENSIONS not initialized! Defaulting to 300.");
+                &300
+            });
             let weights_path = crate::config_handler::get_path_to_weights();
             let filename = weights_path.to_string_lossy();
             let q8_multiplier = crate::config_handler::get_q8_scale() / 127.0;
@@ -227,8 +230,10 @@ pub fn run_search_logic(
     });
     // 2. Pre-calculate search embedding
     let embedded_vec_f32 = full_emb(search_term);
-    let dim = *EMBEDDING_DIMENSIONS.get().unwrap_or(&300);
-
+    let dim = *EMBEDDING_DIMENSIONS.get().unwrap_or_else(|| {
+        log::error!("EMBEDDING_DIMENSIONS not initialized! Defaulting to 300.");
+        &300
+    });
     // 3. Parallel Processing with Arc-sharing
     let (results_lev, results_emb): (Vec<_>, Vec<_>) = receiver
         .into_iter()
