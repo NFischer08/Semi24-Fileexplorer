@@ -96,7 +96,7 @@ pub fn run() {
                         file_name: None,
                     },
                 ))
-                .level(LevelFilter::Warn)
+                .level(LevelFilter::Info)
                 .build(),
         )
         .setup(move |app| {

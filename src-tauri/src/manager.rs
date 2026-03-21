@@ -76,7 +76,7 @@ pub fn initialize_globals() {
         let total_elements = weights_f32.len();
 
         // Check if the data actually fits the dimensions
-        if total_elements % embedding_dim != 0 {
+        if !total_elements.is_multiple_of(embedding_dim) {
             error!(
                 "CRITICAL: Model file has {} elements, which is not divisible by dim {}.
                 Is your config.json set to 150?",

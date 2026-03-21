@@ -5,12 +5,12 @@ use crate::config_handler::{
 use crate::db_util::{convert_to_forward_slashes, full_emb, is_allowed_file, Files};
 use jwalk::WalkDir;
 use log::{error, info, warn};
-use ndarray::Array2;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::iter::ParallelIterator;
 use rusqlite::{params, Result};
+use std::path::Path;
 use std::{collections::HashSet, path::PathBuf, time::Instant};
 
 /// This Function takes in a connection pool as well as a Path as Input
@@ -294,5 +294,72 @@ pub fn create_database(
         path2,
         start_time.elapsed().as_millis()
     );
+
+    cleanup_non_existent_paths(connection_pool).expect("Cleanup panicked");
+
+    Ok(())
+}
+
+pub fn cleanup_non_existent_paths(
+    connection_pool: Pool<SqliteConnectionManager>,
+) -> Result<(), String> {
+    let start_time = Instant::now();
+
+    let mut conn = connection_pool.get().map_err(|e| {
+        error!("Unable to get connection from pool: {e}");
+        e.to_string()
+    })?;
+
+    // 1. Fetch all paths and calculate "Before" count
+    let (paths, count_before): (Vec<String>, usize) = {
+        let mut stmt = conn
+            .prepare("SELECT file_path FROM files")
+            .map_err(|e| e.to_string())?;
+
+        let rows = stmt
+            .query_map([], |row| row.get::<_, String>(0))
+            .map_err(|e| e.to_string())?;
+
+        let collected: Vec<String> = rows.flatten().collect();
+        let len = collected.len();
+        (collected, len)
+    };
+
+    info!("Checking file paths of entries for existence on disk...");
+
+    // 2. Filter for paths that do not exist on disk
+    let missing_paths: Vec<String> = paths
+        .into_iter()
+        .filter(|p| !Path::new(p).exists())
+        .collect();
+
+    let removed_count = missing_paths.len();
+
+    if missing_paths.is_empty() {
+        info!("No stale entries found. Entries after: {}", count_before);
+        return Ok(());
+    }
+
+    // 3. Delete missing paths in a single transaction
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    {
+        let mut del_stmt = tx
+            .prepare_cached("DELETE FROM files WHERE file_path = ?")
+            .map_err(|e| e.to_string())?;
+
+        for path in &missing_paths {
+            if let Err(e) = del_stmt.execute([path]) {
+                error!("Failed to delete path {}: {}", path, e);
+            }
+        }
+    }
+    tx.commit().map_err(|e| e.to_string())?;
+
+    info!(
+        "Removed {} not existing entries. Process took {}ms",
+        removed_count,
+        start_time.elapsed().as_millis()
+    );
+
     Ok(())
 }
