@@ -64,9 +64,10 @@ pub fn watch_folder(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     ignore: &HashSet<&str>,
 ) {
-    let allowed_extensions: &HashSet<String> = ALLOWED_FILE_EXTENSIONS
-        .get()
-        .unwrap_or_else(|| &get_allowed_file_extensions());
+    let allowed_extensions: &HashSet<String> = match ALLOWED_FILE_EXTENSIONS.get() {
+        Some(allowed_extensions) => allowed_extensions,
+        None => &get_allowed_file_extensions(),
+    };
 
     // Create a channel to receive filesystem events
     let (sender, receiver) = channel::<notify::Result<Event>>();

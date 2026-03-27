@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "file_explorer",
-  "version": "0.1.0",
-  "identifier": "com.file-explorer.app",
+  "productName": "MNJ Explorer",
+  "version": "1.0.0",
+  "identifier": "com.mnj-explorer",
   "build": {
     "frontendDist": "../src"
   },
@@ -10,7 +10,7 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "file_explorer",
+        "title": "MNJ Explorer",
         "width": 1200,
         "height": 800,
         "resizable": true
