@@ -1,6 +1,6 @@
 use crate::config_handler::{get_search_batch_size, EMBEDDING_DIMENSIONS};
 use crate::db_util::{cosine_similarity, full_emb, tokenize_file_name, tokens_to_indices};
-use crate::file_information::FileDataFormatted;
+use crate::file_information::{FileData, FileDataFormatted};
 use crate::manager::{AppState, VOCAB};
 use log::{error, info};
 use r2d2::Pool;
@@ -12,8 +12,7 @@ use std::cmp::Ordering;
 use std::iter::repeat_n;
 use std::sync::Arc;
 use std::{
-    fs::{self},
-    path::{Path, PathBuf},
+    path::PathBuf,
     time::Instant,
 };
 use strsim::normalized_levenshtein;
@@ -304,30 +303,9 @@ fn build_results(
 
     matches
         .into_iter()
-        .map(|(path_arc, name_arc, _score)| {
-            let path = Path::new(path_arc.as_str());
-            let metadata = fs::metadata(path).ok();
-
-            FileDataFormatted {
-                name: name_arc.as_ref().clone(),
-                path: path_arc.as_ref().clone(),
-                last_modified: metadata
-                    .as_ref()
-                    .and_then(|m| m.modified().ok())
-                    .map(|t| {
-                        let datetime: chrono::DateTime<chrono::Local> = t.into();
-                        datetime.format("%d.%m.%Y %H:%M").to_string()
-                    })
-                    .unwrap_or_else(|| "Unknown".to_string()),
-                size: metadata
-                    .map(|m| format!("{} KB", m.len() / 1024))
-                    .unwrap_or_else(|| "0 KB".to_string()),
-                file_type: path
-                    .extension()
-                    .and_then(|ext| ext.to_str())
-                    .unwrap_or("file")
-                    .to_string(),
-            }
+        .map(|(path_arc, _name_arc, _score)| {
+            let path: PathBuf = PathBuf::from(path_arc.as_str());
+            FileData::from(path).format()
         })
         .collect()
 }
