@@ -5,18 +5,12 @@ use crate::config_handler::{
 use crate::db_create::create_database;
 use crate::db_search::search_database;
 use crate::db_util::{initialize_database, load_vocab};
-use crate::file_information::{get_file_information, FileData, FileDataFormatted};
 use bytemuck::cast_slice;
 use log::{error, info};
 use ndarray::Array2;
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
-use std::{
-    collections::HashMap,
-    fs::{self, DirEntry},
-    path::PathBuf,
-    sync::OnceLock,
-};
+use std::{collections::HashMap, fs, path::PathBuf, sync::OnceLock};
 use tauri::{command, AppHandle, State};
 
 #[derive(Debug)]
@@ -95,14 +89,6 @@ pub fn initialize_globals() {
     });
 
     VOCAB.get_or_init(|| load_vocab(&get_path_to_vocab()));
-}
-
-/// Builds up the FileDataFormatted Struct from DireEntries
-pub fn build_struct(entries: Vec<DirEntry>) -> Vec<FileDataFormatted> {
-    entries
-        .into_iter()
-        .map(|entry| FileData::format(get_file_information(&entry)))
-        .collect()
 }
 
 /// Creates the connection pool to the Database which is called files.sqlite3

@@ -345,5 +345,8 @@ pub fn clean_path(filepath: String) -> PathBuf {
             return path;
         };
     }
-    PathBuf::from("/").join(parts.join("/"))
+    #[cfg(not(target_os = "windows"))]
+    {
+        PathBuf::from("/").join(parts.join("/"))
+    }
 }

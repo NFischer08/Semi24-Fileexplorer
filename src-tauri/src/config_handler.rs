@@ -227,13 +227,13 @@ pub fn initialize_config() {
                         .paths_to_index
                         .iter()
                         .map(PathBuf::from)
-                        .filter(|path| path.exists())
+                        //.filter(|path| path.exists())
                         .collect();
                     let paths_to_ignore: Vec<PathBuf> = settings
                         .paths_to_ignore
                         .iter()
                         .map(PathBuf::from)
-                        .filter(|path| path.exists())
+                        //.filter(|path| path.exists())
                         .collect();
                     Settings {
                         allowed_extensions: settings.allowed_extensions,

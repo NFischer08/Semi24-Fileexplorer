@@ -143,8 +143,7 @@ pub fn watch_folder(
                                             insert_into_db(pooled_connection, &file_path);
                                         }
                                     }
-                                    // Other cases should not occur / are not of interest since they mean something don't go as planned
-                                    // Cap on Linux creating txt files is other
+                                    // Other cases should not occur / are not of interest since they mean something didn't go as planned
                                     _ => {
                                         warn!("Something else {file_path:?}, ({mode:?})")
                                     }
