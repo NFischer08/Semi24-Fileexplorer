@@ -11,10 +11,7 @@ use rayon::prelude::ParallelSliceMut;
 use std::cmp::Ordering;
 use std::iter::repeat_n;
 use std::sync::Arc;
-use std::{
-    path::PathBuf,
-    time::Instant,
-};
+use std::{path::PathBuf, time::Instant};
 use strsim::normalized_levenshtein;
 use tauri::{Emitter, State};
 

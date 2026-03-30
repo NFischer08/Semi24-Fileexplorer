@@ -74,10 +74,16 @@ pub fn is_allowed_file(path: &Path, allowed_file_extensions: &HashSet<String>) -
         return *INDEX_DIRECTORIES.get().unwrap_or(&true);
     }
 
-    path.extension()
+    if path
+        .extension()
         .and_then(|s| s.to_str())
         .map(|ext| allowed_file_extensions.contains(ext))
         .unwrap_or(*INDEX_BINARIES.get().unwrap_or(&true))
+    {
+        return true;
+    }
+
+    !path.exists()
 }
 
 /// Generates the Database if it doesn't already exist and makes sure that path is indexed

@@ -1,8 +1,7 @@
 use crate::config_handler::{
     get_allowed_file_extensions, get_paths_to_ignore, get_paths_to_index, ALLOWED_FILE_EXTENSIONS,
-    INDEX_HIDDEN_FILES,
 };
-use crate::db_util::{check_folder, delete_from_db, insert_into_db, is_allowed_file, is_hidden};
+use crate::db_util::{check_folder, delete_from_db, insert_into_db, is_allowed_file};
 use crate::manager::{manager_make_connection_pool, manager_populate_database};
 use log::{error, info, warn};
 use notify::{
@@ -99,10 +98,6 @@ pub fn watch_folder(
                         if file_path.to_string_lossy().contains(folder) {
                             continue 'event;
                         }
-                    }
-
-                    if !*INDEX_HIDDEN_FILES.get().unwrap_or(&true) && is_hidden(&file_path) {
-                        continue 'event;
                     }
 
                     // check if the path is from interest
