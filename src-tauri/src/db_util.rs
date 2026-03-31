@@ -274,21 +274,26 @@ pub fn delete_from_db(
     pooled_connection: &PooledConnection<SqliteConnectionManager>,
     file_path: &Path,
 ) {
-    info!("Deleting {:?}", &file_path);
-
-    let path_str = file_path.to_string_lossy().replace("\\", "/");
-    /*
-    if !path_str.ends_with('/') {
-        path_str.push('/');
+    let base_path = file_path.to_string_lossy().replace("\\", "/");
+    let mut folder_pattern = base_path.clone();
+    if !folder_pattern.ends_with('/') {
+        folder_pattern.push('/');
     }
+    folder_pattern.push('%');
 
-     */
-    let like_pattern = format!("{path_str}%");
-
-    if let Err(e) =
-        pooled_connection.execute("DELETE FROM files WHERE file_path LIKE ?", (like_pattern,))
-    {
-        error!("Couldn't delete file in pooled connection: {e}");
+    match pooled_connection.execute(
+        "DELETE FROM files WHERE file_path = ?1 OR file_path LIKE ?2",
+        (&base_path, &folder_pattern),
+    ) {
+        Ok(count) if count > 0 => {
+            if count > 1 {
+                info!("Deleted directory {:?} and {} entries under it", file_path, count - 1);
+            } else {
+                info!("Deleted {:?}", file_path);
+            }
+        }
+        Ok(_) => {}
+        Err(e) => error!("Couldn't delete from DB: {e}"),
     }
 }
 

@@ -23,6 +23,7 @@ use std::{
     sync::mpsc::channel,
     thread,
 };
+use notify::event::RenameMode;
 
 /// gets all paths which need to be watched from config and starts watching each path
 /// as well as that it initializes the db connection
@@ -92,7 +93,7 @@ pub fn watch_folder(
         match res {
             Ok(event) => {
                 // usually only one path is returned (for-loop for safety)
-                'event: for file_path in event.paths {
+                'event: for file_path in &event.paths {
                     // ignore certain paths
                     for folder in ignore {
                         if file_path.to_string_lossy().contains(folder) {
@@ -109,9 +110,7 @@ pub fn watch_folder(
                                 insert_into_db(pooled_connection, &file_path);
 
                                 if file_path.is_dir() {
-                                    // update db function starting at `file_path`
-                                    // folder content is needed to be checked recursively
-                                    let _ = manager_populate_database(file_path);
+                                    let _ = manager_populate_database(file_path.clone()); // TODO! this is very heavy and freezes the main Thread
                                 }
                             }
                             Remove(_) => {
@@ -120,11 +119,11 @@ pub fn watch_folder(
                             Modify(Name(mode)) => {
                                 // From gives an old path, To give a new path
                                 match mode {
-                                    From => {
+                                    RenameMode::From => {
                                         // remove a file from db
                                         delete_from_db(pooled_connection, &file_path);
                                     }
-                                    To => {
+                                    RenameMode::To => {
                                         if file_path.is_dir() {
                                             // get a parent path and check it
                                             let parent_path = file_path
@@ -137,6 +136,13 @@ pub fn watch_folder(
                                             // insert a file into db
                                             insert_into_db(pooled_connection, &file_path);
                                         }
+                                    }
+                                    RenameMode::Both => {
+                                        if let (Some(old), Some(new)) = (event.paths.get(0), event.paths.get(1)) {
+                                            delete_from_db(pooled_connection, old);
+                                            insert_into_db(pooled_connection, new);
+                                        }
+                                        break 'event;
                                     }
                                     // Other cases should not occur / are not of interest since they mean something didn't go as planned
                                     _ => {
