@@ -28,7 +28,7 @@ pub fn create_database(
     // Starting Channel
     let (tx, rx) = crossbeam_channel::bounded(batch_size * 2);
 
-    // Creates a Thread that genrates Hashset of every Name as well as Path from the Database
+    // Creates a Thread that generates a Hashset of every Name as well as Path from the Database
     let existing_files_thread = std::thread::spawn({
         let connection_pool = connection_pool.clone();
         move || {
@@ -104,7 +104,7 @@ pub fn create_database(
     let file_walking_thread = std::thread::spawn(move || {
         let mut batch: Vec<Files> = Vec::with_capacity(batch_size);
         WalkDir::new(&path)
-            .follow_links(false)
+            .follow_links(true)
             .into_iter()
             .for_each(|entry_result| {
                 if let Ok(entry) = entry_result {
@@ -142,7 +142,7 @@ pub fn create_database(
                                     Vec::with_capacity(batch_size),
                                 )) {
                                     error!("Failed to send batch: {e}");
-                                    // Stop walking if receiver is gone
+                                    // Stop walking if the receiver is gone
                                 }
                             }
                         } else {

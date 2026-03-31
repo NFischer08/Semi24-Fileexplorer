@@ -287,7 +287,11 @@ pub fn delete_from_db(
     ) {
         Ok(count) if count > 0 => {
             if count > 1 {
-                info!("Deleted directory {:?} and {} entries under it", file_path, count - 1);
+                info!(
+                    "Deleted directory {:?} and {} entries under it",
+                    file_path,
+                    count - 1
+                );
             } else {
                 info!("Deleted {:?}", file_path);
             }

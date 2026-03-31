@@ -6,10 +6,7 @@ use crate::manager::{manager_make_connection_pool, manager_populate_database};
 use log::{error, info, warn};
 use notify::{
     self,
-    event::{
-        ModifyKind::Name,
-        RenameMode::{From, To},
-    },
+    event::{ModifyKind::Name, RenameMode},
     recommended_watcher, Event,
     EventKind::{Create, Modify, Remove},
     RecursiveMode, Watcher,
@@ -23,7 +20,6 @@ use std::{
     sync::mpsc::channel,
     thread,
 };
-use notify::event::RenameMode;
 
 /// gets all paths which need to be watched from config and starts watching each path
 /// as well as that it initializes the db connection
@@ -110,7 +106,9 @@ pub fn watch_folder(
                                 insert_into_db(pooled_connection, &file_path);
 
                                 if file_path.is_dir() {
-                                    let _ = manager_populate_database(file_path.clone()); // TODO! this is very heavy and freezes the main Thread
+                                    println!("{file_path:?} is a directory");
+                                    let _ = manager_populate_database(file_path.clone());
+                                    // TODO! this is very heavy and freezes the main Thread
                                 }
                             }
                             Remove(_) => {
@@ -138,7 +136,9 @@ pub fn watch_folder(
                                         }
                                     }
                                     RenameMode::Both => {
-                                        if let (Some(old), Some(new)) = (event.paths.get(0), event.paths.get(1)) {
+                                        if let (Some(old), Some(new)) =
+                                            (event.paths.get(0), event.paths.get(1))
+                                        {
                                             delete_from_db(pooled_connection, old);
                                             insert_into_db(pooled_connection, new);
                                         }
